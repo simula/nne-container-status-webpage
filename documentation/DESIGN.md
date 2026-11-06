@@ -186,7 +186,7 @@ Plain inline JavaScript, no library.
 
 ## 9. Generator
 
-`container_status.py`: one module, standard library and pandas (conda environment `nnedbtools`, Python 3.14).
+`prototype/container_status.py`: one module, standard library and pandas (conda environment `nnedbtools`, Python 3.14).
 
 Input contract (the synthetic generator and the database loader produce the same three frames):
 
@@ -200,8 +200,8 @@ Flow: `thread_states` (latest row, classes, starts per thread) → `cell` (state
 node and container) → `summarise` → `render` (Overview, grid, Problems, node detail) → one HTML string.
 
 ```
-python container_status.py --synthetic out.html     # synthetic showcase
-python test_container_status.py                     # checks (or pytest)
+python prototype/container_status.py --synthetic out.html     # synthetic showcase
+cd prototype && python test_container_status.py    # checks
 ```
 
 Synthetic data: 18 scenarios × DEPLOYED / TESTING = 36 nodes with ids from 90001: all long-run, fresh restart, young,
@@ -209,7 +209,7 @@ stable, late, stale, down, long down, never, udpping partial, thread missing, th
 extra containers, nothing running, no data, inactive experiment. The target container of a scenario rotates over the
 main containers; experiments carry made-up parameters; some nodes have no municipality.
 
-`test_container_status.py` checks the class boundaries, flapping, the worst thread / partial / orphan rules and that
+`prototype/test_container_status.py` checks the class boundaries, flapping, the worst thread / partial / orphan rules and that
 the synthetic data cover every class.
 
 ## 10. Phase 2: database loader

@@ -146,8 +146,10 @@ code {
   justify-content: flex-end;
 }
 
-/* TabButton (sub tabs, e.g. dcc.Tab className="tab-button" selected_className="tab-button--selected") */
-.tab-button {
+/* TabButton on dcc.Tabs (components/tabs.py: className "sub-tabs", tabs "tab-button" / "tab-button--selected").
+   Dash 4 injects its own .tab / .tab--selected rules after this file: the selectors here are more specific. */
+.sub-tabs .tab.tab-button {
+  flex: 0 0 auto;
   align-items: center;
   background: var(--border);
   border: 0 solid var(--border);
@@ -159,13 +161,17 @@ code {
   padding: 0.5em 1em;
 }
 
-.tab-button:hover {
+.sub-tabs .tab.tab-button:hover {
   color: var(--hover);
 }
 
-.tab-button--selected {
+.sub-tabs .tab.tab-button.tab-button--selected {
   background: transparent;
   border-width: 2px 2px 0 2px;
+}
+
+.sub-tabs .tab.tab-button.tab-button--selected:hover {
+  color: var(--black);
 }
 
 /* Phone landscape (config.tsx MAX_WIDTH_PHONE_LANDSCAPE 950, FONT_SIZE_PHONE 0.6) */
@@ -181,5 +187,5 @@ code {
   .logo { height: 0.5em; }
   .header-text, .clock { font-size: 0.6em; }
   .header-button { font-size: 0.6em; padding: 0 0.25em; }
-  .tab-button { padding: 0; }
+  .sub-tabs .tab.tab-button { padding: 0; }
 }

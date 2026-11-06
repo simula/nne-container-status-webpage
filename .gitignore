@@ -1,4 +1,6 @@
 out.html
 __pycache__/
-vendor/
+*.egg-info/
+.venv/
+.pytest_cache/
 .db_env*

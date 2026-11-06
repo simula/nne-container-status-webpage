@@ -1,8 +1,11 @@
-# Development environment (Python as in nnedbtools): conda env create -f environment.yml
+# Development environment on macOS: conda provides Python, pip installs the project editable with its test and
+# development tools; nnedbtools comes from its release tag (pyproject.toml, needs SSH access to GitHub).
+# Create: conda env create -f environment.yml
 name: nne-container-status-webpage
+channels:
+  - conda-forge
 dependencies:
-  - python=3.14
+  - python=3.14.4
   - pip
   - pip:
-      - -r requirements.txt
-      - -e ../nnedbtools  # nnedbtools checkout next to this repository
+      - -e ".[test,dev]"

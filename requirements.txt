@@ -1,4 +1,0 @@
-dash==4.5.0
-dash-ag-grid==35.3.0
-plotly==7.1.0
-gunicorn==26.2.0
