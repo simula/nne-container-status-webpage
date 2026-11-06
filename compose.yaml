@@ -1,0 +1,17 @@
+# Development: scripts/build_wheel.sh && docker compose up --build   →  http://localhost:8050
+# The nne-reader env file (read access to nne and report) is mounted read-only as a secret, never built into the image:
+#   DB_ENV_FILE=/path/to/nne-reader.db_env docker compose up
+services:
+  webpage:
+    build: .
+    image: nne-container-status-webpage:dev
+    ports:
+      - "8050:8050"
+    environment:
+      DB_ENV_FILE: /run/secrets/db_env
+    secrets:
+      - db_env
+
+secrets:
+  db_env:
+    file: ${DB_ENV_FILE:-./.db_env}

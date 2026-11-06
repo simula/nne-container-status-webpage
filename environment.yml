@@ -1,0 +1,8 @@
+# Development environment (Python as in nnedbtools): conda env create -f environment.yml
+name: nne-container-status-webpage
+dependencies:
+  - python=3.14
+  - pip
+  - pip:
+      - -r requirements.txt
+      - -e ../nnedbtools  # nnedbtools checkout next to this repository
