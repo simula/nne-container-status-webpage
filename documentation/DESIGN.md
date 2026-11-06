@@ -12,7 +12,7 @@ running. The data are the container heartbeats that
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | next |
 | 4 | Database loader through nnedbtools (read-only) | |
 | 5 | nginx / TLS, set up from scratch | before deployment |
-| 6 | Detached deployment on oculus | later |
+| 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
 Sections 1 (scope) and 7–9 describe the static prototype; they are rewritten for the Dash app in phase 3.
 
@@ -227,11 +227,19 @@ Credentials come from an env file with a read-only account (`nnedbtools.identity
 Development reads go through the nnedbtools test harness (read-only guards). The first real run is compared with the
 figures in this document.
 
-## 11. Deployment on oculus (phase 3)
+## 11. Deployment on oculus (phase 6)
 
-Runs as a detached project from this repository on oculus, where nne-container-status-importer already runs. To be
-decided: schedule (heartbeats are hourly, e.g. after each import), where the HTML is served, access control and
-whether old pages are kept.
+As the batch nne-container-status-importer on the same host (its `documentation/INSTALLATION.md`): a virtual
+environment with the project, run by systemd. Docker is only for local development.
+
+- Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
+  nnedbtools from its release tag over SSH, as for the importer.
+- systemd service `deploy/nne-container-status-webpage.service` under the service user of the importer: runs
+  `gunicorn container_status_webpage.app:server` bound to localhost, restarted on failure, logs in the journal.
+- Settings as environment variables of the unit; `DB_ENV_FILE` points to the nne-reader env file outside the
+  repository (e.g. `~/.config/nne-container-status-webpage/`).
+- nginx with TLS in front (phase 5), set up from scratch; access control is decided there.
+- `deploy/` and `documentation/INSTALLATION.md` are written in this phase.
 
 ## 12. Open points
 

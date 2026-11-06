@@ -48,6 +48,9 @@ Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/s
 
 ## Docker
 
+Only for local development; the deployment on oculus uses a virtual environment with a systemd service
+([DESIGN.md section 11](DESIGN.md#11-deployment-on-oculus-phase-6)).
+
 ```bash
 DB_ENV_FILE=/path/to/nne-reader.db_env docker compose up --build    # http://localhost:8050
 ```
