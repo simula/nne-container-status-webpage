@@ -189,3 +189,54 @@ code {
   .header-button { font-size: 0.6em; padding: 0 0.25em; }
   .sub-tabs .tab.tab-button { padding: 0; }
 }
+
+/* Data line of a page: source and load time */
+.data-info {
+  color: var(--graphic-text);
+  font-size: 0.9em;
+  margin: 0 0 0.5em 0;
+}
+
+/* AG Grid in the look of the nne-viz tables (components/table, node/NodeItem.tsx): white rows, light lines, hover */
+.nne-grid {
+  margin-top: 0.5em;
+}
+
+.nne-grid .ag-root-wrapper {
+  --ag-font-family: inherit;
+  --ag-font-size: 14px;
+  --ag-background-color: var(--white);
+  --ag-header-background-color: var(--white);
+  --ag-header-text-color: var(--black);
+  --ag-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-row-hover-color: var(--border);
+  --ag-wrapper-border-radius: 5px;
+}
+
+.nne-grid .ag-header-cell:hover {
+  color: var(--text-hover);
+}
+
+/* Tooltips with one line per thread */
+.ag-tooltip {
+  white-space: pre-line;
+}
+
+/* Legend of the colour grid (components/grid.py) */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 6px 14px;
+  margin: 8px 0;
+}
+
+.legend i {
+  border: 1px solid var(--border);
+  display: inline-block;
+  height: 16px;
+  margin-right: 5px;
+  vertical-align: -4px;
+  width: 16px;
+}

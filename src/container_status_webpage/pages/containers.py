@@ -35,51 +35,68 @@
 # Contact: crna-eng@simula.no
 
 """
-Containers page: container status of the reported nodes. Skeleton with placeholder sub-tabs; the
-dashboard follows in phase 3 (documentation/DESIGN.md).
+Containers page: container status of the reported nodes in sub-tabs Overview, Grid, Problems and
+Node detail (documentation/DESIGN.md section 7). No page title: the header button and the sub-tabs
+name the view.
+
+Integrations:
+    1. data.cache.CACHE - loaded data of settings.DATA_SOURCE.
 
 Sample code:
     Served on / by the app (container_status_webpage.app).
 """
 
-from typing import List, Tuple
-
 import dash
 from dash import html
 
+from container_status_webpage import settings
+from container_status_webpage.components import grid
+from container_status_webpage.components.formatting import when
 from container_status_webpage.components.tabs import sub_tabs
+from container_status_webpage.data.cache import CACHE
 
 dash.register_page(
     __name__, path="/", name="Containers", title="NorNet edge – containers", order=0
 )
 
-# Sub-tabs: value, label, placeholder text
-TABS: List[Tuple[str, str, str]] = [
-    ("overview", "Overview", "nodes per status and how many run each container."),
-    ("grid", "Grid", "colour grid of nodes and containers."),
-    ("problems", "Problems", "nodes that are not fully OK."),
-    ("node", "Node detail", "timeline, threads and experiments of one node."),
-]
-
 
 def layout(**_query: str) -> html.Div:
     """
-    Page content, built on every page load.
+    Page content, built on every page load from the cached data.
 
     Args:
         **_query (str): Query string values (not used yet).
 
     Returns:
-        html.Div: Title and the sub-tabs.
+        html.Div: Data line and the sub-tabs.
     """
+    # 1. Loaded data
+    snapshot = CACHE.get()
+    info = (
+        f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
+        f"loaded {when(snapshot.loaded_at)} UTC"
+    )
+    # 2. Sub-tabs
     return html.Div(
         [
-            html.H2("Container status"),
+            html.P(info, className="data-info"),
             sub_tabs(
                 "containers-tabs",
                 [
-                    (value, label, html.P(f"Placeholder: {text}"))
-                    for value, label, text in TABS
+                    ("overview", "Overview", grid.overview(snapshot)),
+                    (
+                        "grid",
+                        "Grid",
+                        html.Div([grid.legend(), grid.status_grid(snapshot)]),
+                    ),
+                    ("problems", "Problems", grid.problems_grid(snapshot)),
+                    (
+                        "node",
+                        "Node detail",
+                        html.P(
+                            "Placeholder: timeline, threads and experiments of one node."
+                        ),
+                    ),
                 ],
             ),
         ]

@@ -35,7 +35,8 @@
 # Contact: crna-eng@simula.no
 
 """
-Plots page: plots now rendered in the nne-report and nne-exploratory notebooks. Placeholder.
+Plots page: plots now rendered in the nne-report and nne-exploratory notebooks. Placeholder. No page
+title: the header button names the view.
 
 Sample code:
     Served on /plots by the app (container_status_webpage.app).
@@ -59,6 +60,4 @@ def layout(**_query: str) -> html.Div:
     Returns:
         html.Div: Placeholder.
     """
-    return html.Div(
-        [html.H2("Plots"), html.P("Placeholder: plots from the notebooks.")]
-    )
+    return html.Div(html.P("Placeholder: plots from the notebooks."))

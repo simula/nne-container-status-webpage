@@ -162,7 +162,7 @@ depend on colour alone.
 ## 7. Page structure
 **Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet edge", one navigation
 button per page and the Norway clock; the page; orange footer with the SimulaMet logo. Pages: Containers (`/`),
-Plots (`/plots`).
+Plots (`/plots`). Pages have no title of their own: the selected header button and sub-tab name the view.
 
 **Containers page**: the time of the last data load, then sub-tabs in the nne-viz TabButton style.
 
