@@ -11,7 +11,7 @@ COPY app.py ./
 COPY pages/ pages/
 COPY assets/ assets/
 
-RUN useradd --system app
+RUN useradd --system --create-home app
 USER app
 EXPOSE 8050
 CMD ["gunicorn", "--bind", "0.0.0.0:8050", "--workers", "2", "app:server"]
