@@ -66,7 +66,7 @@ import pandas as pd
 
 # Main and extra containers (DESIGN.md section 4)
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
-EXTRA: Tuple[str, ...] = ("traceroute", "netperfmeter", "hipercontracer")
+EXTRA: Tuple[str, ...] = ("traceroute", "netperfmeter")
 
 # Fixed threads per container; udpping adds sender-<id> / receiver-<id> per active udpping
 # experiment

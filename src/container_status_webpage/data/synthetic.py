@@ -94,7 +94,6 @@ VERSION: Dict[str, str] = {
     "udpping": "electro",
     "traceroute": "chrono",
     "netperfmeter": "cryo",
-    "hipercontracer": "hipercontracer",
 }
 
 # Municipalities of the synthetic sites (municipality is optional)
@@ -136,12 +135,11 @@ def synthetic_threads(  # pylint: disable=too-many-return-statements
     names = expected_threads(container, experiment_ids)
     new, old = f"{VERSION[container]}-2-2-5", f"{VERSION[container]}-2-1-8-1"
     base: Runs = [(720, 0.5, new)]
-    # B. Extra containers only in the scenario "extra containers": running, down, late
+    # B. Extra containers only in the scenario "extra containers": running, down
     if container in EXTRA:
         runs = {
             "netperfmeter": base,
             "traceroute": [(720, 48, new)],
-            "hipercontracer": [(720, 3, new)],
         }[container]
         return (
             [(name, runs) for name in names] if scenario == "extra containers" else []

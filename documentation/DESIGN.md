@@ -77,7 +77,6 @@ On 2026-11-06: DEPLOYED 100, TESTING 16. Missing status records found on the way
 | udpping | main | `container`, plus `sender-<N>` and `receiver-<N>` per active udpping instance `N` | `electro-*` |
 | traceroute | extra | `container` | `chrono-*` |
 | netperfmeter | extra | `container` | `cryo-*` |
-| hipercontracer | extra | `container` (assumed, not in the data yet) | – |
 
 `homekeeping` is a thread of the `metadata` container, not a container of its own. A typical node runs two udpping
 experiments, so two sender and two receiver threads.
@@ -281,7 +280,6 @@ environment with the project, run by systemd. Docker is only for local developme
 
 ## 12. Open points
 
-- `hipercontracer` is not in the data yet; its thread names are assumed (`container`).
 - `measurement_desc_id` names: only udpping (1) is known.
 - Network → provider mapping for the colours (nne-viz provider names).
 - The real `parameters` format (the synthetic JSON is made up).
