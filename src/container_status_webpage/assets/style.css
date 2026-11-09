@@ -224,6 +224,31 @@ code {
 }
 
 /* Legend of the colour grid (components/grid.py) */
+/* Filter toolbar above a table */
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px 24px;
+  margin: 8px 0;
+}
+
+.toolbar-item {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-states,
+.toolbar-municipalities {
+  min-width: 300px;
+}
+
+.toolbar-nodes {
+  min-width: 200px;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;

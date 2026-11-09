@@ -55,7 +55,7 @@ grid.status_grid(CACHE.get())
 
 import json
 import math
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import dash_ag_grid as dag
 from dash import html
@@ -70,6 +70,9 @@ DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": True, "resizable":
 
 # Grid options of every table: tooltips after 300 ms
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
+
+# States and markers of the grid filter: a node matches when any of its cells has one
+STATES: Tuple[str, ...] = status.SEVERITY + ("partial", "orphan", "flapping")
 
 
 def status_column(field: str = "status") -> Dict[str, Any]:
@@ -154,7 +157,8 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
     Returns:
         dag.AgGrid: The grid (id status-grid).
     """
-    # 1. Rows: text, style id and tooltip of every container cell
+    # 1. Rows: text, style id and tooltip of every container cell, states and markers for the
+    #    filter
     styles: Dict[str, int] = {}
     rows = []
     for node in status.ordered(snapshot.nodes).itertuples():
@@ -163,14 +167,26 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             "status": node.status.capitalize(),
             "municipality": blank(node.municipality),
         }
+        states = set()
         for container in status.MAIN + status.EXTRA:
             cell = snapshot.summary.cells[node.node_id, container]
+            states |= {cell.state} - {"none"}
+            states |= {
+                marker
+                for marker, flag in (
+                    ("partial", cell.partial),
+                    ("orphan", cell.orphans),
+                    ("flapping", cell.flapping),
+                )
+                if flag
+            }
             style = json.dumps(
                 palette.cell_style(cell, node.status == "TESTING"), sort_keys=True
             )
             row[container] = palette.cell_text(cell)
             row[f"{container}__style"] = styles.setdefault(style, len(styles))
             row[f"{container}__tip"] = hover(node.node_id, node.status, container, cell)
+        row["states"] = sorted(states)
         rows.append(row)
 
     # 2. Container columns: one style condition per style id
@@ -190,15 +206,9 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             "cellStyle": {"styleConditions": conditions},
         }
 
-    # 3. Grid
+    # 3. Grid: filtered by the toolbar (filter_rows), not by column filters
     columns = [
-        {
-            "headerName": "Node",
-            "field": "node_id",
-            "width": 90,
-            "pinned": "left",
-            "filter": "agNumberColumnFilter",
-        },
+        {"headerName": "Node", "field": "node_id", "width": 90, "pinned": "left"},
         {**status_column(), "pinned": "left"},
         {
             "headerName": "Municipality",
@@ -216,11 +226,41 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         id="status-grid",
         rowData=rows,
         columnDefs=columns,
-        defaultColDef=DEFAULT_COLUMN,
+        defaultColDef={**DEFAULT_COLUMN, "filter": False},
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
         style={"height": "70vh"},
     )
+
+
+def filter_rows(
+    rows: List[Dict[str, Any]],
+    statuses: List[str],
+    states: List[str],
+    nodes: List[int],
+    municipalities: List[str],
+) -> List[Dict[str, Any]]:
+    """
+    Rows of the colour grid that match the toolbar; an empty control does not filter.
+
+    Args:
+        rows (List[Dict[str, Any]]): Rows of status_grid.
+        statuses (List[str]): Displayed statuses, e.g. ["Deployed"].
+        states (List[str]): Values of STATES; a node matches when any of its cells has one.
+        nodes (List[int]): Node ids.
+        municipalities (List[str]): Municipalities.
+
+    Returns:
+        List[Dict[str, Any]]: Matching rows in their order.
+    """
+    return [
+        row
+        for row in rows
+        if (not statuses or row["status"] in statuses)
+        and (not states or set(states) & set(row["states"]))
+        and (not nodes or row["node_id"] in nodes)
+        and (not municipalities or row["municipality"] in municipalities)
+    ]
 
 
 def legend() -> html.Div:

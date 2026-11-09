@@ -46,18 +46,126 @@ Sample code:
     Served on / by the app (container_status_webpage.app).
 """
 
+from typing import Any, Dict, List, Optional
+
 import dash
-from dash import html
+from dash import Input, Output, State, callback, dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.components import grid
 from container_status_webpage.components.formatting import when
 from container_status_webpage.components.tabs import sub_tabs
+from container_status_webpage.data import status
 from container_status_webpage.data.cache import CACHE
 
 dash.register_page(
     __name__, path="/", name="Containers", title="NorNet edge – containers", order=0
 )
+
+
+def grid_toolbar(rows: List[Dict[str, Any]]) -> html.Div:
+    """
+    Filter toolbar of the colour grid: status, state, node, municipality; the dropdowns search
+    their options while typing.
+
+    Args:
+        rows (List[Dict[str, Any]]): Rows of the grid, source of the node and municipality options.
+
+    Returns:
+        html.Div: The controls (ids grid-status, grid-state, grid-node, grid-municipality).
+    """
+    statuses = [name.capitalize() for name in status.STATUS_ORDER]
+    municipalities = sorted({row["municipality"] for row in rows} - {""})
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Status"),
+                    dcc.Checklist(
+                        id="grid-status", options=statuses, value=statuses, inline=True
+                    ),
+                ],
+                className="toolbar-item",
+            ),
+            html.Div(
+                [
+                    html.Span("State"),
+                    dcc.Dropdown(
+                        id="grid-state",
+                        options=[
+                            {"label": name.capitalize(), "value": name}
+                            for name in grid.STATES
+                        ],
+                        multi=True,
+                        placeholder="All states",
+                        className="toolbar-states",
+                    ),
+                ],
+                className="toolbar-item",
+            ),
+            html.Div(
+                [
+                    html.Span("Node"),
+                    dcc.Dropdown(
+                        id="grid-node",
+                        options=[row["node_id"] for row in rows],
+                        multi=True,
+                        placeholder="All nodes",
+                        className="toolbar-nodes",
+                    ),
+                ],
+                className="toolbar-item",
+            ),
+            html.Div(
+                [
+                    html.Span("Municipality"),
+                    dcc.Dropdown(
+                        id="grid-municipality",
+                        options=municipalities,
+                        multi=True,
+                        placeholder="All municipalities",
+                        className="toolbar-municipalities",
+                    ),
+                ],
+                className="toolbar-item",
+            ),
+        ],
+        className="toolbar",
+    )
+
+
+@callback(
+    Output("status-grid", "rowData"),
+    Input("grid-status", "value"),
+    Input("grid-state", "value"),
+    Input("grid-node", "value"),
+    Input("grid-municipality", "value"),
+    State("grid-rows", "data"),
+    prevent_initial_call=True,
+)
+def filter_grid(
+    statuses: Optional[List[str]],
+    states: Optional[List[str]],
+    nodes: Optional[List[int]],
+    municipalities: Optional[List[str]],
+    rows: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Rows of the colour grid that match the toolbar.
+
+    Args:
+        statuses (Optional[List[str]]): Checked statuses.
+        states (Optional[List[str]]): Selected states.
+        nodes (Optional[List[int]]): Selected node ids.
+        municipalities (Optional[List[str]]): Selected municipalities.
+        rows (List[Dict[str, Any]]): All rows of the grid.
+
+    Returns:
+        List[Dict[str, Any]]: Matching rows.
+    """
+    return grid.filter_rows(
+        rows, statuses or [], states or [], nodes or [], municipalities or []
+    )
 
 
 def layout(**_query: str) -> html.Div:
@@ -76,7 +184,9 @@ def layout(**_query: str) -> html.Div:
         f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
         f"loaded {when(snapshot.loaded_at)} UTC"
     )
-    # 2. Sub-tabs
+    table = grid.status_grid(snapshot)
+    rows = table.rowData  # pylint: disable=no-member
+    # 2. Sub-tabs; the grid tab keeps all rows in a store for filter_grid
     return html.Div(
         [
             html.P(info, className="data-info"),
@@ -87,7 +197,14 @@ def layout(**_query: str) -> html.Div:
                     (
                         "grid",
                         "Grid",
-                        html.Div([grid.legend(), grid.status_grid(snapshot)]),
+                        html.Div(
+                            [
+                                grid_toolbar(rows),
+                                grid.legend(),
+                                table,
+                                dcc.Store(id="grid-rows", data=rows),
+                            ]
+                        ),
                     ),
                     ("problems", "Problems", grid.problems_grid(snapshot)),
                     (

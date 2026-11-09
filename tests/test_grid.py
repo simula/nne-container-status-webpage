@@ -86,6 +86,25 @@ def test_status_grid_styles_every_cell():
     assert backgrounds == {background for background, _ in palette.COLOUR.values()}
 
 
+def test_filter_rows():
+    """Grid toolbar: status, any cell in a chosen state, node ids, municipalities; an empty control
+    does not filter."""
+    rows = grid.status_grid(SNAPSHOT).rowData
+    assert grid.filter_rows(rows, [], [], [], []) == rows
+    testing = grid.filter_rows(rows, ["Testing"], [], [], [])
+    assert testing and {row["status"] for row in testing} == {"Testing"}
+    never = grid.filter_rows(rows, [], ["never", "orphan"], [], [])
+    assert never and all({"never", "orphan"} & set(row["states"]) for row in never)
+    assert len(never) < len(rows)
+    nodes = [rows[0]["node_id"], rows[-1]["node_id"]]
+    assert [
+        row["node_id"] for row in grid.filter_rows(rows, [], [], nodes, [])
+    ] == nodes
+    place = next(row["municipality"] for row in rows if row["municipality"])
+    found = grid.filter_rows(rows, [], [], [], [place])
+    assert found and all(row["municipality"] == place for row in found)
+
+
 def test_problems_grid_rows():
     """The problem list shows every node that is not fully OK; a node without heartbeat first."""
     table = grid.problems_grid(SNAPSHOT)
