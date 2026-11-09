@@ -60,10 +60,7 @@ from nnedbtools.queries.augumentation import select_from_nne_measurement_instanc
 from nnedbtools.tables import NneAddressType, NneNodeAddress, ReportContainerRawdata
 from sqlalchemy import select, text
 
-from container_status_webpage.data.status import STATUS_ORDER
-
-# Satellite nodes, reported as DEPLOYED without node, node_info or node_status rows (section 3)
-SATELLITE_NODES: Tuple[int, ...] = (4071, 4072, 4073)
+from container_status_webpage.data.status import SATELLITE_NODES, STATUS_ORDER
 
 # Candidate nodes with their status and counts: an active experiment bound to a network and a
 # service, node_id >= 3100, or a satellite node; interfaces without service 7 (power switch SIM),
@@ -102,6 +99,8 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     nodes = pd.read_sql(text(NODES_SQL), engines.nne_engine)
     satellite = nodes.node_id.isin(SATELLITE_NODES)
     nodes.loc[satellite, "status"] = "DEPLOYED"
+    # Satellite nodes run no metadata container
+    nodes.loc[satellite, "experiments"] -= 1
     nodes = nodes[
         satellite | (nodes.status.isin(STATUS_ORDER) & (nodes.interfaces > 0))
     ]

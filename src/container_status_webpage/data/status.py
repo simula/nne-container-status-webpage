@@ -127,9 +127,14 @@ FLAPPING: int = 3
 
 # Receiver restarts (extra of a receiver-<N> row, reset when the container restarts): warning above
 # RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY when the run lasted RESTARTS_LONG_RUN_H or longer
-RESTARTS_PER_HOUR: float = 1
-RESTARTS_PER_DAY: float = 1
+RESTARTS_PER_HOUR: float = 60
+RESTARTS_PER_DAY: float = 1440
 RESTARTS_LONG_RUN_H: float = 168
+
+# Satellite nodes (documentation/DESIGN.md section 3): reported as DEPLOYED without node, node_info
+# or node_status rows; they run neither metadata nor mqtt
+SATELLITE_NODES: Tuple[int, ...] = (4071, 4072, 4073)
+SATELLITE_WITHOUT: Tuple[str, ...] = ("metadata", "mqtt")
 
 
 def seen_class(age_h: float) -> str:
@@ -465,7 +470,8 @@ def summarise(
             container,
             states,
             experiment_ids.get(node_id, []),
-            container == "metadata" or container in configured.get(node_id, set()),
+            (container == "metadata" or container in configured.get(node_id, set()))
+            and not (node_id in SATELLITE_NODES and container in SATELLITE_WITHOUT),
         )
         for node_id in nodes.node_id
         for container in MAIN + EXTRA

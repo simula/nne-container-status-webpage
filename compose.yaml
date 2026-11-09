@@ -1,7 +1,8 @@
 # Development: docker compose up --build   →  http://localhost:8050
 # The build fetches nnedbtools over SSH: an SSH agent with a GitHub key must run on the host.
 # The nne-reader env file (read access to nne and report) is mounted read-only as a secret, never built into the image:
-#   DB_ENV_FILE=/path/to/nne-reader.db_env docker compose up --build
+#   DB_ENV_FILE=/path/to/nne-reader.db_env DATA_SOURCE=database docker compose up --build
+# The nnedbtools log files land in ./exports/logs (git-ignored).
 services:
   webpage:
     build:
@@ -13,8 +14,11 @@ services:
       - "8050:8050"
     environment:
       DB_ENV_FILE: /run/secrets/db_env
+      DATA_SOURCE: ${DATA_SOURCE:-synthetic}
     secrets:
       - db_env
+    volumes:
+      - ./exports/logs:/home/app/logs
 
 secrets:
   db_env:

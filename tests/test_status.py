@@ -110,17 +110,16 @@ def test_flapping():
 
 
 def test_receiver_restart_warning():
-    """Receiver restarts: warning above 1 per hour, or above 1 per day once the run lasted 7 days;
-    the run counts as at least 1 h; no counter, no warning."""
+    """Receiver restarts: warning above 60 per hour, or above 1440 per day once the run lasted 7
+    days (the same rate); the run counts as at least 1 h; no counter, no warning."""
 
     def warned(restarts, run_h):
         return status.restart_warning({"restarts": restarts, "run_h": run_h})
 
     assert not warned(float("nan"), 10)
-    assert (warned(10, 10), warned(11, 10)) == (False, True)
-    assert (warned(1, 0), warned(2, 0)) == (False, True)
-    assert (warned(7, 168), warned(8, 168)) == (False, True)
-    assert not warned(8, 167)
+    assert (warned(600, 10), warned(601, 10)) == (False, True)
+    assert (warned(60, 0), warned(61, 0)) == (False, True)
+    assert (warned(10080, 168), warned(10081, 168)) == (False, True)
     assert status.rate_text(480) == "480/h" and status.rate_text(8 / 24) == "8.0/d"
 
 
@@ -163,6 +162,21 @@ def test_worst_thread_partial_and_orphans():
     assert (alive.orphan_container, alive.label) == (True, "1/2 ⚠")
     stopped = status.cell(1, "speedtest", states, [], expected=False)
     assert (stopped.state, stopped.orphan_container) == ("none", False)
+
+
+def test_satellite_without_metadata_and_mqtt():
+    """A satellite node expects neither metadata nor mqtt, even with an active MQTT instance: no
+    runs is "none", not a problem."""
+    nodes = pd.DataFrame(
+        [{"node_id": 4071, "status": "DEPLOYED", "municipality": None}]
+    )
+    experiments = pd.DataFrame(
+        [{"id": 1, "node_id": 4071, "measurement_desc_id": 26, "stop_time": pd.NaT}]
+    )
+    rawdata = raw(("speedtest", "container", 100, 0.5))  # node 1 only
+    summary = status.summarise(nodes, experiments, rawdata, NOW)
+    assert [summary.cells[4071, c].state for c in ("metadata", "mqtt")] == ["none"] * 2
+    assert status.problems(nodes, summary, rawdata).empty
 
 
 def test_synthetic_covers_every_class():

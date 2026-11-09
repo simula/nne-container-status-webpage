@@ -66,7 +66,8 @@ A node is reported when all of these hold:
 4. `nne.node_status` is DEPLOYED or TESTING (all other statuses, and nodes without a status record, are excluded).
 
 Exception: the satellite nodes **4071, 4072, 4073** are reported as DEPLOYED although nne has no `node`, `node_info`
-or `node_status` row for them (hardcoded in the loader). Satellite measurements on other nodes are ad hoc and follow
+or `node_status` row for them (hardcoded, `data/status.py` `SATELLITE_NODES`). They run neither the metadata nor
+the mqtt container: both are never expected there, and their experiment count has no +1 for metadata. Satellite measurements on other nodes are ad hoc and follow
 the rules above.
 
 On 2026-11-06: DEPLOYED 100, TESTING 16, unchanged with the conditions above on 2026-11-09. Missing status records
@@ -87,7 +88,8 @@ synchronised manually.
 | netperfmeter | NetPerfMeter | extra | 24 | `container` | `cryo-*` |
 
 A node **expects** the metadata container and the container of every active measurement instance, by the map of the
-node configuration generator (`nnedbtools.batch.node_config.SupportedExperimentMapper.CONTAINER_NAME_MAP`). QUIC
+node configuration generator (`nnedbtools.batch.node_config.SupportedExperimentMapper.CONTAINER_NAME_MAP`); the satellite nodes expect neither
+metadata nor mqtt (section 3). QUIC
 (25, `quic`) is not a standard container and is not shown. The group (main, extra) only orders the columns.
 
 `homekeeping` is a thread of the `metadata` container, not a container of its own. A typical node runs two udpping
@@ -148,8 +150,9 @@ A grid cell is one node and one container:
   without a configured instance";
 - **receiver restarts** (warning): `extra` of a `receiver-*` row counts the internal restarts of the udpping receiver
   after an error during the container run (reset when the container restarts). Rate = `extra / (seen_ts −
-  start_ts)`, the run counted as at least 1 h. Warning above 1 restart per hour, or above 1 per day when the run has
-  lasted 7 days or longer. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
+  start_ts)`, the run counted as at least 1 h. Warning above 60 restarts per hour, or above 1440 per day (the same rate) when the run
+  has lasted 7 days or longer. Chosen on 2026-11-09 from the rates of 233 receivers of 115 nodes: median 0.2 per hour,
+  90th percentile 53, 95th 289; 60 per hour flagged 12 nodes, 1 / 1 had flagged 89 of 119 nodes, 10 / 10 still 50. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
   On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
   first hour.
 
@@ -346,7 +349,7 @@ environment with the project, run by systemd. Docker is only for local developme
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools; the chip text of an instance without
   `service_id` from the service decorator is to be checked with the loader.
 - The real `parameters` format (the synthetic JSON is made up).
-- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 1 per hour / 1 per day) are constants
+- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour / 1440 per day) are constants
   to calibrate after real use.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the
   load turns out heavy.
