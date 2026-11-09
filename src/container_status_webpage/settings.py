@@ -42,7 +42,7 @@ Integrations:
         * DEBUG       - Dash development mode: hot reload, error overlay (default False)
         * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
                         report), used by the data loader from phase 4 (default .db_env)
-        * DATA_SOURCE - synthetic (default); database follows with the loader in phase 4
+        * DATA_SOURCE - synthetic (default) or database (data.loader, read-only)
         * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the Containers tab loads its
                                      data again (default 15,45; the importer writes at 10 and 40)
 
@@ -69,8 +69,10 @@ DEBUG: bool = _env.bool("DEBUG", False)
 # nnedbtools env file of the nne-reader account (read access to nne and report)
 DB_ENV_FILE: str = _env.str("DB_ENV_FILE", ".db_env")
 
-# Source of the data (database follows with the loader in phase 4)
-DATA_SOURCE: str = _env.str("DATA_SOURCE", "synthetic", validate=OneOf(["synthetic"]))
+# Source of the data
+DATA_SOURCE: str = _env.str(
+    "DATA_SOURCE", "synthetic", validate=OneOf(["synthetic", "database"])
+)
 
 # Minutes of the hour after which the Containers tab loads its data again (the importer writes at
 # minute 10 and 40 and gets 5 minutes to finish)

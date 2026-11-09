@@ -42,7 +42,8 @@ page load in between uses the same snapshot. The Containers tab uses CONTAINERS_
 
 Integrations:
     1. settings - DATA_SOURCE, CONTAINERS_CACHE_MINUTES.
-    2. data.synthetic - synthetic frames; the database loader follows in phase 4.
+    2. data.synthetic - synthetic frames; data.loader - frames of the databases (imported only
+       for DATA_SOURCE database, settings.DB_ENV_FILE).
 
 Sample code:
 ```python
@@ -104,10 +105,17 @@ def load(source: str, now: pd.Timestamp) -> Snapshot:
     Raises:
         ValueError: Unknown source.
     """
-    # 1. Frames of the source
-    if source != "synthetic":
+    # 1. Frames of the source; the loader only for the database, so synthetic data need no
+    #    credentials
+    if source == "synthetic":
+        nodes, experiments, raw = synthetic(now)
+    elif source == "database":
+        # pylint: disable-next=import-outside-toplevel
+        from container_status_webpage.data.loader import load_database
+
+        nodes, experiments, raw = load_database(settings.DB_ENV_FILE)
+    else:
         raise ValueError(f"Data source {source} is not available")
-    nodes, experiments, raw = synthetic(now)
     # 2. Summary at the load time
     return Snapshot(
         nodes, experiments, raw, status.summarise(nodes, experiments, raw, now), now
