@@ -16,4 +16,3 @@
   threads and experiments tables with the parameters JSON.
 - Header "NorNet is on the Edge", light background behind the SimulaMet footer logo.
 - Manual for starting and restarting the container and the environment (DEVELOPMENT.md).
-- Static HTML prototype removed (phase 1, see git history).

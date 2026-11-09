@@ -14,9 +14,6 @@ running. The data are the container heartbeats that
 | 5 | nginx / TLS, set up from scratch | before deployment |
 | 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
-The static HTML prototype of phase 1 settled the rules of sections 4–6 and the page ideas of sections 7–8; it was
-removed at the end of phase 3 (git history: `prototype/`).
-
 Figures quoted below were measured on 2026-11-06.
 
 ## 1. Scope
@@ -229,8 +226,8 @@ are marked.
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CONTAINERS_CACHE_MINUTES` |
-| `data/status.py` (3) | the rules of sections 4–6 ported from the prototype: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
-| `data/synthetic.py` (3) | synthetic data: the scenarios of the prototype, a mobile node and a release history |
+| `data/status.py` (3) | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
+| `data/synthetic.py` (3) | synthetic data: 20 scenarios covering every class and marker, including a mobile node and a release history |
 | `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
 | `components/frame.py`, `components/tabs.py` | page frame and sub-tabs |
@@ -256,9 +253,8 @@ extra containers, nothing running, no data, inactive experiment, mobile (three s
 container of a scenario rotates over the main containers; experiments carry made-up parameters; some nodes have no
 municipality.
 
-Tests without a browser: the rule checks of the prototype (class boundaries, flapping, worst thread / partial /
-orphan, synthetic coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built
-objects; the pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the
+Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
+coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the
 skeleton. Tests never import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page
 twice).
 
