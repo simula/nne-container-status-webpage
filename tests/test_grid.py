@@ -86,6 +86,24 @@ def test_status_grid_styles_every_cell():
     assert backgrounds == {background for background, _ in palette.COLOUR.values()}
 
 
+def test_tooltip_table_rows():
+    """Tooltip of a UDP Ping cell with orphans: one row per expected thread, then the orphans
+    flagged with their inactive experiment; every row has all table columns."""
+    nodes = SNAPSHOT.nodes
+    node_id = nodes.node_id[nodes.scenario == "inactive experiment"].iloc[0]
+    cell = SNAPSHOT.summary.cells[node_id, "udpping"]
+    tip = grid.hover(node_id, "DEPLOYED", "udpping", cell, SNAPSHOT.summary.states)
+    assert tip["title"].startswith(f"Node {node_id} · Deployed · UDP Ping: ")
+    assert [row["thread"] for row in tip["rows"]] == [
+        name for name, _ in cell.threads
+    ] + cell.orphans
+    orphans = [row for row in tip["rows"] if row.get("orphan")]
+    assert len(orphans) == len(cell.orphans) == 2
+    assert all(row["state"].startswith("inactive experiment ") for row in orphans)
+    columns = {"thread", "state", "colour", "version", "up", "seen", "ago", "starts"}
+    assert all(columns <= set(row) for row in tip["rows"])
+
+
 def test_filter_rows():
     """Grid toolbar: status, any cell in a chosen state, node ids, municipalities; an empty control
     does not filter."""

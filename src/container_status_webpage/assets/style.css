@@ -146,6 +146,13 @@ code {
   justify-content: flex-end;
 }
 
+/* SimulaMet logo: its orange part needs a light background on the orange footer */
+.footer-end img {
+  background: var(--white);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
 /* TabButton on dcc.Tabs (components/tabs.py: className "sub-tabs", tabs "tab-button" / "tab-button--selected").
    Dash 4 injects its own .tab / .tab--selected rules after this file: the selectors here are more specific. */
 .sub-tabs .tab.tab-button {
@@ -218,9 +225,49 @@ code {
   color: var(--text-hover);
 }
 
-/* Tooltips with one line per thread */
-.ag-tooltip {
-  white-space: pre-line;
+/* Tooltip of a grid cell: thread table (ThreadTable in dashAgGridComponentFunctions.js) */
+.thread-tip {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.thread-tip-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.thread-tip table {
+  border-collapse: collapse;
+}
+
+.thread-tip th,
+.thread-tip td {
+  padding: 1px 10px 1px 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.thread-tip th {
+  border-bottom: 1px solid var(--border);
+  color: var(--graphic-text);
+  font-weight: normal;
+}
+
+.thread-tip i {
+  border: 1px solid var(--border);
+  display: inline-block;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  width: 10px;
+}
+
+/* Orphan thread: palette.ORPHAN */
+.thread-tip tr.orphan td {
+  color: #a50f15;
 }
 
 /* Filter toolbar above a table */

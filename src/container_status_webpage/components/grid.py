@@ -55,7 +55,7 @@ grid.status_grid(CONTAINERS_CACHE.get())
 
 import json
 import math
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import dash_ag_grid as dag
 from dash import html
@@ -110,18 +110,58 @@ def status_column(field: str = "status") -> Dict[str, Any]:
     }
 
 
-def hover(node_id: int, node_status: str, container: str, cell: status.Cell) -> str:
+def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """
-    Tooltip of a grid cell: the cell, then one line per thread.
+    Row of the tooltip table: the latest run of a thread.
+
+    Args:
+        name (str): Thread name.
+        state (Optional[Dict[str, Any]]): Thread state (status.thread_states), None when never seen.
+
+    Returns:
+        Dict[str, str]: thread, state, colour of the state, version, up, seen, ago, starts.
+    """
+    if state is None:
+        return {
+            "thread": name,
+            "state": "never",
+            "colour": palette.COLOUR["never"][0],
+            **dict.fromkeys(("version", "up", "seen", "ago", "starts"), "–"),
+        }
+    running = state["seen"] == "running"
+    return {
+        "thread": name,
+        "state": state["seen"],
+        "colour": palette.COLOUR[state["up"] if running else state["seen"]][0],
+        "version": state["version"],
+        "up": duration(state["uptime"]),
+        "seen": when(state["seen_ts"]),
+        "ago": duration(state["age_h"] * 3600),
+        "starts": f"{state['starts_24h']} / {state['starts_7d']}",
+    }
+
+
+def hover(
+    node_id: int,
+    node_status: str,
+    container: str,
+    cell: status.Cell,
+    states: Dict[Tuple[int, str, str], Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Tooltip of a grid cell, drawn as a table by ThreadTable
+    (assets/dashAgGridComponentFunctions.js): a title with the cell, one row per expected thread,
+    then the orphans.
 
     Args:
         node_id (int): Node identifier.
         node_status (str): Status of the node.
         container (str): Container name.
         cell (status.Cell): The cell.
+        states (Dict[Tuple[int, str, str], Dict[str, Any]]): Thread states of the summary.
 
     Returns:
-        str: Lines separated by newlines.
+        Dict[str, Any]: title (str) and rows (thread_row, orphans with orphan True).
     """
     # 1. The cell
     markers = [
@@ -129,32 +169,26 @@ def hover(node_id: int, node_status: str, container: str, cell: status.Cell) -> 
         for flag, text in ((cell.partial, "partial"), (cell.flapping, "flapping"))
         if flag
     ]
-    lines = [
-        " · ".join(
-            [
-                f"Node {node_id}",
-                node_status.capitalize(),
-                f"{status.NAME[container]}: {cell.state}",
-                *markers,
-            ]
-        )
-    ]
-    # 2. Expected threads
-    for name, state in cell.threads:
-        if state is None:
-            lines.append(f"{name}: never seen")
-            continue
-        lines.append(
-            f"{name}: {state['seen']}, {state['version']}, up {duration(state['uptime'])}, "
-            f"last seen {when(state['seen_ts'])} ({duration(state['age_h'] * 3600)} ago), "
-            f"starts 24 h / 7 d: {state['starts_24h']} / {state['starts_7d']}"
-        )
-    # 3. Orphans
-    lines += [
-        f"{name}: running for inactive experiment {status.experiment_id(name)}"
+    title = " · ".join(
+        [
+            f"Node {node_id}",
+            node_status.capitalize(),
+            f"{status.NAME[container]}: {cell.state}",
+            *markers,
+        ]
+    )
+    # 2. Expected threads, then the orphans with the inactive experiment as state
+    rows = [thread_row(name, state) for name, state in cell.threads]
+    rows += [
+        {
+            **thread_row(name, states.get((node_id, container, name))),
+            "state": f"inactive experiment {status.experiment_id(name)}",
+            "colour": palette.ORPHAN,
+            "orphan": True,
+        }
         for name in cell.orphans
     ]
-    return "\n".join(lines)
+    return {"title": title, "rows": rows}
 
 
 def status_grid(snapshot: Snapshot) -> dag.AgGrid:
@@ -195,7 +229,9 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             )
             row[container] = palette.cell_text(cell)
             row[f"{container}__style"] = styles.setdefault(style, len(styles))
-            row[f"{container}__tip"] = hover(node.node_id, node.status, container, cell)
+            row[f"{container}__tip"] = hover(
+                node.node_id, node.status, container, cell, snapshot.summary.states
+            )
         row["states"] = sorted(states)
         rows.append(row)
 
@@ -212,6 +248,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             "headerName": status.NAME[container],
             "field": container,
             "tooltipField": f"{container}__tip",
+            "tooltipComponent": "ThreadTable",
             "width": 130,
             "cellStyle": {"styleConditions": conditions},
         }
