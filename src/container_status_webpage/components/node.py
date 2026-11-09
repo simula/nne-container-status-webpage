@@ -499,7 +499,8 @@ def threads_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
         {"headerName": "Up", "field": "up", "width": 90},
         {"headerName": "Last seen (UTC)", "field": "seen", "width": 160},
         {"headerName": "Ago", "field": "ago", "width": 90},
-        {"headerName": "Starts 24 h / 7 d", "field": "starts", "flex": 1},
+        {"headerName": "Starts 24 h / 7 d", "field": "starts", "width": 140},
+        {"headerName": "Receiver restarts", "field": "restarts", "flex": 1},
     ]
     return dag.AgGrid(
         id="node-threads",

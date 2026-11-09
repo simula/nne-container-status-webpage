@@ -20,6 +20,7 @@ dagcomponentfuncs.ThreadTable = function (props) {
     ["seen", "Last seen (UTC)"],
     ["ago", "Ago"],
     ["starts", "Starts 24 h / 7 d"],
+    ["restarts", "Receiver restarts"],
   ];
 
   function cell(row, key) {

@@ -125,6 +125,12 @@ UPTIME: Tuple[Tuple[float, str], ...] = (
 # Starts within 24 h from which a thread is flapping
 FLAPPING: int = 3
 
+# Receiver restarts (extra of a receiver-<N> row, reset when the container restarts): warning above
+# RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY when the run lasted RESTARTS_LONG_RUN_H or longer
+RESTARTS_PER_HOUR: float = 1
+RESTARTS_PER_DAY: float = 1
+RESTARTS_LONG_RUN_H: float = 168
+
 
 def seen_class(age_h: float) -> str:
     """
@@ -164,6 +170,53 @@ def experiment_id(process: str) -> Optional[int]:
     """
     kind, _, number = process.partition("-")
     return int(number) if kind in ("sender", "receiver") and number.isdigit() else None
+
+
+def restart_rate(state: Dict[str, Any]) -> Optional[float]:
+    """
+    Receiver restarts per hour of the latest run; the run counts as at least 1 h (heartbeats
+    arrive hourly).
+
+    Args:
+        state (Dict[str, Any]): Thread state of thread_states (restarts, run_h).
+
+    Returns:
+        Optional[float]: Restarts per hour, None without a counter.
+    """
+    if pd.isna(state.get("restarts")):
+        return None
+    return state["restarts"] / max(state["run_h"], 1)
+
+
+def restart_warning(state: Dict[str, Any]) -> bool:
+    """
+    The receiver restarts too often: above RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY after
+    RESTARTS_LONG_RUN_H.
+
+    Args:
+        state (Dict[str, Any]): Thread state of thread_states.
+
+    Returns:
+        bool: Warning.
+    """
+    rate = restart_rate(state)
+    if rate is None:
+        return False
+    long_run = state["run_h"] >= RESTARTS_LONG_RUN_H
+    return rate > RESTARTS_PER_HOUR or (long_run and rate * 24 > RESTARTS_PER_DAY)
+
+
+def rate_text(rate: float) -> str:
+    """
+    Text of a restart rate: per hour from 1 per hour, per day below.
+
+    Args:
+        rate (float): Restarts per hour.
+
+    Returns:
+        str: E.g. "480/h", "8.1/d".
+    """
+    return f"{rate:.0f}/h" if rate >= 1 else f"{rate * 24:.1f}/d"
 
 
 def expected_threads(container: str, experiment_ids: List[int]) -> Tuple[str, ...]:
@@ -239,9 +292,11 @@ def thread_states(
     # 1. Latest run per thread
     key = ["node_id", "container", "process"]
     latest = raw.sort_values("seen_ts").groupby(key).tail(1).set_index(key)
-    # 2. Starts per thread within 24 h and 7 days
+    # 2. Starts per thread within 24 h and 7 days; receiver restarts of the run (extra)
     starts = raw.groupby(key).start_ts
     states = latest[["start_ts", "seen_ts", "uptime", "version"]].assign(
+        restarts=pd.to_numeric(latest.extra, errors="coerce"),
+        run_h=(latest.seen_ts - latest.start_ts).dt.total_seconds() / 3600,
         age_h=(now - latest.seen_ts).dt.total_seconds() / 3600,
         starts_24h=starts.apply(
             lambda s: s[s > now - pd.Timedelta(hours=24)].nunique()
@@ -275,6 +330,8 @@ class Cell:
     orphans: List[str] = field(default_factory=list)
     # The container is alive although no active instance of the node configures it
     orphan_container: bool = False
+    # Expected threads (receivers) that restart too often (restart_warning)
+    restart_warnings: List[str] = field(default_factory=list)
 
     @property
     def running(self) -> bool:
@@ -349,7 +406,10 @@ def cell(
         label += f" ⚠+{len(orphans)}"
     if not expected:
         label += " ⚠"
-    # 5. Worst class, shade of the freshest running thread, flapping
+    warnings = [name for name, state in threads if state and restart_warning(state)]
+    if warnings:
+        label += " ↻"
+    # 5. Worst class, shade of the freshest running thread, flapping, restart warnings
     return Cell(
         state=max((state["seen"] for state in present), key=SEVERITY.index),
         shade=(
@@ -363,6 +423,7 @@ def cell(
         threads=threads,
         orphans=orphans,
         orphan_container=not expected,
+        restart_warnings=warnings,
     )
 
 
@@ -447,7 +508,8 @@ def status_groups(nodes: pd.DataFrame) -> List[Tuple[str, List[int]]]:
 
 def main_ok(c: Cell) -> bool:
     """
-    A main cell without issue: not configured, or running, not partial, without orphans.
+    A main cell without issue: not configured, or running, not partial, without orphans and restart
+    warnings.
 
     Args:
         c (Cell): The cell.
@@ -460,6 +522,7 @@ def main_ok(c: Cell) -> bool:
         and not c.partial
         and not c.orphans
         and not c.orphan_container
+        and not c.restart_warnings
     )
 
 
@@ -531,8 +594,16 @@ def issue(container: str, c: Cell) -> str:
         str: E.g. "UDP Ping: partial S 1/2 R 2/2", empty when the cell is fine.
     """
     bad = c.state not in ("running", "none")
-    if not (bad or c.partial or c.flapping or c.orphans or c.orphan_container):
+    if not (
+        bad
+        or c.partial
+        or c.flapping
+        or c.orphans
+        or c.orphan_container
+        or c.restart_warnings
+    ):
         return ""
+    states = dict(c.threads)
     parts = (
         f"{NAME[container]}:",
         "running without a configured instance" if c.orphan_container else "",
@@ -540,6 +611,10 @@ def issue(container: str, c: Cell) -> str:
         f"partial {c.label}" if c.partial else "",
         "flapping" if c.flapping else "",
         f"running for inactive experiment {', '.join(c.orphans)}" if c.orphans else "",
+        ", ".join(
+            f"{name} restarts {rate_text(restart_rate(states[name]))}"
+            for name in c.restart_warnings
+        ),
     )
     return " ".join(part for part in parts if part)
 

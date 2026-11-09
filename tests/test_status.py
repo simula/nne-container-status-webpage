@@ -109,6 +109,21 @@ def test_flapping():
     assert not status.cell(1, "speedtest", two, []).flapping
 
 
+def test_receiver_restart_warning():
+    """Receiver restarts: warning above 1 per hour, or above 1 per day once the run lasted 7 days;
+    the run counts as at least 1 h; no counter, no warning."""
+
+    def warned(restarts, run_h):
+        return status.restart_warning({"restarts": restarts, "run_h": run_h})
+
+    assert not warned(float("nan"), 10)
+    assert (warned(10, 10), warned(11, 10)) == (False, True)
+    assert (warned(1, 0), warned(2, 0)) == (False, True)
+    assert (warned(7, 168), warned(8, 168)) == (False, True)
+    assert not warned(8, 167)
+    assert status.rate_text(480) == "480/h" and status.rate_text(8 / 24) == "8.0/d"
+
+
 def test_worst_thread_partial_and_orphans():
     """Worst seen thread sets the state; never seen threads make a cell partial; running threads of
     inactive
@@ -161,6 +176,7 @@ def test_synthetic_covers_every_class():
     assert any(c.flapping for c in cells)
     assert any(c.orphans for c in cells)
     assert any(c.orphan_container for c in cells)
+    assert any(c.restart_warnings for c in cells)
     assert tuple(nodes.status.unique()) == status.STATUS_ORDER
 
 
@@ -181,7 +197,7 @@ def test_problems_and_overview():
         "release history",
     }
     assert set(found.node_id.map(scenario)) == set(SCENARIOS) - healthy
-    assert found.status.tolist() == ["DEPLOYED"] * 15 + ["TESTING"] * 15
+    assert found.status.tolist() == ["DEPLOYED"] * 16 + ["TESTING"] * 16
     assert found.node_id.map(scenario).iloc[0] == "no data"
     counts = status.overview(nodes, summary)
     assert (

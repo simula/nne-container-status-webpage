@@ -37,7 +37,7 @@
 """
 Synthetic input frames (DESIGN.md section 9) covering every class and marker of the container status
 rules:
-21 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
+22 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
 until the
 database loader exists, and with DATA_SOURCE=synthetic afterwards.
 
@@ -52,7 +52,7 @@ nodes, experiments, raw = synthetic(pd.Timestamp("2026-11-06 12:00"))
 """
 
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment
@@ -88,6 +88,7 @@ SCENARIOS: Tuple[str, ...] = (
     "mobile",
     "release history",
     "orphan container",
+    "receiver restarts",
 )
 
 # Version line per container
@@ -215,6 +216,7 @@ def synthetic_threads(  # pylint: disable=too-many-return-statements
         "all long-run": base,
         "extra containers": base,
         "orphan container": base,
+        "receiver restarts": base,
         "fresh restart": [(720, 0.6, new), (0.4, 0.1, new)],
         "young": [(720, 10.2, new), (10, 0.5, new)],
         "stable": [(720, 72.2, new), (72, 0.5, new)],
@@ -297,6 +299,25 @@ def synthetic_experiments(
     return rows
 
 
+def receiver_restarts(scenario: str, process: str, run_h: float) -> Optional[str]:
+    """
+    extra of a container_rawdata row (text, as in the table): the restart counter of a receiver;
+    480 per hour of the run in the scenario "receiver restarts" (as node 7056), 1 otherwise (below
+    the warning limits).
+
+    Args:
+        scenario (str): Scenario of the node.
+        process (str): Thread name.
+        run_h (float): Hours from the start to the last heartbeat of the run.
+
+    Returns:
+        Optional[str]: The counter, None for other threads.
+    """
+    if not process.startswith("receiver-"):
+        return None
+    return str(round(480 * run_h)) if scenario == "receiver restarts" else "1"
+
+
 def synthetic(now: pd.Timestamp) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Synthetic nodes, experiments and container_rawdata rows: every scenario for every status group.
@@ -353,7 +374,9 @@ def synthetic(now: pd.Timestamp) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
                                 "process": process,
                                 "seen_ts": seen,
                                 "uptime": (seen - start).total_seconds(),
-                                "extra": None,
+                                "extra": receiver_restarts(
+                                    scenario, process, start_h - seen_h
+                                ),
                             }
                         )
     return pd.DataFrame(nodes), pd.DataFrame(experiments), pd.DataFrame(raw)

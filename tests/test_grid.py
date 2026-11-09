@@ -100,7 +100,17 @@ def test_tooltip_table_rows():
     orphans = [row for row in tip["rows"] if row.get("orphan")]
     assert len(orphans) == len(cell.orphans) == 2
     assert all(row["state"].startswith("inactive experiment ") for row in orphans)
-    columns = {"thread", "state", "colour", "version", "up", "seen", "ago", "starts"}
+    columns = {
+        "thread",
+        "state",
+        "colour",
+        "version",
+        "up",
+        "seen",
+        "ago",
+        "starts",
+        "restarts",
+    }
     assert all(columns <= set(row) for row in tip["rows"])
 
 
@@ -127,7 +137,7 @@ def test_problems_grid_rows():
     """The problem list shows every node that is not fully OK; a node without heartbeat first, with
     no sort key (sorts first); the issues text filter is case-insensitive."""
     table = grid.problems_grid(SNAPSHOT)
-    assert len(table.rowData) == 30
+    assert len(table.rowData) == 32
     assert table.rowData[0]["last_heartbeat"] == "Never"
     assert table.rowData[0]["last_seen"] is None
     found = grid.filter_rows(table.rowData, [], [], [], [], text="udp ping")

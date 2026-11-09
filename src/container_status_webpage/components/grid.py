@@ -82,7 +82,12 @@ NODE_COLUMN: Dict[str, Any] = {
 }
 
 # States and markers of the grid filter: a node matches when any of its cells has one
-STATES: Tuple[str, ...] = status.SEVERITY + ("partial", "orphan", "flapping")
+STATES: Tuple[str, ...] = status.SEVERITY + (
+    "partial",
+    "orphan",
+    "flapping",
+    "restarts",
+)
 
 
 def status_column(field: str = "status") -> Dict[str, Any]:
@@ -120,7 +125,7 @@ def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
 
     Returns:
         Dict[str, str]: thread, state, colour and text colour of the state, version, up, seen,
-            ago, starts.
+            ago, starts, restarts (receivers: count and rate, ↻ with a warning; empty otherwise).
     """
     if state is None:
         return {
@@ -129,10 +134,19 @@ def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
             "colour": palette.COLOUR["never"][0],
             "text": palette.COLOUR["never"][1],
             **dict.fromkeys(("version", "up", "seen", "ago", "starts"), "–"),
+            "restarts": "",
         }
     running = state["seen"] == "running"
     colour, text = palette.COLOUR[state["up"] if running else state["seen"]]
+    rate = status.restart_rate(state)
+    restarts = (
+        ""
+        if rate is None
+        else f"{state['restarts']:,.0f} ({status.rate_text(rate)})"
+        + (" ↻" if status.restart_warning(state) else "")
+    )
     return {
+        "restarts": restarts,
         "thread": name,
         "state": state["seen"],
         "colour": colour,
@@ -240,6 +254,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
                     ("partial", cell.partial),
                     ("orphan", cell.orphans or cell.orphan_container),
                     ("flapping", cell.flapping),
+                    ("restarts", cell.restart_warnings),
                 )
                 if flag
             }
@@ -390,6 +405,11 @@ def legend() -> html.Div:
         item(
             {"backgroundImage": palette.FLAP_DOT},
             f"Flapping: ≥ {status.FLAPPING} starts in 24 h",
+        ),
+        item(
+            {"backgroundImage": palette.RESTART_DOT},
+            f"↻ Receiver restarts: > {status.RESTARTS_PER_HOUR:g} per hour, or > "
+            f"{status.RESTARTS_PER_DAY:g} per day after {status.RESTARTS_LONG_RUN_H / 24:g} days",
         ),
         item({"border": palette.TESTING_BORDER}, "Testing node"),
     ]

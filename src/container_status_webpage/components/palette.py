@@ -92,6 +92,11 @@ FLAP_DOT: str = (
     "#ffffff 0 3px, #000000 3px 4px, transparent 4px)"
 )
 
+# Amber dot with a black ring in the top left corner of a cell with a receiver restart warning
+RESTART_DOT: str = (
+    "radial-gradient(circle at 7px 7px, #d39e00 0 3px, #000000 3px 4px, transparent 4px)"
+)
+
 # Cell border of TESTING nodes and of containers that are not configured
 TESTING_BORDER: str = "1px dashed #444444"
 NONE_BORDER: str = "1px solid #e6e6e6"
@@ -152,8 +157,10 @@ def cell_style(cell: Cell, testing: bool) -> Dict[str, str]:
     background, text = COLOUR[colour_class(cell)]
     style = {"backgroundColor": background, "color": text, "textAlign": "center"}
     # 2. Flapping dot and hatching
-    images: List[str] = ([FLAP_DOT] if cell.flapping else []) + (
-        [HATCH] if cell.state == "never" else []
+    images: List[str] = (
+        ([FLAP_DOT] if cell.flapping else [])
+        + ([RESTART_DOT] if cell.restart_warnings else [])
+        + ([HATCH] if cell.state == "never" else [])
     )
     if images:
         style["backgroundImage"] = ", ".join(images)
