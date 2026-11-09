@@ -65,15 +65,15 @@ def test_status_grid_styles_every_cell():
     groups = {
         group["headerName"]: group for group in table.columnDefs if "children" in group
     }
-    assert [c["field"] for c in groups["main containers"]["children"]] == list(
+    assert [c["field"] for c in groups["Main containers"]["children"]] == list(
         status.MAIN
     )
-    assert [c["field"] for c in groups["extra containers"]["children"]] == list(
+    assert [c["field"] for c in groups["Extra containers"]["children"]] == list(
         status.EXTRA
     )
     backgrounds = set()
     for column in (
-        groups["main containers"]["children"] + groups["extra containers"]["children"]
+        groups["Main containers"]["children"] + groups["Extra containers"]["children"]
     ):
         conditions = {
             c["condition"]: c["style"] for c in column["cellStyle"]["styleConditions"]
@@ -90,17 +90,17 @@ def test_problems_grid_rows():
     """The problem list shows every node that is not fully OK; a node without heartbeat first."""
     table = grid.problems_grid(SNAPSHOT)
     assert len(table.rowData) == 26
-    assert table.rowData[0]["last_heartbeat"] == "never"
+    assert table.rowData[0]["last_heartbeat"] == "Never"
 
 
 def test_overview_rows():
-    """Overview: DEPLOYED, TESTING and all; one row per container."""
+    """Overview: Deployed, Testing and All; one row per container with its display name."""
     by_status, _, by_container = grid.overview(SNAPSHOT).children
     assert [row["status"] for row in by_status.rowData] == [
-        "DEPLOYED",
-        "TESTING",
-        "all",
+        "Deployed",
+        "Testing",
+        "All",
     ]
-    assert [row["container"] for row in by_container.rowData] == list(
-        status.MAIN + status.EXTRA
-    )
+    assert [row["container"] for row in by_container.rowData] == [
+        status.NAME[c] for c in status.MAIN + status.EXTRA
+    ]

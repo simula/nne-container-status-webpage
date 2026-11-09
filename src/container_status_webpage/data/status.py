@@ -68,6 +68,16 @@ import pandas as pd
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
 EXTRA: Tuple[str, ...] = ("traceroute", "netperfmeter")
 
+# Display names of the containers
+NAME: Dict[str, str] = {
+    "metadata": "Metadata",
+    "mqtt": "MQTT",
+    "speedtest": "Speedtest",
+    "udpping": "UDP Ping",
+    "traceroute": "Traceroute",
+    "netperfmeter": "NetPerfMeter",
+}
+
 # Fixed threads per container; udpping adds sender-<id> / receiver-<id> per active udpping
 # experiment
 THREADS: Dict[str, Tuple[str, ...]] = {
@@ -464,13 +474,13 @@ def issue(container: str, c: Cell) -> str:
         c (Cell): The cell.
 
     Returns:
-        str: E.g. "udpping: partial S 1/2 R 2/2", empty when the cell is fine.
+        str: E.g. "UDP Ping: partial S 1/2 R 2/2", empty when the cell is fine.
     """
     bad = c.state not in ("running", "none")
     if not (bad or c.partial or c.flapping or c.orphans):
         return ""
     parts = (
-        f"{container}:",
+        f"{NAME[container]}:",
         c.state if bad else "",
         f"partial {c.label}" if c.partial else "",
         "flapping" if c.flapping else "",

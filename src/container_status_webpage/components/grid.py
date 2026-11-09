@@ -84,13 +84,13 @@ def status_column(field: str = "status") -> Dict[str, Any]:
     """
     conditions = [
         {
-            "condition": f"params.value === '{name}'",
+            "condition": f"params.value === '{name.capitalize()}'",
             "style": {"backgroundColor": colour, "color": "#ffffff"},
         }
         for name, colour in palette.STATUS_COLOUR.items()
     ]
     return {
-        "headerName": "status",
+        "headerName": "Status",
         "field": field,
         "width": 110,
         "cellStyle": {"styleConditions": conditions},
@@ -118,7 +118,12 @@ def hover(node_id: int, node_status: str, container: str, cell: status.Cell) -> 
     ]
     lines = [
         " · ".join(
-            [f"node {node_id}", node_status, f"{container}: {cell.state}", *markers]
+            [
+                f"Node {node_id}",
+                node_status.capitalize(),
+                f"{status.NAME[container]}: {cell.state}",
+                *markers,
+            ]
         )
     ]
     # 2. Expected threads
@@ -155,7 +160,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
     for node in status.ordered(snapshot.nodes).itertuples():
         row: Dict[str, Any] = {
             "node_id": node.node_id,
-            "status": node.status,
+            "status": node.status.capitalize(),
             "municipality": blank(node.municipality),
         }
         for container in status.MAIN + status.EXTRA:
@@ -178,7 +183,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             for style, number in styles.items()
         ]
         return {
-            "headerName": container,
+            "headerName": status.NAME[container],
             "field": container,
             "tooltipField": f"{container}__tip",
             "width": 130,
@@ -188,7 +193,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
     # 3. Grid
     columns = [
         {
-            "headerName": "node",
+            "headerName": "Node",
             "field": "node_id",
             "width": 90,
             "pinned": "left",
@@ -196,14 +201,14 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         },
         {**status_column(), "pinned": "left"},
         {
-            "headerName": "municipality",
+            "headerName": "Municipality",
             "field": "municipality",
             "width": 130,
             "pinned": "left",
         },
-        {"headerName": "main containers", "children": [column(c) for c in status.MAIN]},
+        {"headerName": "Main containers", "children": [column(c) for c in status.MAIN]},
         {
-            "headerName": "extra containers",
+            "headerName": "Extra containers",
             "children": [column(c) for c in status.EXTRA],
         },
     ]
@@ -230,7 +235,7 @@ def legend() -> html.Div:
         return html.Span([html.I(style=style), text])
 
     items = [
-        item({"backgroundColor": palette.COLOUR[name][0]}, f"✓ running, uptime {limit}")
+        item({"backgroundColor": palette.COLOUR[name][0]}, f"✓ Running, uptime {limit}")
         for name, limit in (
             ("fresh", "< 1 h"),
             ("young", "1 h – 1 d"),
@@ -241,7 +246,7 @@ def legend() -> html.Div:
     items += [
         item(
             {"backgroundColor": palette.COLOUR[name][0]},
-            f"{palette.SYMBOL[name]} {name}: last seen {limit}",
+            f"{palette.SYMBOL[name]} {name.capitalize()}: last seen {limit}",
         )
         for name, limit in (
             ("late", "2–6 h"),
@@ -256,22 +261,22 @@ def legend() -> html.Div:
                 "backgroundColor": palette.COLOUR["never"][0],
                 "backgroundImage": palette.HATCH,
             },
-            "– never seen (main)",
+            "– Never seen (main)",
         ),
-        item({"border": palette.NONE_BORDER}, "not deployed (extra)"),
+        item({"border": palette.NONE_BORDER}, "Not deployed (extra)"),
         item(
             {"boxShadow": f"inset 0 0 0 3px {palette.PARTIAL}"},
-            "partial: some threads not running (count)",
+            "Partial: some threads not running (count)",
         ),
         item(
             {"boxShadow": f"inset 0 0 0 3px {palette.ORPHAN}"},
-            "⚠ udpping thread of an inactive experiment",
+            f"⚠ {status.NAME['udpping']} thread of an inactive experiment",
         ),
         item(
             {"backgroundImage": palette.FLAP_DOT},
-            f"flapping: ≥ {status.FLAPPING} starts in 24 h",
+            f"Flapping: ≥ {status.FLAPPING} starts in 24 h",
         ),
-        item({"border": palette.TESTING_BORDER}, "TESTING node"),
+        item({"border": palette.TESTING_BORDER}, "Testing node"),
     ]
     return html.Div(items, className="legend")
 
@@ -290,11 +295,11 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
     rows = [
         {
             "node_id": row.node_id,
-            "status": row.status,
+            "status": row.status.capitalize(),
             "municipality": blank(row.municipality),
             "issues": row.issues,
             "last_heartbeat": (
-                "never"
+                "Never"
                 if math.isinf(row.silent_h)
                 else f"{when(row.last_seen)} ({duration(row.silent_h * 3600)} ago)"
             ),
@@ -303,22 +308,22 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
     ]
     columns = [
         {
-            "headerName": "node",
+            "headerName": "Node",
             "field": "node_id",
             "width": 90,
             "filter": "agNumberColumnFilter",
         },
         status_column(),
-        {"headerName": "municipality", "field": "municipality", "width": 130},
+        {"headerName": "Municipality", "field": "municipality", "width": 130},
         {
-            "headerName": "issues",
+            "headerName": "Issues",
             "field": "issues",
             "flex": 1,
             "wrapText": True,
             "autoHeight": True,
         },
         {
-            "headerName": "last heartbeat (UTC)",
+            "headerName": "Last heartbeat (UTC)",
             "field": "last_heartbeat",
             "width": 230,
             "sortable": False,
@@ -350,13 +355,16 @@ def overview(snapshot: Snapshot) -> html.Div:
     nodes_per_group = dict(zip(counts.status, counts.nodes))
     by_status = dag.AgGrid(
         id="overview-status",
-        rowData=counts.to_dict("records"),
+        rowData=[
+            {**row, "status": row["status"].capitalize()}
+            for row in counts.to_dict("records")
+        ],
         columnDefs=[
-            {"headerName": "status", "field": "status", "width": 130},
-            {"headerName": "nodes", "field": "nodes"},
-            {"headerName": "all main OK", "field": "all_main_ok"},
-            {"headerName": "some issue", "field": "some_issue"},
-            {"headerName": "nothing running", "field": "nothing_running"},
+            {"headerName": "Status", "field": "status", "width": 130},
+            {"headerName": "Nodes", "field": "nodes"},
+            {"headerName": "All main OK", "field": "all_main_ok"},
+            {"headerName": "Some issue", "field": "some_issue"},
+            {"headerName": "Nothing running", "field": "nothing_running"},
         ],
         dashGridOptions={**GRID_OPTIONS, "domLayout": "autoHeight"},
         className="nne-grid",
@@ -366,7 +374,7 @@ def overview(snapshot: Snapshot) -> html.Div:
     groups = [column for column in running.columns if column != "container"]
     rows: List[Dict[str, Any]] = [
         {
-            "container": row["container"],
+            "container": status.NAME[row["container"]],
             **{g: f"{row[g]} / {nodes_per_group[g]}" for g in groups},
         }
         for row in running.to_dict("records")
@@ -374,9 +382,14 @@ def overview(snapshot: Snapshot) -> html.Div:
     by_container = dag.AgGrid(
         id="overview-containers",
         rowData=rows,
-        columnDefs=[{"headerName": "container", "field": "container", "width": 150}]
-        + [{"headerName": f"{g} running", "field": g} for g in groups],
+        columnDefs=[{"headerName": "Container", "field": "container", "width": 150}]
+        + [
+            {"headerName": f"{g.capitalize()} (running / nodes)", "field": g}
+            for g in groups
+        ],
         dashGridOptions={**GRID_OPTIONS, "domLayout": "autoHeight"},
         className="nne-grid",
     )
-    return html.Div([by_status, html.H3("Nodes running each container"), by_container])
+    return html.Div(
+        [by_status, html.H3("Running containers by node status"), by_container]
+    )
