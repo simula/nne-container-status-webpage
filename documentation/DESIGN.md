@@ -58,13 +58,22 @@ active node: not maintained.
 
 A node is reported when all of these hold:
 
-1. at least one active interface (`nne.node_info`),
-2. at least one active experiment (`nne.measurement_instance`),
+1. at least one active interface: `nne.node_info` with `valid_to IS NULL` and `service_id <> 7` (service 7, M2M, is
+   the SIM of the power switch, not used for measurements),
+2. at least one active experiment bound to a network and a service: `nne.measurement_instance` with
+   `stop_time IS NULL`, `network_id <> 0` and `service_id <> 0`,
 3. `node_id >= 3100` (older nodes are not reported),
 4. `nne.node_status` is DEPLOYED or TESTING (all other statuses, and nodes without a status record, are excluded).
 
-On 2026-11-06: DEPLOYED 100, TESTING 16. Missing status records found on the way were fixed in `nne.node_status`:
-11085 DESTROYED (from 2026-11-06), 10964 and 11165 TESTING (from 2026-09-01).
+Exception: the satellite nodes **4071, 4072, 4073** are reported as DEPLOYED although nne has no `node`, `node_info`
+or `node_status` row for them (hardcoded in the loader). Satellite measurements on other nodes are ad hoc and follow
+the rules above.
+
+On 2026-11-06: DEPLOYED 100, TESTING 16, unchanged with the conditions above on 2026-11-09. Missing status records
+found on the way were fixed in `nne.node_status`: 11085 DESTROYED (from 2026-11-06), 10964 and 11165 TESTING (from
+2026-09-01). On 2026-11-09 ten nodes ≥ 3100 had no status record (3100, 3178, 4071–4073, 4157, 8000, 9000, 9001,
+11447); none of them has an active interface, so none drops out only for the missing record. `nne.node_status` is
+synchronised manually.
 
 ## 4. Containers and threads
 
@@ -136,13 +145,20 @@ A grid cell is one node and one container:
 - **flapping**: any thread flapping;
 - **orphans**: see the crosscheck; label `⚠+k`;
 - **orphan container**: the cell keeps the state of its threads with the orphan marker; issue "<container>: running
-  without a configured instance".
+  without a configured instance";
+- **receiver restarts** (warning): `extra` of a `receiver-*` row counts the internal restarts of the udpping receiver
+  after an error during the container run (reset when the container restarts). Rate = `extra / (seen_ts −
+  start_ts)`, the run counted as at least 1 h. Warning above 1 restart per hour, or above 1 per day when the run has
+  lasted 7 days or longer. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
+  On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
+  first hour.
 
-Per node (Overview tab): *all main OK* = every main cell running, not partial, without orphans; *nothing running* =
-no cell has a running thread; *some issue* = the rest.
+Per node (Overview tab): *all main OK* = every main cell running, not partial, without orphans or warnings; *nothing
+running* = no cell has a running thread; *some issue* = the rest.
 
-A node is listed on the Problems tab when a cell is not running (except not configured), partial, flapping or has
-orphans; DEPLOYED first, then the longest silent.
+A node is listed on the Problems tab when a cell is not running (except not configured), partial, flapping, has
+orphans or a receiver restart warning; DEPLOYED first, then the longest silent. Mobile nodes follow these rules too:
+nne has nothing that marks a node as mobile, and a hardcoded list cannot be maintained.
 
 ## 6. Colour rules
 
@@ -165,6 +181,7 @@ depend on colour alone.
 | Marker | Look |
 |---|---|
 | partial | amber inner border `#d39e00` |
+| receiver restart warning | amber dot, `↻` in the label |
 | orphan thread / orphan container | dark red inner border `#a50f15`, `⚠+k` / `⚠` |
 | flapping | white dot in the corner |
 | TESTING node | dashed cell border |
@@ -197,7 +214,10 @@ Testing; headers in sentence case. The data keep the database values.
 
 - Node selector (searchable) and range buttons 1 / 3 / 7 / 14 d and All (7 d first). The URL
   `/?tab=node&node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
-- Header: node, status chip, municipality, network chips of the active experiments (section 6).
+- Header: node, status chip, municipality (never the street address: the nodes are not doxed), network chips of the
+  active experiments (section 6), the number of active interfaces (`service_id <> 7`) and of experiments (active
+  instances + 1 for metadata, which is always configured). No "status since": `nne.node_status.valid_from` is not
+  reliable.
 - Timeline (Plotly): one row per expected thread of every deployed container (main first), then the orphans (dark red,
   ⚠) and the never-seen threads ("(never)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
   length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
@@ -205,7 +225,7 @@ Testing; headers in sentence case. The data keep the database values.
   another version than the run before (hover: old → new). Hover boxes are white. Click on a bar: thread, segment,
   from, to, length, version, gap before and after below the timeline.
 - Threads (AG Grid), in the order of the timeline: container, thread, state on its colour, version, up, last seen,
-  ago, starts in 24 h / 7 d.
+  ago, starts in 24 h / 7 d, receiver restarts (`314,076 (480/h)`, receivers only; also in the Grid tooltip).
 - Experiments (AG Grid): the measurement instances of the node, active first, stopped ones in grey: id, measurement
   (the `measurement_desc_id` with the display name of its container, `1 (UDP Ping)`, `16 (Speedtest)`; the short
   names prevail over the long descriptions), network, iccid, start, stop. Click on a row: its `parameters` as
@@ -257,7 +277,7 @@ Input contract: the synthetic data and the loader produce the same three frames.
 
 | Frame | Columns |
 |---|---|
-| `nodes` | `node_id`, `status`, `valid_from`, `interfaces`, `experiments`, `name`, `address`, `zip`, `municipality`, `country_code` |
+| `nodes` | `node_id`, `status`, `interfaces`, `experiments`, `municipality` (the only part of the site address that is loaded) |
 | `experiments` | `id`, `node_id`, `network_id`, `service_id`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
 | `raw` | the columns of `report.container_rawdata` |
 
@@ -289,12 +309,16 @@ names of section 4, sentence case).
 
 Code changes with the loader: the expected containers of a node from the configuration map in `data/status.py`
 (never / not configured, section 5) and the orphan container (section 4); synthetic experiments with `service_id` and
-instances for the configured containers, plus an orphan container scenario; the network chips through the service
-decorator (`palette.PROVIDER` removed); the Experiments measurement column with the container name.
+instances for the configured containers, plus an orphan container scenario and a receiver restart scenario; the
+network chips through the service decorator (`palette.PROVIDER` removed); the Experiments measurement column with the
+container name; the receiver restart warning and column (section 5); the header counts; the satellite nodes as a
+loader constant (section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
 
 Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
-loaded with `nnedbtools.identityprovider.load_from_enviroment`. Development reads go through the nnedbtools test
-harness (read-only guards). The first real run is compared with the figures in this document.
+loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
+installed nnedbtools (`nnedbtools.certificates`): the Docker container needs only the env file (secret `db_env`).
+Development reads go through the nnedbtools test harness (read-only guards). The first real run is compared with the
+figures in this document.
 
 `data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point. Containers
 tab: `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and
@@ -320,16 +344,12 @@ environment with the project, run by systemd. Docker is only for local developme
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools; the chip text of an instance without
   `service_id` from the service decorator is to be checked with the loader.
 - The real `parameters` format (the synthetic JSON is made up).
-- Nodes without a `nne.node_status` record drop out of the report silently; the nimbus sync may overwrite records
-  fixed by hand.
-- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts) are constants to calibrate after real use.
+- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 1 per hour / 1 per day) are constants
+  to calibrate after real use.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the
   load turns out heavy.
-- Mobile nodes (7042, 7045: 2–3 runs a day, off for hours to days): the rules show them as flapping, late or stale
-  although they are only switched off; own rules or a marker, and how to recognise a mobile node in `nne`, are open.
-  On All their timeline has about 2,000 bars.
-- `extra` of `report.container_rawdata` (an integer on `receiver-*` threads only) is not shown; its meaning is open.
-- Header of the node detail without site address, status since and interface count (phase 4 data).
+- Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
+  field in nne first. On All their timeline has about 2,000 bars.
 
 ## 13. Code conventions
 
