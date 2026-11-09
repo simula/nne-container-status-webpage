@@ -141,7 +141,13 @@ def test_worst_thread_partial_and_orphans():
     speedtest = status.cell(1, "speedtest", states, [])
     assert (speedtest.state, speedtest.partial) == ("down", False)
     assert status.cell(1, "metadata", states, []).state == "never"
-    assert status.cell(1, "traceroute", states, []).state == "none"
+    # Not configured: no rows is "none", an alive container is an orphan container
+    assert status.cell(1, "traceroute", states, [], expected=False).state == "none"
+    assert status.cell(1, "traceroute", states, []).state == "never"
+    alive = status.cell(1, "mqtt", states, [], expected=False)
+    assert (alive.orphan_container, alive.label) == (True, "1/2 ⚠")
+    stopped = status.cell(1, "speedtest", states, [], expected=False)
+    assert (stopped.state, stopped.orphan_container) == ("none", False)
 
 
 def test_synthetic_covers_every_class():
@@ -154,6 +160,7 @@ def test_synthetic_covers_every_class():
     assert any(c.partial and c.state != "running" for c in cells)
     assert any(c.flapping for c in cells)
     assert any(c.orphans for c in cells)
+    assert any(c.orphan_container for c in cells)
     assert tuple(nodes.status.unique()) == status.STATUS_ORDER
 
 
@@ -174,7 +181,7 @@ def test_problems_and_overview():
         "release history",
     }
     assert set(found.node_id.map(scenario)) == set(SCENARIOS) - healthy
-    assert found.status.tolist() == ["DEPLOYED"] * 14 + ["TESTING"] * 14
+    assert found.status.tolist() == ["DEPLOYED"] * 15 + ["TESTING"] * 15
     assert found.node_id.map(scenario).iloc[0] == "no data"
     counts = status.overview(nodes, summary)
     assert (

@@ -60,13 +60,22 @@ status.problems(nodes, summary, raw)
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
+from nnedbtools.batch.node_config import SupportedExperiment, SupportedExperimentMapper
 
-# Main and extra containers (DESIGN.md section 4)
+# Main and extra containers (DESIGN.md section 4); the group only orders the columns
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
 EXTRA: Tuple[str, ...] = ("traceroute", "netperfmeter")
+
+# Container configured by a measurement_desc_id: the map of the nnedbtools node configuration
+# generator, limited to the standard containers (QUIC is not one); metadata is always configured
+CONFIGURED_BY: Dict[int, str] = {
+    experiment.value: container
+    for experiment, container in SupportedExperimentMapper.CONTAINER_NAME_MAP.items()
+    if container in MAIN + EXTRA
+}
 
 # Display names of the containers
 NAME: Dict[str, str] = {
@@ -90,7 +99,7 @@ THREADS: Dict[str, Tuple[str, ...]] = {
 STATUS_ORDER: Tuple[str, ...] = ("DEPLOYED", "TESTING")
 
 # measurement_desc_id of udpping
-UDPPING: int = 1
+UDPPING: int = SupportedExperiment.RTT_UDP_PING.value
 
 # Last seen classes: hours since the last heartbeat, upper limit inclusive (heartbeats arrive
 # hourly)
@@ -191,6 +200,27 @@ def active_udpping(experiments: pd.DataFrame) -> Dict[int, List[int]]:
     return active.groupby("node_id").id.apply(sorted).to_dict()
 
 
+def configured_containers(experiments: pd.DataFrame) -> Dict[int, Set[str]]:
+    """
+    Containers configured per node by its active measurement instances (CONFIGURED_BY); metadata
+    is always configured and not listed.
+
+    Args:
+        experiments (pd.DataFrame): Experiments frame (measurement_instance rows).
+
+    Returns:
+        Dict[int, Set[str]]: Container names per node_id.
+    """
+    active = experiments[experiments.stop_time.isna()]
+    containers = active.assign(container=active.measurement_desc_id.map(CONFIGURED_BY))
+    return (
+        containers.dropna(subset=["container"])
+        .groupby("node_id")
+        .container.apply(set)
+        .to_dict()
+    )
+
+
 def thread_states(
     raw: pd.DataFrame, now: pd.Timestamp
 ) -> Dict[Tuple[int, str, str], Dict[str, Any]]:
@@ -228,8 +258,8 @@ def thread_states(
 class Cell:
     """State of one node and container (DESIGN.md section 5)."""
 
-    # Worst last seen class of the expected threads with rows, "never", or "none" (extra container
-    # not deployed)
+    # Worst last seen class of the expected threads with rows, "never" (configured, no rows), or
+    # "none" (not configured)
     state: str
     # Uptime class of the freshest running thread
     shade: str = ""
@@ -243,6 +273,8 @@ class Cell:
     threads: List[Tuple[str, Optional[Dict[str, Any]]]] = field(default_factory=list)
     # Running udpping threads of experiments that are not active on the node
     orphans: List[str] = field(default_factory=list)
+    # The container is alive although no active instance of the node configures it
+    orphan_container: bool = False
 
     @property
     def running(self) -> bool:
@@ -255,17 +287,21 @@ def cell(
     container: str,
     states: Dict[Tuple[int, str, str], Dict[str, Any]],
     experiment_ids: List[int],
+    expected: bool = True,
 ) -> Cell:
     """
     Cell of a node and container: the class of its worst thread with rows; a never seen thread only
-    makes it partial;
-    udpping threads still running for an experiment that is not active on the node are orphans.
+    makes it partial; udpping threads still running for an experiment that is not active on the
+    node are orphans. A container the node does not expect is "none", or an orphan container while
+    one of its threads runs.
 
     Args:
         node_id (int): Node identifier.
         container (str): Container name.
         states (Dict[Tuple[int, str, str], Dict[str, Any]]): Thread states of thread_states.
         experiment_ids (List[int]): Active udpping experiments of the node.
+        expected (bool, optional): An active instance of the node configures the container
+            (configured_containers; metadata always). Defaults to True.
 
     Returns:
         Cell: State of the cell.
@@ -286,14 +322,15 @@ def cell(
             and experiment_id(process) is not None
             and experiment_id(process) not in experiment_ids
         )
-    # 2. No expected thread seen: never (main) or not deployed (extra)
+    # 2. No expected thread seen: never when configured, not configured otherwise
     present = [state for _, state in threads if state]
     if not present:
-        return Cell(
-            "never" if container in MAIN else "none", threads=threads, orphans=orphans
-        )
-    # 3. Partial and label
+        return Cell("never" if expected else "none", threads=threads, orphans=orphans)
+    # 3. Not configured and nothing running: history only
     running = [state for state in present if state["seen"] == "running"]
+    if not expected and not running:
+        return Cell("none", threads=threads, orphans=orphans)
+    # 4. Partial and label
     partial = 0 < len(running) < len(threads)
     if container == "udpping":
 
@@ -310,7 +347,9 @@ def cell(
         label = f"{len(running)}/{len(threads)}" if partial else ""
     if orphans:
         label += f" ⚠+{len(orphans)}"
-    # 4. Worst class, shade of the freshest running thread, flapping
+    if not expected:
+        label += " ⚠"
+    # 5. Worst class, shade of the freshest running thread, flapping
     return Cell(
         state=max((state["seen"] for state in present), key=SEVERITY.index),
         shade=(
@@ -320,9 +359,10 @@ def cell(
         ),
         partial=partial,
         flapping=any(state["starts_24h"] >= FLAPPING for state in present),
-        label=label,
+        label=label.strip(),
         threads=threads,
         orphans=orphans,
+        orphan_container=not expected,
     )
 
 
@@ -353,13 +393,18 @@ def summarise(
     Returns:
         Summary: States and cells.
     """
-    # 1. Thread states and active udpping experiments
+    # 1. Thread states, active udpping experiments, configured containers
     states = thread_states(raw, now)
     experiment_ids = active_udpping(experiments)
+    configured = configured_containers(experiments)
     # 2. One cell per node and container
     cells = {
         (node_id, container): cell(
-            node_id, container, states, experiment_ids.get(node_id, [])
+            node_id,
+            container,
+            states,
+            experiment_ids.get(node_id, []),
+            container == "metadata" or container in configured.get(node_id, set()),
         )
         for node_id in nodes.node_id
         for container in MAIN + EXTRA
@@ -400,11 +445,28 @@ def status_groups(nodes: pd.DataFrame) -> List[Tuple[str, List[int]]]:
     ]
 
 
+def main_ok(c: Cell) -> bool:
+    """
+    A main cell without issue: not configured, or running, not partial, without orphans.
+
+    Args:
+        c (Cell): The cell.
+
+    Returns:
+        bool: The cell is OK.
+    """
+    return c.state == "none" or (
+        c.state == "running"
+        and not c.partial
+        and not c.orphans
+        and not c.orphan_container
+    )
+
+
 def overview(nodes: pd.DataFrame, summary: Summary) -> pd.DataFrame:
     """
-    Node counts per status group: all main OK (every main cell running, not partial, without
-    orphans), nothing
-    running (no cell with a running thread), some issue (the rest).
+    Node counts per status group: all main OK (every configured main cell running, not partial,
+    without orphans), nothing running (no cell with a running thread), some issue (the rest).
 
     Args:
         nodes (pd.DataFrame): Nodes frame.
@@ -415,15 +477,7 @@ def overview(nodes: pd.DataFrame, summary: Summary) -> pd.DataFrame:
     """
     rows = []
     for group, ids in status_groups(nodes):
-        ok = sum(
-            all(
-                summary.cells[n, c].state == "running"
-                and not summary.cells[n, c].partial
-                and not summary.cells[n, c].orphans
-                for c in MAIN
-            )
-            for n in ids
-        )
+        ok = sum(all(main_ok(summary.cells[n, c]) for c in MAIN) for n in ids)
         idle = sum(
             not any(summary.cells[n, c].running for c in MAIN + EXTRA) for n in ids
         )
@@ -477,10 +531,11 @@ def issue(container: str, c: Cell) -> str:
         str: E.g. "UDP Ping: partial S 1/2 R 2/2", empty when the cell is fine.
     """
     bad = c.state not in ("running", "none")
-    if not (bad or c.partial or c.flapping or c.orphans):
+    if not (bad or c.partial or c.flapping or c.orphans or c.orphan_container):
         return ""
     parts = (
         f"{NAME[container]}:",
+        "running without a configured instance" if c.orphan_container else "",
         c.state if bad else "",
         f"partial {c.label}" if c.partial else "",
         "flapping" if c.flapping else "",

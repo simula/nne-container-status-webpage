@@ -76,11 +76,12 @@ SYMBOL: Dict[str, str] = {
     "none": "",
 }
 
-# Inner border of a partial cell (amber) and of a cell with orphans (dark red)
+# Inner border of a partial cell (amber) and of a cell with orphan threads or an orphan container
+# (dark red)
 PARTIAL: str = "#d39e00"
 ORPHAN: str = "#a50f15"
 
-# Hatching of a main container never seen
+# Hatching of a configured container never seen
 HATCH: str = (
     "repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.15) 4px 6px)"
 )
@@ -91,7 +92,7 @@ FLAP_DOT: str = (
     "#ffffff 0 3px, #000000 3px 4px, transparent 4px)"
 )
 
-# Cell border of TESTING nodes and of not deployed extra containers
+# Cell border of TESTING nodes and of containers that are not configured
 TESTING_BORDER: str = "1px dashed #444444"
 NONE_BORDER: str = "1px solid #e6e6e6"
 
@@ -158,7 +159,7 @@ def cell_style(cell: Cell, testing: bool) -> Dict[str, str]:
         style["backgroundImage"] = ", ".join(images)
     # 3. Inner borders: partial amber, orphans dark red (outside the amber one when both)
     shadows: List[str] = [f"inset 0 0 0 3px {PARTIAL}"] if cell.partial else []
-    if cell.orphans:
+    if cell.orphans or cell.orphan_container:
         shadows.append(f"inset 0 0 0 {6 if cell.partial else 3}px {ORPHAN}")
     if shadows:
         style["boxShadow"] = ", ".join(shadows)

@@ -238,7 +238,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
                 marker
                 for marker, flag in (
                     ("partial", cell.partial),
-                    ("orphan", cell.orphans),
+                    ("orphan", cell.orphans or cell.orphan_container),
                     ("flapping", cell.flapping),
                 )
                 if flag
@@ -375,16 +375,17 @@ def legend() -> html.Div:
                 "backgroundColor": palette.COLOUR["never"][0],
                 "backgroundImage": palette.HATCH,
             },
-            "– Never seen (main)",
+            "– Configured, never seen",
         ),
-        item({"border": palette.NONE_BORDER}, "Not deployed (extra)"),
+        item({"border": palette.NONE_BORDER}, "Not configured"),
         item(
             {"boxShadow": f"inset 0 0 0 3px {palette.PARTIAL}"},
             "Partial: some threads not running (count)",
         ),
         item(
             {"boxShadow": f"inset 0 0 0 3px {palette.ORPHAN}"},
-            f"⚠ {status.NAME['udpping']} thread of an inactive experiment",
+            f"⚠ {status.NAME['udpping']} thread of an inactive experiment, ⚠ container running "
+            "without a configured instance",
         ),
         item(
             {"backgroundImage": palette.FLAP_DOT},

@@ -337,6 +337,8 @@ environment with the project, run by systemd. Docker is only for local developme
 - Settings as environment variables of the unit; `DB_ENV_FILE` points to the nne-reader env file outside the
   repository (e.g. `~/.config/nne-container-status-webpage/`).
 - nginx with TLS in front (phase 5), set up from scratch; access control is decided there.
+- nnedbtools writes `logs/robustnet<timestamp>.log` into the working directory on import: the unit sets
+  `WorkingDirectory=` to a directory the service user can write (the Docker image uses `/home/app`).
 - `deploy/` and `documentation/INSTALLATION.md` are written in this phase.
 
 ## 12. Open points
@@ -350,6 +352,7 @@ environment with the project, run by systemd. Docker is only for local developme
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
+- The nnedbtools log files (`logs/`, one per worker start) on oculus: rotation or cleanup.
 
 ## 13. Code conventions
 

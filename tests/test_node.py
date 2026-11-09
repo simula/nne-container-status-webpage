@@ -104,14 +104,14 @@ def test_range_buttons():
 
 def test_threads_and_experiments_tables():
     """Threads table: one row per timeline row, the orphans with their inactive experiment as
-    state. Experiments table: the 5 active ones first, the stopped UDP Ping one last; parameters as
+    state. Experiments table: the 4 active ones first, the stopped UDP Ping one last; parameters as
     indented JSON."""
     node_id = node_of("inactive experiment")
     threads = node.threads_table(SNAPSHOT, node_id).rowData
     assert len(threads) == len(node.thread_rows(SNAPSHOT, node_id))
     assert sum(row["state"].startswith("inactive experiment ") for row in threads) == 2
     experiments = node.experiments_table(SNAPSHOT, node_id).rowData
-    assert [row["stop"] == "active" for row in experiments] == [True] * 5 + [False]
+    assert [row["stop"] == "active" for row in experiments] == [True] * 4 + [False]
     assert experiments[-1]["measurement"] == "1 (UDP Ping)"
     view = node.parameters_view(experiments[0]["id"], experiments[0]["parameters"])
     assert '\n  "synthetic": true' in view.children[1].children

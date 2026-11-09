@@ -74,7 +74,7 @@ def test_one_load_per_refresh_point():
 
 
 def test_synthetic_snapshot():
-    """The synthetic source gives 40 nodes summarised at the load time."""
+    """The synthetic source gives 42 nodes summarised at the load time."""
     snapshot = load("synthetic", NOW)
-    assert len(snapshot.nodes) == 40
+    assert len(snapshot.nodes) == 42
     assert snapshot.loaded_at == snapshot.summary.now == NOW

@@ -16,5 +16,7 @@ RUN --mount=type=ssh mkdir -p -m 0700 /root/.ssh \
 
 RUN useradd --system --create-home app
 USER app
+# nnedbtools writes logs/ into the working directory: a directory the user app can write
+WORKDIR /home/app
 EXPOSE 8050
 CMD ["gunicorn", "--bind", "0.0.0.0:8050", "--workers", "2", "container_status_webpage.app:server"]

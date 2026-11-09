@@ -37,7 +37,7 @@
 """
 Synthetic input frames (DESIGN.md section 9) covering every class and marker of the container status
 rules:
-20 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
+21 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
 until the
 database loader exists, and with DATA_SOURCE=synthetic afterwards.
 
@@ -55,6 +55,7 @@ import json
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
+from nnedbtools.batch.node_config import SupportedExperiment
 
 from container_status_webpage.data.status import (
     EXTRA,
@@ -86,6 +87,7 @@ SCENARIOS: Tuple[str, ...] = (
     "inactive experiment",
     "mobile",
     "release history",
+    "orphan container",
 )
 
 # Version line per container
@@ -156,15 +158,15 @@ def synthetic_threads(  # pylint: disable=too-many-return-statements
     names = expected_threads(container, experiment_ids)
     new, old = f"{VERSION[container]}-2-2-5", f"{VERSION[container]}-2-1-8-1"
     base: Runs = [(720, 0.5, new)]
-    # B. Extra containers only in the scenario "extra containers": running, down
+    # B. Extra containers: configured and running / down in the scenario "extra containers";
+    #    NetPerfMeter alive without a configured instance in the scenario "orphan container"
     if container in EXTRA:
-        runs = {
-            "netperfmeter": base,
-            "traceroute": [(720, 48, new)],
-        }[container]
-        return (
-            [(name, runs) for name in names] if scenario == "extra containers" else []
-        )
+        if scenario == "extra containers":
+            runs = {"netperfmeter": base, "traceroute": [(720, 48, new)]}[container]
+            return [(name, runs) for name in names]
+        if (scenario, container) == ("orphan container", "netperfmeter"):
+            return [(name, base) for name in names]
+        return []
     # C. Scenarios of all main containers
     if scenario == "no data":
         return []
@@ -212,6 +214,7 @@ def synthetic_threads(  # pylint: disable=too-many-return-statements
     runs = {
         "all long-run": base,
         "extra containers": base,
+        "orphan container": base,
         "fresh restart": [(720, 0.6, new), (0.4, 0.1, new)],
         "young": [(720, 10.2, new), (10, 0.5, new)],
         "stable": [(720, 72.2, new), (72, 0.5, new)],
@@ -237,9 +240,10 @@ def synthetic_experiments(
     node_id: int, ids: List[int], scenario: str, now: pd.Timestamp
 ) -> List[Dict[str, Any]]:
     """
-    Measurement instances of a node: the active udpping ones, three other active ones, and a stopped
-    udpping one for
-    the scenario "inactive experiment"; the parameters JSON is made up.
+    Measurement instances of a node: the active udpping ones, MQTT and Speedtest instances (every
+    main container is configured), Traceroute and NetPerfMeter instances in the scenario "extra
+    containers", and a stopped udpping one in the scenario "inactive experiment"; service 1 (4G),
+    the parameters JSON is made up.
 
     Args:
         node_id (int): Node identifier.
@@ -259,6 +263,7 @@ def synthetic_experiments(
             "id": e,
             "node_id": node_id,
             "network_id": network_id,
+            "service_id": 1,
             "provider": provider,
             "measurement_desc_id": desc,
             "iccid": f"8947{node_id:07d}{k:02d}",
@@ -269,8 +274,19 @@ def synthetic_experiments(
 
     udpping = {"interval_ms": 1000, "packet_size": 64, "target": "udpping.example.net"}
     rows = [instance(e, UDPPING, k, **udpping) for k, e in enumerate(ids)]
+    # Measurement descriptor and interface index of the other configured containers
+    others = [
+        (SupportedExperiment.MQTT_COLLECTOR.value, 2),
+        (SupportedExperiment.SPEEDTEST_EVERY_1_HOURS.value, 0),
+    ]
+    if scenario == "extra containers":
+        others += [
+            (SupportedExperiment.TRACEROUTE_ANYCAST.value, 1),
+            (SupportedExperiment.NETPERFMETER_6_HOURS_EXPERIMENT.value, 2),
+        ]
     rows += [
-        instance(node_id * 10 + 5 + k, 2 + k, k, schedule="hourly") for k in range(3)
+        instance(node_id * 10 + 5 + i, desc, k, schedule="hourly")
+        for i, (desc, k) in enumerate(others)
     ]
     if scenario == "inactive experiment":
         rows.append(
