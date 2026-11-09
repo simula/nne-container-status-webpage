@@ -79,7 +79,7 @@ def test_node_detail_from_query():
     assert built["containers-tabs"].value == "node"
     assert built["node-select"].value == 90001
     texts = [part.children for part in built["node-header"].children]
-    assert {"Node 90001", "Deployed", "Bergen", "Telenor", "Telia", "ICE"} <= set(texts)
+    assert {"Node 90001", "Deployed", "Bergen"} <= set(texts)
     assert page["layout"](node="1")["node-select"].value is None
 
 

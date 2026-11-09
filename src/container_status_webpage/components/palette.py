@@ -37,7 +37,8 @@
 """
 Colours and symbols of the container status rules (documentation/DESIGN.md section 6), the single
 source for the grid and the timeline; the colours of the page frame stay in assets/style.css.
-Aligned with nne-viz web/src/constants/colors.tsx (Status, UpRate, provider).
+Aligned with nne-viz web/src/constants/colors.tsx (Status, UpRate); the network colours come from
+the nnedbtools enum_mapper.
 
 Sample code:
 ```python
@@ -103,16 +104,6 @@ NONE_BORDER: str = "1px solid #e6e6e6"
 
 # Status chips
 STATUS_COLOUR: Dict[str, str] = {"DEPLOYED": "#1f3a93", "TESTING": "#7b3fb5"}
-
-# Provider colours of nne-viz; other providers in grey
-PROVIDER: Dict[str, str] = {
-    "Telenor": "#19aaf8",
-    "Telia": "#9308db",
-    "ICE": "#ffb900",
-    "ICE-R": "#ff8800",
-    "LAN": "#00cc5c",
-}
-PROVIDER_DEFAULT: str = "#757575"
 
 
 def colour_class(cell: Cell) -> str:

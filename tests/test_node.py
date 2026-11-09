@@ -112,9 +112,26 @@ def test_threads_and_experiments_tables():
     assert sum(row["state"].startswith("inactive experiment ") for row in threads) == 2
     experiments = node.experiments_table(SNAPSHOT, node_id).rowData
     assert [row["stop"] == "active" for row in experiments] == [True] * 4 + [False]
-    assert experiments[-1]["measurement"] == "1 (UDP Ping)"
     view = node.parameters_view(experiments[0]["id"], experiments[0]["parameters"])
     assert '\n  "synthetic": true' in view.children[1].children
+
+
+def test_header_and_networks():
+    """Header: counts of interfaces and experiments (+ 1 for metadata), one chip per network of the
+    active experiments (not the stopped Ice one, not the dummy network 0 of MQTT). Experiments
+    table: measurement with its container, network by name of the nnedbtools enum_mapper.
+    """
+    node_id = node_of("inactive experiment")
+    texts = [child.children for child in node.header(SNAPSHOT, node_id).children]
+    assert texts[3:] == ["2 interfaces · 5 experiments", "Telenor:4G", "Telia:5G"]
+    experiments = node.experiments_table(SNAPSHOT, node_id).rowData
+    assert [(row["measurement"], row["network"]) for row in experiments] == [
+        ("1 (UDP Ping)", "Telenor:4G"),
+        ("1 (UDP Ping)", "Telia:5G"),
+        ("26 (MQTT)", ""),
+        ("18 (Speedtest)", "Telenor:4G"),
+        ("1 (UDP Ping)", "Ice:4G"),
+    ]
 
 
 def test_timeline_rows():

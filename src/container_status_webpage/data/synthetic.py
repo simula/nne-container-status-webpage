@@ -111,11 +111,9 @@ MUNICIPALITIES: Tuple[Any, ...] = (
     None,
 )
 
-# Providers and network ids of the synthetic experiments
-PROVIDERS: Tuple[Tuple[str, int], ...] = (("Telenor", 1), ("Telia", 2), ("ICE", 3))
-
-# Start of the node status per status group
-VALID_FROM: Dict[str, str] = {"DEPLOYED": "2025-03-01", "TESTING": "2026-09-01"}
+# Interfaces (network_id, service_id) of the synthetic experiments: Telenor 4G, Telia 5G, Ice 4G;
+# MQTT runs on the dummy network 0
+INTERFACES: Tuple[Tuple[int, int], ...] = ((1, 1), (2, 2), (18, 1))
 
 # Runs of a thread: (start hours ago, last seen hours ago, version)
 Runs = List[Tuple[float, float, str]]
@@ -244,8 +242,8 @@ def synthetic_experiments(
     """
     Measurement instances of a node: the active udpping ones, MQTT and Speedtest instances (every
     main container is configured), Traceroute and NetPerfMeter instances in the scenario "extra
-    containers", and a stopped udpping one in the scenario "inactive experiment"; service 1 (4G),
-    the parameters JSON is made up.
+    containers", and a stopped udpping one in the scenario "inactive experiment"; interfaces of
+    INTERFACES, MQTT on network 0; the parameters JSON is made up.
 
     Args:
         node_id (int): Node identifier.
@@ -260,13 +258,16 @@ def synthetic_experiments(
     def instance(
         e: int, desc: int, k: int, stop: Any = pd.NaT, **parameters: Any
     ) -> Dict[str, Any]:
-        provider, network_id = PROVIDERS[(node_id + k) % len(PROVIDERS)]
+        network_id, service_id = (
+            (0, 0)
+            if desc == SupportedExperiment.MQTT_COLLECTOR.value
+            else INTERFACES[(node_id + k) % len(INTERFACES)]
+        )
         return {
             "id": e,
             "node_id": node_id,
             "network_id": network_id,
-            "service_id": 1,
-            "provider": provider,
+            "service_id": service_id,
             "measurement_desc_id": desc,
             "iccid": f"8947{node_id:07d}{k:02d}",
             "start_time": now - pd.Timedelta(days=60),
@@ -332,29 +333,33 @@ def synthetic(now: pd.Timestamp) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     node_id = 90000
     for s, status in enumerate(STATUS_ORDER):
         for i, scenario in enumerate(SCENARIOS):
-            # 1. Node with its site
+            # 1. Node and its udpping instances
             node_id += 1
             ids = [
                 node_id * 10,
                 node_id * 10 + 2,
             ]  # pairs of even ids as the real measurement_instance ids
+            # 2. Experiments
+            instances = synthetic_experiments(node_id, ids, scenario, now)
+            experiments += instances
             nodes.append(
                 {
                     "node_id": node_id,
                     "status": status,
-                    "valid_from": pd.Timestamp(VALID_FROM[status]),
-                    "interfaces": 3,
-                    "experiments": 5,
-                    "scenario": scenario,
-                    "name": f"Synthetic site {node_id}",
-                    "address": f"Testveien {node_id % 100}",
-                    "zip": f"{node_id % 9000 + 1000}",
+                    # interfaces of the active instances, the dummy network 0 not counted
+                    "interfaces": len(
+                        {
+                            (e["network_id"], e["service_id"])
+                            for e in instances
+                            if pd.isna(e["stop_time"]) and e["network_id"]
+                        }
+                    ),
+                    # active instances, + 1 for metadata
+                    "experiments": sum(pd.isna(e["stop_time"]) for e in instances) + 1,
                     "municipality": MUNICIPALITIES[node_id % len(MUNICIPALITIES)],
-                    "country_code": "NO",
+                    "scenario": scenario,
                 }
             )
-            # 2. Experiments
-            experiments += synthetic_experiments(node_id, ids, scenario, now)
             # 3. Runs of every thread
             target = MAIN[(i + s) % len(MAIN)]
             for container in MAIN + EXTRA:

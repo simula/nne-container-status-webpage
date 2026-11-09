@@ -57,6 +57,7 @@ import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 from dash import dcc, html
+from nnedbtools.enums import enum_mapper
 
 from container_status_webpage.components import grid, palette
 from container_status_webpage.components.formatting import blank, duration, when
@@ -129,9 +130,29 @@ def chip(text: str, colour: str) -> html.Span:
     return html.Span(text, className="chip", style={"backgroundColor": colour})
 
 
+def networks(experiments: pd.DataFrame) -> pd.DataFrame:
+    """
+    Experiments with the network name (display_name, as Telenor:5G) and colour (color) of the
+    nnedbtools enum_mapper; no name for network 0, the dummy network without an interface.
+
+    Args:
+        experiments (pd.DataFrame): Experiments with network_id and service_id.
+
+    Returns:
+        pd.DataFrame: A decorated copy.
+    """
+    frame = enum_mapper.map_network_service_to_plot_attributes_dataframe(
+        experiments.astype({"network_id": int, "service_id": int})
+    )
+    return frame.assign(
+        display_name=frame.display_name.where(frame.network_id != 0, "")
+    )
+
+
 def header(snapshot: Snapshot, node_id: int) -> html.Div:
     """
-    Header of a node: id, status, municipality and the providers of its active experiments.
+    Header of a node: id, status, municipality, the counts of active interfaces and experiments,
+    and the networks of its active experiments.
 
     Args:
         snapshot (Snapshot): Loaded data.
@@ -142,18 +163,20 @@ def header(snapshot: Snapshot, node_id: int) -> html.Div:
     """
     node = snapshot.nodes.set_index("node_id").loc[node_id]
     experiments = snapshot.experiments
-    active = experiments[
-        (experiments.node_id == node_id) & experiments.stop_time.isna()
-    ]
+    active = networks(
+        experiments[(experiments.node_id == node_id) & experiments.stop_time.isna()]
+    )
+    shown = active[active.network_id != 0].drop_duplicates("display_name")
     municipality = blank(node.municipality)
     return html.Div(
         [
             html.Span(f"Node {node_id}", className="node-id"),
             chip(node.status.capitalize(), palette.STATUS_COLOUR[node.status]),
             *([html.Span(municipality)] if municipality else []),
+            html.Span(f"{node.interfaces} interfaces · {node.experiments} experiments"),
             *[
-                chip(provider, palette.PROVIDER.get(provider, palette.PROVIDER_DEFAULT))
-                for provider in sorted(set(active.provider))
+                chip(n.display_name, n.color)
+                for n in shown.sort_values("display_name").itertuples()
             ],
         ],
         id="node-header",
@@ -525,20 +548,20 @@ def experiments_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
     Returns:
         dag.AgGrid: The table (id node-experiments, rows identified by the experiment id).
     """
-    frame = snapshot.experiments[snapshot.experiments.node_id == node_id]
+    frame = networks(snapshot.experiments[snapshot.experiments.node_id == node_id])
     frame = frame.assign(active=frame.stop_time.isna()).sort_values(
         ["active", "id"], ascending=[False, True]
     )
+
+    def measurement(desc: int) -> str:
+        name = status.NAME.get(status.CONFIGURED_BY.get(desc))
+        return f"{desc} ({name})" if name else str(desc)
+
     rows = [
         {
             "id": int(e.id),
-            "measurement": (
-                f"{e.measurement_desc_id} ({status.NAME['udpping']})"
-                if e.measurement_desc_id == status.UDPPING
-                else str(e.measurement_desc_id)
-            ),
-            "provider": e.provider,
-            "network_id": int(e.network_id),
+            "measurement": measurement(e.measurement_desc_id),
+            "network": e.display_name,
             "iccid": blank(e.iccid),
             "start": when(e.start_time),
             "stop": "active" if e.active else when(e.stop_time),
@@ -549,8 +572,7 @@ def experiments_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
     columns = [
         {"headerName": "Id", "field": "id", "width": 100},
         {"headerName": "Measurement", "field": "measurement", "width": 150},
-        {"headerName": "Provider", "field": "provider", "width": 110},
-        {"headerName": "Network", "field": "network_id", "width": 100},
+        {"headerName": "Network", "field": "network", "width": 140},
         {"headerName": "ICCID", "field": "iccid", "width": 190},
         {"headerName": "Start (UTC)", "field": "start", "width": 160},
         {"headerName": "Stop (UTC)", "field": "stop", "flex": 1},
