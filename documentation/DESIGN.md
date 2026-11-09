@@ -10,11 +10,11 @@ running. The data are the container heartbeats that
 | 1 | Prototype: static HTML generator, interaction, colour rules on synthetic data (local) | done |
 | 2 | Skeleton webpage resembling nne-viz: header navigation (Containers, Plots), placeholder sub-tabs on the Containers page (Overview, Grid, Problems, Node detail) in the nne-viz TabButton style, code conventions (section 13), Docker for development | done |
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
-| 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums (sections 4, 9, 10) | next |
+| 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums; node map on the Overview (sections 4, 7, 9, 10) | done |
 | 5 | nginx / TLS, set up from scratch | before deployment |
 | 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
-Figures quoted below were measured on 2026-11-06.
+Figures quoted below were measured on 2026-11-06 unless dated otherwise (first database run: 2026-11-09).
 
 ## 1. Scope
 - A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx / TLS
@@ -35,7 +35,7 @@ Figures quoted below were measured on 2026-11-06.
 | `nne.node_info` | active interface: `valid_to IS NULL` |
 | `nne.measurement_instance` | active experiment: `stop_time IS NULL`; `measurement_desc_id` (expected containers, section 4; udpping instances: 1), `network_id`, `service_id`; `parameters` (JSON string, up to 4000 characters) |
 | `nne.node_status`, `nne.status` | status group of the node |
-| `nne.node_address`, `nne.address` | site address, `municipality` optional |
+| `nne.node_address`, `nne.address` | current site address: `municipality` and the location `loc_lat`, `loc_lon` (optional, rounded to 2 decimals); street, zip and name are not loaded |
 | nnedbtools enums, no table | container of a `measurement_desc_id` (`batch.node_config.SupportedExperimentMapper`), network and service names and colours (`enums.enum_mapper`), container names (`enums.DockerContainer`) |
 
 `report.container_rawdata`:
@@ -67,14 +67,17 @@ A node is reported when all of these hold:
 
 Exception: the satellite nodes **4071, 4072, 4073** are reported as DEPLOYED although nne has no `node`, `node_info`
 or `node_status` row for them (hardcoded, `data/status.py` `SATELLITE_NODES`). They run neither the metadata nor
-the mqtt container: both are never expected there, and their experiment count has no +1 for metadata. Satellite measurements on other nodes are ad hoc and follow
-the rules above.
+the mqtt container: both are never expected there, and their experiment count has no +1 for metadata. Satellite
+measurements on other nodes are ad hoc and follow the rules above.
 
 On 2026-11-06: DEPLOYED 100, TESTING 16, unchanged with the conditions above on 2026-11-09. Missing status records
 found on the way were fixed in `nne.node_status`: 11085 DESTROYED (from 2026-11-06), 10964 and 11165 TESTING (from
 2026-09-01). On 2026-11-09 ten nodes ≥ 3100 had no status record (3100, 3178, 4071–4073, 4157, 8000, 9000, 9001,
 11447); none of them has an active interface, so none drops out only for the missing record. `nne.node_status` is
 synchronised manually.
+
+First database run (2026-11-09): DEPLOYED 103 (the 100 above and the 3 satellite nodes), TESTING 16; 112 of the 119
+nodes have a municipality and a location.
 
 ## 4. Containers and threads
 
@@ -88,8 +91,8 @@ synchronised manually.
 | netperfmeter | NetPerfMeter | extra | 24 | `container` | `cryo-*` |
 
 A node **expects** the metadata container and the container of every active measurement instance, by the map of the
-node configuration generator (`nnedbtools.batch.node_config.SupportedExperimentMapper.CONTAINER_NAME_MAP`); the satellite nodes expect neither
-metadata nor mqtt (section 3). QUIC
+node configuration generator (`nnedbtools.batch.node_config.SupportedExperimentMapper.CONTAINER_NAME_MAP`); the
+satellite nodes expect neither metadata nor mqtt (section 3). QUIC
 (25, `quic`) is not a standard container and is not shown. The group (main, extra) only orders the columns.
 
 `homekeeping` is a thread of the `metadata` container, not a container of its own. A typical node runs two udpping
@@ -150,9 +153,10 @@ A grid cell is one node and one container:
   without a configured instance";
 - **receiver restarts** (warning): `extra` of a `receiver-*` row counts the internal restarts of the udpping receiver
   after an error during the container run (reset when the container restarts). Rate = `extra / (seen_ts −
-  start_ts)`, the run counted as at least 1 h. Warning above 60 restarts per hour, or above 1440 per day (the same rate) when the run
-  has lasted 7 days or longer. Chosen on 2026-11-09 from the rates of 233 receivers of 115 nodes: median 0.2 per hour,
-  90th percentile 53, 95th 289; 60 per hour flagged 12 nodes, 1 / 1 had flagged 89 of 119 nodes, 10 / 10 still 50. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
+  start_ts)`, the run counted as at least 1 h. Warning above 60 restarts per hour, or above 1440 per day (the same
+  rate) when the run has lasted 7 days or longer. Chosen on 2026-11-09 from the rates of 233 receivers of 115 nodes:
+  median 0.2 per hour, 90th percentile 53, 95th 289; 60 per hour flagged 12 nodes, 1 / 1 had flagged 89 of 119 nodes,
+  10 / 10 still 50. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
   On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
   first hour.
 
@@ -195,6 +199,11 @@ depend on colour alone.
 | timeline: down period | down colour at 40 % |
 | timeline: version change | dark diamond |
 
+**Grade of a node** (map dot, section 7): the worst colour class of its configured containers, from best to worst
+long-run, stable, young, fresh, late, stale, down, long down, never; containers that are not configured do not count.
+Dark green (long-run) means every configured container has run 7 days or more. The markers (partial, flapping,
+orphans, restarts) do not change the grade; they are listed in the hover.
+
 ## 7. Page structure
 **Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one
 navigation button per page and the Norway clock; the page; orange footer with the SimulaMet logo on a light
@@ -205,7 +214,7 @@ and sub-tab name the view.
 
 | Sub-tab | Content |
 |---|---|
-| Overview | per status (Deployed, Testing, All): nodes, *all main OK*, *some issue*, *nothing running*; "Running containers by node status": per container the nodes running it / the nodes, per status |
+| Overview | left (60 %): node map on OpenStreetMap (Plotly `Scattermap`, zoom and pan), one dot per node with a location in the colour of its grade (section 6), one legend entry per grade with its count (a click hides it), hover with node, status, municipality, grade and issues, click on a dot: Node detail of that node; toolbar: Status (Deployed / Testing) and the number of nodes without location. Right (40 %): "Nodes by status" (Deployed, Testing, All: nodes, *all main OK*, *some issue*, *nothing running*) and "Running containers by node status" (per container the nodes running it / the nodes, per status), columns sharing the width with wrapped headers. Below 1000 px the two halves stack |
 | Grid | AG Grid, one row per node (Deployed then Testing, by `node_id`): node, status, municipality, then the main and the extra containers as column groups. A container cell shows the symbol and label of its state (section 5) and is coloured by the rules of section 6 (AG Grid cell style conditions built from the palette, section 9); its tooltip is a table of the threads (state on its colour, version, up, last seen, ago, starts 24 h / 7 d; never-seen and orphan rows). Toolbar: Status, State (a node matches when any cell has a chosen state or marker), Node and Municipality (multi-select with search). Sorting per column. Click on a row: Node detail of that node, on a container cell also of that container |
 | Problems | AG Grid, one row per node that is not fully OK: node, status, municipality, issues, last heartbeat (sortable, never first); Deployed first, then the longest silent. Toolbar: Status, Issues (text, case-insensitive), Node, Municipality. Click on a row: Node detail of that node |
 | Node detail | see below |
@@ -247,11 +256,17 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Sub-tab | the content of the sub-tab |
 | Grid / Problems toolbar | the rows filtered in a callback from a store of all rows |
 | Grid / Problems row click (`cellClicked`) | the URL query of the node (and of a container cell): the page is built again on Node detail |
+| Map toolbar (Status) | the map drawn again in a callback; zoom and pan stay (`uirevision`) |
+| Map dot click (`clickData`) | the URL query of the node: the page is built again on Node detail |
 | Node selector | the URL query of the node: the page is built again |
 | Range button | the x range of the timeline set in a callback; zoom and pan in Plotly |
 | Timeline bar click (`clickData`) | the segment detail below the timeline |
 | Experiments row click | the `parameters` of the instance below the table |
-| Hover on a grid cell or timeline bar | tooltip table or hover label with the detail |
+| Hover on a grid cell, timeline bar or map dot | tooltip table or hover label with the detail |
+
+When the tables, the map and the node selector appear, Dash reports their empty values (`cellClicked`, `clickData`,
+`value`) despite `prevent_initial_call`; the navigation ignores them. The node ids of the map dots are a plain list:
+Plotly sends a numpy column base64-encoded, and `dcc.Graph` then passes the click without `customdata`.
 
 The page shows when its data were loaded; every page load uses the cached data until the next refresh point (section
 10).
@@ -265,63 +280,74 @@ are marked.
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CONTAINERS_CACHE_MINUTES` |
 | `data/status.py` (3) | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
-| `data/synthetic.py` (3) | synthetic data: 20 scenarios covering every class and marker, including a mobile node and a release history |
+| `data/synthetic.py` (3) | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
 | `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
 | `components/frame.py`, `components/tabs.py` | page frame and sub-tabs |
 | `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
 | `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems sub-tabs |
 | `components/node.py` (3) | Node detail: URL query, header, timeline segments and figure, range, segment detail, threads and experiments tables |
+| `components/nodemap.py` (4) | Overview map: hover lines, located nodes with their grade, `Scattermap` figure, URL query of a clicked dot |
 | `assets/dashAgGridComponentFunctions.js` (3) | `ThreadTable`, the tooltip table of a grid cell |
-| `pages/containers.py` | layout and callbacks of the Containers page: toolbars, filters, navigation, range, clicks |
+| `pages/containers.py` | layout and callbacks of the Containers page: toolbars, filters, map, navigation, range, clicks |
 | `pages/plots.py` | Plots page |
 
 Input contract: the synthetic data and the loader produce the same three frames.
 
 | Frame | Columns |
 |---|---|
-| `nodes` | `node_id`, `status`, `interfaces`, `experiments`, `municipality` (the only part of the site address that is loaded) |
+| `nodes` | `node_id`, `status`, `interfaces`, `experiments`, `municipality`, `loc_lat`, `loc_lon` (the only parts of the site address that are loaded; the coordinates rounded to 2 decimals, about 1 km, so the map does not pinpoint the sites) |
 | `experiments` | `id`, `node_id`, `network_id`, `service_id`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
 | `raw` | the columns of `report.container_rawdata` |
 
-Synthetic data: 20 scenarios × DEPLOYED / TESTING = 40 nodes with ids from 90001: all long-run, fresh restart, young,
+Synthetic data: 22 scenarios × DEPLOYED / TESTING = 44 nodes with ids from 90001: all long-run, fresh restart, young,
 stable, late, stale, down, long down, never, udpping partial, thread missing, thread down, flapping, version change,
 extra containers, nothing running, no data, inactive experiment, mobile (three short trips a day, parked 5 days, as
-7042 / 7045), release history (all containers change version together, a dev build, 50 h down, as 7056). The target
-container of a scenario rotates over the main containers; experiments carry made-up parameters; some nodes have no
-municipality.
+7042 / 7045), release history (all containers change version together, a dev build, 50 h down, as 7056), orphan
+container (NetPerfMeter alive without an instance), receiver restarts (480 per hour, as 7056). The target container of
+a scenario rotates over the main containers; experiments use networks 1, 2 and 18 with 4G / 5G, MQTT the dummy
+network 0, and carry made-up parameters; sites lie near five municipality centres (coordinates rounded as the loader
+does); some nodes have no municipality and no location.
 
 Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
 coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
-pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the skeleton. Tests
-never import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
+pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the map figure (one dot per located
+node, status filter, grade order, plain-list `customdata`); the smoke tests of the skeleton. Tests never import a
+page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
 ## 10. Data loading and cache (phase 4)
 `data/loader.py` returns the three frames, read-only through nnedbtools:
 
-- `nodes`: the filter of section 3 (`nne.node_info`, `nne.measurement_instance`, `nne.node_status` / `nne.status`)
-  and the site address from `nnedbtools.queries.address.select_from_nne_node_adreess_and_nne_addresss(node_ids)`,
-  keeping `address_type` site with `valid_to IS NULL`;
-- `experiments`: `nne.measurement_instance` rows of those nodes (active, plus the ones udpping threads refer to), with
-  `network_id` and `service_id`;
-- `raw`: `SELECT * FROM report.container_rawdata`.
+- `nodes`: one statement for the filter of section 3 (`node_info`, `measurement_instance`, `node_status` / `status`)
+  with the interface and experiment counts, the satellite nodes added as DEPLOYED; then `municipality`, `loc_lat` and
+  `loc_lon` from `nnedbtools.queries.address.select_from_nne_node_adreess_and_nne_addresss(node_ids)`, keeping
+  `address_type` SITE with `valid_to IS NULL`, the coordinates rounded to 2 decimals;
+- `experiments`: all `measurement_instance` rows of those nodes, active and stopped
+  (`queries.augumentation.select_from_nne_measurement_instance(node_ids)`), with `network_id` and `service_id`;
+- `raw`: `select(tables.ReportContainerRawdata)` on the report engine, all rows.
 
 No lookup tables are read: the container of a `measurement_desc_id`, network and service names and colours come from
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
 names of section 4, sentence case).
 
-Code changes with the loader: the expected containers of a node from the configuration map in `data/status.py`
+Changed with the loader (phase 4): the expected containers of a node from the configuration map in `data/status.py`
 (never / not configured, section 5) and the orphan container (section 4); synthetic experiments with `service_id` and
 instances for the configured containers, plus an orphan container scenario and a receiver restart scenario; the
 network chips through the service decorator (`palette.PROVIDER` removed); the Experiments measurement column with the
-container name; the receiver restart warning and column (section 5); the header counts; the satellite nodes as a
-loader constant (section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
+container name; the receiver restart warning and column (section 5); the header counts; the satellite nodes
+(`data/status.py`, section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
 
 Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
 installed nnedbtools (`nnedbtools.certificates`): the Docker container needs only the env file (secret `db_env`).
-Development reads go through the nnedbtools test harness (read-only guards). The first real run is compared with the
-figures in this document.
+Development: `DATA_SOURCE=database` in the container with `.db_env_test`, generated from the nnedbtools test harness
+(DEVELOPMENT.md); compose maps the nnedbtools log files to `exports/logs`.
+
+First run from the container (2026-11-09): the reader account has SELECT / SHOW VIEW only on `nne` and `report`; 119
+nodes (section 3); 713 measurement instances (624 active), none without `service_id`; every network named by the
+service decorator (5G on all mobile networks, LAN with GeoSat, OneWeb, Starlink); `parameters` plain JSON text;
+13,563 rows of `container_rawdata`; header and Experiments built for every node. Problems: 96 of 119 nodes with the
+first receiver restart rule (1 per hour / 1 per day), 24 with 60 / 1440 (12 of them for receiver restarts).
 
 `data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point. Containers
 tab: `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and
@@ -346,9 +372,11 @@ environment with the project, run by systemd. Docker is only for local developme
 
 ## 12. Open points
 
-- Networks missing from `enum_mapper` get the colour "red" from nnedbtools; the chip text of an instance without
-  `service_id` from the service decorator is to be checked with the loader.
-- The real `parameters` format (the synthetic JSON is made up).
+- Networks missing from `enum_mapper` get the colour "red" from nnedbtools (none on 2026-11-09).
+- The map tiles come from `tile.openstreetmap.org`: fine for light use under the OpenStreetMap tile usage policy;
+  heavier use on oculus needs another tile provider.
+- Overview: an empty band under the "Nodes by status" table. Threads table: the "Receiver restarts" column cuts long
+  values (`314,076 (479/…`).
 - Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour / 1440 per day) are constants
   to calibrate after real use.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the

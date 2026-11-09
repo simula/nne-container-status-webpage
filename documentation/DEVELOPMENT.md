@@ -32,7 +32,7 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 
    ```bash
    export DB_ENV_FILE=/dev/null                  # synthetic data
-   export DB_ENV_FILE=/path/to/nne-reader.db_env # with database (phase 4)
+   export DB_ENV_FILE=./.db_env_test             # with database (DATA_SOURCE=database, see Database mode)
    ```
 
    The env file is mounted as the secret `/run/secrets/db_env` and never copied into the image.
@@ -42,6 +42,7 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 | Task | Command |
 |---|---|
 | Build and start | `docker compose up -d --build` → http://localhost:8050 |
+| Build and start on the database (Database mode below) | `DB_ENV_FILE=./.db_env_test DATA_SOURCE=database docker compose up -d --build` |
 | Start the last built image (no GitHub access needed) | `docker compose up -d` |
 | Status | `docker compose ps` |
 | Does the page answer? (expect `200`) | `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8050/` |
@@ -51,7 +52,8 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 | Stop (keep the container) | `docker compose stop` |
 | Stop and remove the container | `docker compose down` |
 
-The source is copied into the image (no bind mount): every code change needs a rebuild.
+The source is copied into the image (no bind mount): every code change needs a rebuild. The nnedbtools log files land
+in `exports/logs/` (git-ignored).
 
 ### Full reset of the container
 
@@ -61,6 +63,35 @@ docker image rm nne-container-status-webpage:dev
 docker compose build --no-cache
 docker compose up -d
 ```
+
+### Database mode (nne-reader)
+
+`DATA_SOURCE=database` loads the data from Apollo with the nne-reader account, read-only (grants: SELECT / SHOW VIEW).
+The container reads the nnedbtools env file `.db_env_test` in the repository root (git- and docker-ignored, mode
+600): the nnedbtools keys `NNE_DB_*` and `REPORT_DB_*` of the reader account, no SSL paths (nnedbtools uses its
+bundled Apollo CA / CRL). It is generated from the nnedbtools test harness (a checkout next to this repository with
+its test settings), without printing a value; run from the repository root with the conda env:
+
+```python
+import os
+import sys
+
+TARGET = os.path.abspath(".db_env_test")
+sys.path.insert(0, os.path.abspath("../nnedbtools/tests"))
+import harness  # merges the nnedbtools test settings with the reader account
+from nnedbtools.identityprovider import IdentityProvider
+
+with open(harness.ENV_FILE, encoding="utf-8") as handle:
+    values = dict(line.rstrip("\n").split("=", 1) for line in handle if "=" in line)
+values.update({key.upper(): value for key, value in harness.APOLLO_REPORT.items()})  # report on Apollo
+keys = [k.value for k in IdentityProvider.EnvironmentKey if "_SSL_" not in k.value]
+fd = os.open(TARGET, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    handle.writelines(f"{key}={values[key]}\n" for key in keys if key in values)
+```
+
+Checks against the real data run inside the container, with its env file and data source:
+`docker compose exec -T webpage python - < check.py` (SELECT statements only).
 
 ### Development server without Docker
 
@@ -93,6 +124,7 @@ On this Mac `conda run -n nne-container-status-webpage …` runs the wrong inter
 | `port is already allocated` / `Address already in use` | container or development server already on 8050 | `lsof -i :8050`, stop that process or `docker compose down` |
 | compose reports the secret file `./.db_env` missing | `DB_ENV_FILE` not set | `export DB_ENV_FILE=/dev/null` |
 | `gunicorn` fails with `Permission denied: '/home/app'` | image built from an old Dockerfile | full reset (above) |
+| Map empty in a headless browser screenshot | no WebGL in headless Chrome | `--headless=new --use-angle=swiftshader --enable-unsafe-swiftshader` |
 
 ## Tests
 
@@ -115,9 +147,9 @@ Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/s
 | Path | Content |
 |---|---|
 | `src/container_status_webpage/app.py` | Dash app (`app`, `server` for gunicorn), development server `main()` |
-| `src/container_status_webpage/settings.py` | settings from environment variables: `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic`), `CONTAINERS_CACHE_MINUTES` (default `15,45`) |
-| `src/container_status_webpage/data/` | rules (`status.py`), synthetic data (`synthetic.py`), cache (`cache.py`) |
-| `src/container_status_webpage/components/` | page frame, sub-tabs, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Node detail (`node.py`) |
+| `src/container_status_webpage/settings.py` | settings from environment variables: `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` (default `15,45`) |
+| `src/container_status_webpage/data/` | rules (`status.py`), synthetic data (`synthetic.py`), database loader (`loader.py`), cache (`cache.py`) |
+| `src/container_status_webpage/components/` | page frame, sub-tabs, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Overview map (`nodemap.py`), Node detail (`node.py`) |
 | `src/container_status_webpage/pages/` | one module per page (Dash Pages): Containers, Plots |
 | `src/container_status_webpage/assets/` | nne-viz style (`style.css`), logos, the Grid tooltip component (`dashAgGridComponentFunctions.js`), served by Dash |
 | `tests/` | rules, cache, tables, node detail and smoke tests, without a browser; never import a page module |
