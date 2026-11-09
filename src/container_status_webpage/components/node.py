@@ -50,13 +50,15 @@ node.header(CONTAINERS_CACHE.get(), 90001)
 ```
 """
 
+import json
 from typing import Any, Dict, List, Optional, Tuple
 
+import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 from dash import dcc, html
 
-from container_status_webpage.components import palette
+from container_status_webpage.components import grid, palette
 from container_status_webpage.components.formatting import blank, duration, when
 from container_status_webpage.data import status
 from container_status_webpage.data.cache import Snapshot
@@ -457,4 +459,131 @@ def run_detail(custom: List[str]) -> html.Table:
             for label, value in zip(labels, custom)
         ],
         className="run-detail",
+    )
+
+
+def threads_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
+    """
+    Threads of a node in the order of the timeline: latest run of every thread, the state on its
+    colour.
+
+    Args:
+        snapshot (Snapshot): Loaded data.
+        node_id (int): Node identifier.
+
+    Returns:
+        dag.AgGrid: The table (id node-threads).
+    """
+    states = snapshot.summary.states
+    rows = []
+    for container, thread, kind in thread_rows(snapshot, node_id):
+        state = states.get((node_id, container, thread))
+        row = (
+            grid.orphan_row(thread, state)
+            if kind == "orphan"
+            else grid.thread_row(thread, state)
+        )
+        rows.append({"container": status.NAME[container], **row})
+    columns = [
+        {"headerName": "Container", "field": "container", "width": 130},
+        {"headerName": "Thread", "field": "thread", "width": 150},
+        {
+            "headerName": "State",
+            "field": "state",
+            "width": 210,
+            "cellStyle": {
+                "function": "({backgroundColor: params.data.colour, color: params.data.text})"
+            },
+        },
+        {"headerName": "Version", "field": "version", "width": 150},
+        {"headerName": "Up", "field": "up", "width": 90},
+        {"headerName": "Last seen (UTC)", "field": "seen", "width": 160},
+        {"headerName": "Ago", "field": "ago", "width": 90},
+        {"headerName": "Starts 24 h / 7 d", "field": "starts", "flex": 1},
+    ]
+    return dag.AgGrid(
+        id="node-threads",
+        rowData=rows,
+        columnDefs=columns,
+        # The order of the timeline; durations as text do not sort
+        defaultColDef={**grid.DEFAULT_COLUMN, "sortable": False},
+        dashGridOptions={**grid.GRID_OPTIONS, "domLayout": "autoHeight"},
+        className="nne-grid",
+    )
+
+
+def experiments_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
+    """
+    Measurement instances of a node, active first; the parameters JSON stays in the rows for
+    parameters_view.
+
+    Args:
+        snapshot (Snapshot): Loaded data.
+        node_id (int): Node identifier.
+
+    Returns:
+        dag.AgGrid: The table (id node-experiments, rows identified by the experiment id).
+    """
+    frame = snapshot.experiments[snapshot.experiments.node_id == node_id]
+    frame = frame.assign(active=frame.stop_time.isna()).sort_values(
+        ["active", "id"], ascending=[False, True]
+    )
+    rows = [
+        {
+            "id": int(e.id),
+            "measurement": (
+                f"{e.measurement_desc_id} ({status.NAME['udpping']})"
+                if e.measurement_desc_id == status.UDPPING
+                else str(e.measurement_desc_id)
+            ),
+            "provider": e.provider,
+            "network_id": int(e.network_id),
+            "iccid": blank(e.iccid),
+            "start": when(e.start_time),
+            "stop": "active" if e.active else when(e.stop_time),
+            "parameters": e.parameters,
+        }
+        for e in frame.itertuples()
+    ]
+    columns = [
+        {"headerName": "Id", "field": "id", "width": 100},
+        {"headerName": "Measurement", "field": "measurement", "width": 150},
+        {"headerName": "Provider", "field": "provider", "width": 110},
+        {"headerName": "Network", "field": "network_id", "width": 100},
+        {"headerName": "ICCID", "field": "iccid", "width": 190},
+        {"headerName": "Start (UTC)", "field": "start", "width": 160},
+        {"headerName": "Stop (UTC)", "field": "stop", "flex": 1},
+    ]
+    return dag.AgGrid(
+        id="node-experiments",
+        rowData=rows,
+        columnDefs=columns,
+        getRowId="params.data.id",
+        rowClassRules={"experiment-stopped": "params.data.stop !== 'active'"},
+        defaultColDef=grid.DEFAULT_COLUMN,
+        dashGridOptions={**grid.GRID_OPTIONS, "domLayout": "autoHeight"},
+        className="nne-grid",
+    )
+
+
+def parameters_view(experiment_id: int, parameters: Any) -> html.Div:
+    """
+    Parameters of an experiment, indented JSON (the text as it is when it is not JSON).
+
+    Args:
+        experiment_id (int): Experiment id.
+        parameters (Any): parameters of measurement_instance.
+
+    Returns:
+        html.Div: Caption and the parameters.
+    """
+    try:
+        text = json.dumps(json.loads(parameters), indent=2, sort_keys=True)
+    except TypeError, ValueError:
+        text = str(parameters)
+    return html.Div(
+        [
+            html.P(f"Parameters of experiment {experiment_id}", className="data-info"),
+            html.Pre(text, className="parameters"),
+        ]
     )

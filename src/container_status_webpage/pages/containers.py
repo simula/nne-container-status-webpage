@@ -59,12 +59,15 @@ from container_status_webpage.components.node import (
     DEFAULT_RANGE,
     RANGES,
     click_query,
+    experiments_table,
 )
 from container_status_webpage.components.node import header as node_header
 from container_status_webpage.components.node import (
     node_query,
+    parameters_view,
     run_detail,
     span,
+    threads_table,
     timeline,
     x_range,
 )
@@ -257,6 +260,27 @@ def show_run(click: Dict[str, Any]) -> html.Table:
 
 
 @callback(
+    Output("node-parameters", "children"),
+    Input("node-experiments", "cellClicked"),
+    State("node-experiments", "rowData"),
+    prevent_initial_call=True,
+)
+def show_parameters(cell: Dict[str, Any], rows: List[Dict[str, Any]]) -> html.Div:
+    """
+    Parameters of the clicked experiment.
+
+    Args:
+        cell (Dict[str, Any]): cellClicked of the experiments table (rowId is the experiment id).
+        rows (List[Dict[str, Any]]): Rows of the experiments table.
+
+    Returns:
+        html.Div: The parameters (parameters_view).
+    """
+    row = next(row for row in rows if str(row["id"]) == cell["rowId"])
+    return parameters_view(row["id"], row["parameters"])
+
+
+@callback(
     Output("node-timeline", "figure"),
     Input("node-range", "value"),
     State("node-span", "data"),
@@ -333,6 +357,16 @@ def node_tab(
             html.Div(
                 html.P("Click a bar for its detail.", className="data-info"),
                 id="node-run",
+            ),
+            html.H3("Threads"),
+            threads_table(snapshot, node_id),
+            html.H3("Experiments"),
+            experiments_table(snapshot, node_id),
+            html.Div(
+                html.P(
+                    "Click an experiment for its parameters.", className="data-info"
+                ),
+                id="node-parameters",
             ),
         ]
     )

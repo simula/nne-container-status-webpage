@@ -112,32 +112,56 @@ def status_column(field: str = "status") -> Dict[str, Any]:
 
 def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """
-    Row of the tooltip table: the latest run of a thread.
+    Row of the tooltip table and the threads table of the node detail: the latest run of a thread.
 
     Args:
         name (str): Thread name.
         state (Optional[Dict[str, Any]]): Thread state (status.thread_states), None when never seen.
 
     Returns:
-        Dict[str, str]: thread, state, colour of the state, version, up, seen, ago, starts.
+        Dict[str, str]: thread, state, colour and text colour of the state, version, up, seen,
+            ago, starts.
     """
     if state is None:
         return {
             "thread": name,
             "state": "never",
             "colour": palette.COLOUR["never"][0],
+            "text": palette.COLOUR["never"][1],
             **dict.fromkeys(("version", "up", "seen", "ago", "starts"), "–"),
         }
     running = state["seen"] == "running"
+    colour, text = palette.COLOUR[state["up"] if running else state["seen"]]
     return {
         "thread": name,
         "state": state["seen"],
-        "colour": palette.COLOUR[state["up"] if running else state["seen"]][0],
+        "colour": colour,
+        "text": text,
         "version": state["version"],
         "up": duration(state["uptime"]),
         "seen": when(state["seen_ts"]),
         "ago": duration(state["age_h"] * 3600),
         "starts": f"{state['starts_24h']} / {state['starts_7d']}",
+    }
+
+
+def orphan_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Row of a thread running for an inactive experiment: the inactive experiment as state.
+
+    Args:
+        name (str): Thread name (sender-<id> / receiver-<id>).
+        state (Optional[Dict[str, Any]]): Thread state (status.thread_states).
+
+    Returns:
+        Dict[str, Any]: thread_row with the state replaced and orphan True.
+    """
+    return {
+        **thread_row(name, state),
+        "state": f"inactive experiment {status.experiment_id(name)}",
+        "colour": palette.ORPHAN,
+        "text": "#ffffff",
+        "orphan": True,
     }
 
 
@@ -180,12 +204,7 @@ def hover(
     # 2. Expected threads, then the orphans with the inactive experiment as state
     rows = [thread_row(name, state) for name, state in cell.threads]
     rows += [
-        {
-            **thread_row(name, states.get((node_id, container, name))),
-            "state": f"inactive experiment {status.experiment_id(name)}",
-            "colour": palette.ORPHAN,
-            "orphan": True,
-        }
+        orphan_row(name, states.get((node_id, container, name)))
         for name in cell.orphans
     ]
     return {"title": title, "rows": rows}
