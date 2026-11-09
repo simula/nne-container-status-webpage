@@ -49,14 +49,25 @@ Sample code:
 from typing import Any, Dict, List, Optional
 
 import dash
-from dash import Input, Output, State, callback, ctx, dcc, html
+import pandas as pd
+from dash import Input, Output, Patch, State, callback, ctx, dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.components import grid
 from container_status_webpage.components.formatting import when
-from container_status_webpage.components.node import click_query
+from container_status_webpage.components.node import (
+    DEFAULT_RANGE,
+    RANGES,
+    click_query,
+)
 from container_status_webpage.components.node import header as node_header
-from container_status_webpage.components.node import node_query
+from container_status_webpage.components.node import (
+    node_query,
+    run_detail,
+    span,
+    timeline,
+    x_range,
+)
 from container_status_webpage.components.tabs import sub_tabs
 from container_status_webpage.data import status
 from container_status_webpage.data.cache import CONTAINERS_CACHE, Snapshot
@@ -227,13 +238,59 @@ def navigate(
     return click_query(grid_cell if ctx.triggered_id == "status-grid" else problem_cell)
 
 
-def node_tab(snapshot: Snapshot, node_id: Optional[int]) -> html.Div:
+@callback(
+    Output("node-run", "children"),
+    Input("node-timeline", "clickData"),
+    prevent_initial_call=True,
+)
+def show_run(click: Dict[str, Any]) -> html.Table:
     """
-    Node detail tab: node selector and the detail of the selected node.
+    Detail of the clicked timeline segment.
+
+    Args:
+        click (Dict[str, Any]): clickData of the timeline.
+
+    Returns:
+        html.Table: The detail (run_detail).
+    """
+    return run_detail(click["points"][0]["customdata"])
+
+
+@callback(
+    Output("node-timeline", "figure"),
+    Input("node-range", "value"),
+    State("node-span", "data"),
+    prevent_initial_call=True,
+)
+def set_range(choice: str, first_now: List[str]) -> Patch:
+    """
+    X range of the timeline for the chosen range button.
+
+    Args:
+        choice (str): Value of node.RANGES.
+        first_now (List[str]): First start and load time of the timeline (node.span).
+
+    Returns:
+        Patch: The new x range of the figure.
+    """
+    first, now = (pd.Timestamp(value) for value in first_now)
+    figure = Patch()
+    figure["layout"]["xaxis"]["range"] = [str(t) for t in x_range(first, now, choice)]
+    figure["layout"]["xaxis"]["autorange"] = False
+    return figure
+
+
+def node_tab(
+    snapshot: Snapshot, node_id: Optional[int], container: Optional[str]
+) -> html.Div:
+    """
+    Node detail tab: node selector and the detail of the selected node: header, timeline, detail
+    of the clicked segment.
 
     Args:
         snapshot (Snapshot): Loaded data.
         node_id (Optional[int]): Selected node, None for none.
+        container (Optional[str]): Container highlighted in the timeline, None for none.
 
     Returns:
         html.Div: Selector (id node-select) and detail.
@@ -248,25 +305,55 @@ def node_tab(snapshot: Snapshot, node_id: Optional[int]) -> html.Div:
             className="toolbar-nodes",
         ),
     )
-    detail = (
-        node_header(snapshot, node_id)
-        if node_id is not None
-        else html.P("Select a node.", className="data-info")
+    if node_id is None:
+        return html.Div(
+            [
+                html.Div(selector, className="toolbar"),
+                html.P("Select a node.", className="data-info"),
+            ]
+        )
+    ranges = item(
+        "Range",
+        dcc.RadioItems(
+            id="node-range",
+            options=[
+                {"label": "All" if value == "all" else f"{value} d", "value": value}
+                for value in RANGES
+            ],
+            value=DEFAULT_RANGE,
+            inline=True,
+        ),
     )
-    return html.Div([html.Div(selector, className="toolbar"), detail])
+    return html.Div(
+        [
+            html.Div([selector, ranges], className="toolbar"),
+            node_header(snapshot, node_id),
+            timeline(snapshot, node_id, container),
+            dcc.Store(id="node-span", data=[str(t) for t in span(snapshot, node_id)]),
+            html.Div(
+                html.P("Click a bar for its detail.", className="data-info"),
+                id="node-run",
+            ),
+        ]
+    )
 
 
 def layout(
-    tab: Optional[str] = None, node: Optional[str] = None, **_query: str
+    tab: Optional[str] = None,
+    node: Optional[str] = None,
+    container: Optional[str] = None,
+    **_query: str,
 ) -> html.Div:
     """
     Page content, built on every page load from the cached data and the URL query
-    (/?tab=node&node=<id>).
+    (/?tab=node&node=<id>&container=<name>).
 
     Args:
         tab (Optional[str], optional): Selected sub-tab. Defaults to None (Overview).
         node (Optional[str], optional): Node of the Node detail tab. Defaults to None.
-        **_query (str): Other query values (container: Grid cell click, step C4).
+        container (Optional[str], optional): Container highlighted in the timeline. Defaults to
+            None.
+        **_query (str): Other query values (ignored).
 
     Returns:
         html.Div: Data line and the sub-tabs.
@@ -348,7 +435,15 @@ def layout(
                             ]
                         ),
                     ),
-                    ("node", "Node detail", node_tab(snapshot, node_id)),
+                    (
+                        "node",
+                        "Node detail",
+                        node_tab(
+                            snapshot,
+                            node_id,
+                            container if container in status.NAME else None,
+                        ),
+                    ),
                 ],
                 tab if tab in ("overview", "grid", "problems", "node") else None,
             ),
