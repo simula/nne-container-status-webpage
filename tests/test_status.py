@@ -165,9 +165,16 @@ def test_problems_and_overview():
     summary = status.summarise(nodes, experiments, rawdata, NOW)
     found = status.problems(nodes, summary, rawdata)
     scenario = nodes.set_index("node_id").scenario
-    healthy = {"all long-run", "fresh restart", "young", "stable", "version change"}
+    healthy = {
+        "all long-run",
+        "fresh restart",
+        "young",
+        "stable",
+        "version change",
+        "release history",
+    }
     assert set(found.node_id.map(scenario)) == set(SCENARIOS) - healthy
-    assert found.status.tolist() == ["DEPLOYED"] * 13 + ["TESTING"] * 13
+    assert found.status.tolist() == ["DEPLOYED"] * 14 + ["TESTING"] * 14
     assert found.node_id.map(scenario).iloc[0] == "no data"
     counts = status.overview(nodes, summary)
     assert (

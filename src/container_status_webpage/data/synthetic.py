@@ -37,7 +37,7 @@
 """
 Synthetic input frames (DESIGN.md section 9) covering every class and marker of the container status
 rules:
-18 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
+20 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
 until the
 database loader exists, and with DATA_SOURCE=synthetic afterwards.
 
@@ -84,6 +84,8 @@ SCENARIOS: Tuple[str, ...] = (
     "nothing running",
     "no data",
     "inactive experiment",
+    "mobile",
+    "release history",
 )
 
 # Version line per container
@@ -114,6 +116,25 @@ VALID_FROM: Dict[str, str] = {"DEPLOYED": "2025-03-01", "TESTING": "2026-09-01"}
 
 # Runs of a thread: (start hours ago, last seen hours ago, version)
 Runs = List[Tuple[float, float, str]]
+
+
+def mobile_runs(version: str) -> Runs:
+    """
+    Runs of a mobile node (as nodes 7042 and 7045): three trips of 0.4 h a day for 30 days, parked
+    from day 10 to day 15, the last trip ended 3 h ago.
+
+    Args:
+        version (str): Version of every run.
+
+    Returns:
+        Runs: The runs, newest first.
+    """
+    return [
+        (day * 24 + hour + 0.4, day * 24 + hour, version)
+        for day in range(30)
+        if not 10 <= day < 15
+        for hour in (3, 9, 15)
+    ]
 
 
 def synthetic_threads(  # pylint: disable=too-many-return-statements
@@ -149,6 +170,18 @@ def synthetic_threads(  # pylint: disable=too-many-return-statements
         return []
     if scenario == "nothing running":
         return [(name, [(720, 216, new)]) for name in names]
+    if scenario == "mobile":
+        return [(name, mobile_runs(new)) for name in names]
+    if scenario == "release history":
+        # As node 7056: all containers change together, back to a dev build, 50 h down
+        line = VERSION[container]
+        history = [
+            (720, 400.1, f"{line}-2-1-8"),
+            (400, 200, "dev-0-8-77"),
+            (150, 100.1, f"{line}-2-2-4"),
+            (100, 0.5, new),
+        ]
+        return [(name, history) for name in names]
     if scenario == "inactive experiment":
         # udpping also runs the threads of the stopped experiment node_id * 10 + 4
         stopped = (
