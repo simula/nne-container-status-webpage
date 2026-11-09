@@ -10,7 +10,7 @@ running. The data are the container heartbeats that
 | 1 | Prototype: static HTML generator, interaction, colour rules on synthetic data (local) | done |
 | 2 | Skeleton webpage resembling nne-viz: header navigation (Containers, Plots), placeholder sub-tabs on the Containers page (Overview, Grid, Problems, Node detail) in the nne-viz TabButton style, code conventions (section 13), Docker for development | done |
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
-| 4 | Database loader through nnedbtools (read-only), cache | next |
+| 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums (sections 4, 9, 10) | next |
 | 5 | nginx / TLS, set up from scratch | before deployment |
 | 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
@@ -24,7 +24,7 @@ Figures quoted below were measured on 2026-11-06.
 - Live data, read-only: through nnedbtools with the nne-reader account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
 - Python only, apart from client-side callbacks where a request to the server makes no sense (the clock).
-- The timeline shows the last 14 days; the table keeps more.
+- The timeline opens on the last 7 days; All shows the whole history of the table.
 - Not part of nne-viz (React, TypeScript): a separate project that shares its look (colours, logos, page frame).
 
 ## 2. Data sources
@@ -33,16 +33,18 @@ Figures quoted below were measured on 2026-11-06.
 |---|---|
 | `report.container_rawdata` | heartbeat runs, see below |
 | `nne.node_info` | active interface: `valid_to IS NULL` |
-| `nne.measurement_instance` | active experiment: `stop_time IS NULL`; udpping instances: `measurement_desc_id = 1`; `parameters` (JSON string, up to 4000 characters) |
+| `nne.measurement_instance` | active experiment: `stop_time IS NULL`; `measurement_desc_id` (expected containers, section 4; udpping instances: 1), `network_id`, `service_id`; `parameters` (JSON string, up to 4000 characters) |
 | `nne.node_status`, `nne.status` | status group of the node |
 | `nne.node_address`, `nne.address` | site address, `municipality` optional |
+| nnedbtools enums, no table | container of a `measurement_desc_id` (`batch.node_config.SupportedExperimentMapper`), network and service names and colours (`enums.enum_mapper`), container names (`enums.DockerContainer`) |
 
 `report.container_rawdata`:
 
 - Key `(node_id, start_ts, container, version, process)`; one row per container run and process (thread).
   The importer updates `seen_ts` and `uptime` of the row while the run lasts; a restart creates a new row.
 - Heartbeats arrive about hourly; most `seen_ts` values are on the full hour.
-- `uptime` equals `seen_ts − start_ts` within seconds; `extra` is always empty.
+- `uptime` equals `seen_ts − start_ts` within seconds; `extra` holds an integer on `receiver-*` threads only (354 of
+  4098 rows of nodes 7042, 7045, 7056, 4120, 4124 on 2026-11-09), otherwise empty.
 - Not partitioned, about 13,000 rows, no index on `seen_ts`: read in one statement (`SELECT *`).
 - Data quality seen: a few rows with node clock errors (`start_ts` 2011-11-11), version `--`.
 
@@ -66,14 +68,18 @@ On 2026-11-06: DEPLOYED 100, TESTING 16. Missing status records found on the way
 
 ## 4. Containers and threads
 
-| Container | Group | Expected threads (`process`) | Version line |
-|---|---|---|---|
-| metadata | main | `homekeeping`, `metadata` | `geo-*` |
-| mqtt | main | `container`, `mqtt` | `locum-*` |
-| speedtest | main | `container` | `dendro-*` |
-| udpping | main | `container`, plus `sender-<N>` and `receiver-<N>` per active udpping instance `N` | `electro-*` |
-| traceroute | extra | `container` | `chrono-*` |
-| netperfmeter | extra | `container` | `cryo-*` |
+| Container | Shown as | Group | Configured by `measurement_desc_id` | Expected threads (`process`) | Version line |
+|---|---|---|---|---|---|
+| metadata | Metadata | main | always (0) | `homekeeping`, `metadata` | `geo-*` |
+| mqtt | MQTT | main | 26 | `container`, `mqtt` | `locum-*` |
+| speedtest | Speedtest | main | 16, 17, 18, 19, 23 | `container` | `dendro-*` |
+| udpping | UDP Ping | main | 1 | `container`, plus `sender-<N>` and `receiver-<N>` per active udpping instance `N` | `electro-*` |
+| traceroute | Traceroute | extra | 27 | `container` | `chrono-*` |
+| netperfmeter | NetPerfMeter | extra | 24 | `container` | `cryo-*` |
+
+A node **expects** the metadata container and the container of every active measurement instance, by the map of the
+node configuration generator (`nnedbtools.batch.node_config.SupportedExperimentMapper.CONTAINER_NAME_MAP`). QUIC
+(25, `quic`) is not a standard container and is not shown. The group (main, extra) only orders the columns.
 
 `homekeeping` is a thread of the `metadata` container, not a container of its own. A typical node runs two udpping
 experiments, so two sender and two receiver threads.
@@ -85,7 +91,11 @@ derived from its active udpping instances:
 
 - an active instance without a running sender or receiver makes the cell **partial**;
 - a sender or receiver that is still running while `N` is not an active udpping instance of that node (stopped,
-  belonging to another node, or unknown) is an **orphan** and counts as a problem.
+  belonging to another node, or unknown) is an **orphan** and counts as a problem;
+- a container that is alive (a running thread) while the node has no active instance configuring it (section 4) is an
+  **orphan container** and counts as a problem; metadata is always configured.
+
+The key point is the match between the settings in the database and the deployed experiments.
 
 On 2026-11-06 all 432 running sender/receiver threads belonged to active udpping instances of the same node.
 
@@ -119,16 +129,19 @@ A grid cell is one node and one container:
 
 - **state**: worst last seen class among the expected threads that have rows
   (running < late < stale < down < long down);
-- **never** when no expected thread has a row (main container); **not deployed** for an extra container without rows;
+- **never** when the node expects the container (section 4) and no expected thread has a row, main or extra alike;
+  **not configured** (empty cell) for a container the node does not expect;
 - **shade**: uptime class of the freshest running thread;
 - **partial**: some, but not all, expected threads running; label `k/n`, for udpping `S a/n R b/n`;
 - **flapping**: any thread flapping;
-- **orphans**: see the crosscheck; label `⚠+k`.
+- **orphans**: see the crosscheck; label `⚠+k`;
+- **orphan container**: the cell keeps the state of its threads with the orphan marker; issue "<container>: running
+  without a configured instance".
 
 Per node (Overview tab): *all main OK* = every main cell running, not partial, without orphans; *nothing running* =
 no cell has a running thread; *some issue* = the rest.
 
-A node is listed on the Problems tab when a cell is not running (except not deployed), partial, flapping or has
+A node is listed on the Problems tab when a cell is not running (except not configured), partial, flapping or has
 orphans; DEPLOYED first, then the longest silent.
 
 ## 6. Colour rules
@@ -146,26 +159,27 @@ depend on colour alone.
 | stale | `#e16437` | ! |
 | down | `#e13737` | × |
 | long down | `#a50f15` | × |
-| never (main) | `#dddddd`, hatched | – |
-| not deployed (extra) | white | |
+| never (expected, no rows) | `#dddddd`, hatched | – |
+| not configured | white | |
 
 | Marker | Look |
 |---|---|
 | partial | amber inner border `#d39e00` |
-| orphan | dark red inner border `#a50f15`, `⚠+k` |
+| orphan thread / orphan container | dark red inner border `#a50f15`, `⚠+k` / `⚠` |
 | flapping | white dot in the corner |
 | TESTING node | dashed cell border |
 | status chips | DEPLOYED `#1f3a93`, TESTING `#7b3fb5` |
 | theme (header line, active tab) | `#f15d22` |
-| provider chips | Telenor `#19aaf8`, Telia `#9308db`, ICE `#ffb900`, ICE-R `#ff8800`, LAN `#00cc5c`, others grey |
+| network chips (node header) | one chip per network and service: `display_name` (`Telenor:5G`) and `color` of the nnedbtools service decorator `enum_mapper.map_network_service_to_plot_attributes_dataframe`; network 0 (dummy, no interface) without chip |
 | timeline: run / silence to now | uptime class of the run / last seen class, as the grid |
 | timeline: down period | down colour at 40 % |
 | timeline: version change | dark diamond |
 
 ## 7. Page structure
-**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one navigation
-button per page and the Norway clock; the page; orange footer with the SimulaMet logo. Pages: Containers (`/`),
-Plots (`/plots`). Pages have no title of their own: the selected header button and sub-tab name the view.
+**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one
+navigation button per page and the Norway clock; the page; orange footer with the SimulaMet logo on a light
+background. Pages: Containers (`/`), Plots (`/plots`). Pages have no title of their own: the selected header button
+and sub-tab name the view.
 
 **Containers page**: the time of the last data load, then sub-tabs in the nne-viz TabButton style.
 
@@ -183,7 +197,7 @@ Testing; headers in sentence case. The data keep the database values.
 
 - Node selector (searchable) and range buttons 1 / 3 / 7 / 14 d and All (7 d first). The URL
   `/?tab=node&node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
-- Header: node, status chip, municipality, provider chips of the active experiments.
+- Header: node, status chip, municipality, network chips of the active experiments (section 6).
 - Timeline (Plotly): one row per expected thread of every deployed container (main first), then the orphans (dark red,
   ⚠) and the never-seen threads ("(never)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
   length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
@@ -193,8 +207,9 @@ Testing; headers in sentence case. The data keep the database values.
 - Threads (AG Grid), in the order of the timeline: container, thread, state on its colour, version, up, last seen,
   ago, starts in 24 h / 7 d.
 - Experiments (AG Grid): the measurement instances of the node, active first, stopped ones in grey: id, measurement
-  (`1 (UDP Ping)`), provider, network, iccid, start, stop. Click on a row: its `parameters` as indented JSON below
-  the table.
+  (the `measurement_desc_id` with the display name of its container, `1 (UDP Ping)`, `16 (Speedtest)`; the short
+  names prevail over the long descriptions), network, iccid, start, stop. Click on a row: its `parameters` as
+  indented JSON below the table.
 
 **Plots page**: one section per plot from the notebooks; a matplotlib figure of nnedbtools is shown as an image
 first and rewritten in Plotly when it needs interaction.
@@ -243,7 +258,7 @@ Input contract: the synthetic data and the loader produce the same three frames.
 | Frame | Columns |
 |---|---|
 | `nodes` | `node_id`, `status`, `valid_from`, `interfaces`, `experiments`, `name`, `address`, `zip`, `municipality`, `country_code` |
-| `experiments` | `id`, `node_id`, `network_id`, `provider`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
+| `experiments` | `id`, `node_id`, `network_id`, `service_id`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
 | `raw` | the columns of `report.container_rawdata` |
 
 Synthetic data: 20 scenarios × DEPLOYED / TESTING = 40 nodes with ids from 90001: all long-run, fresh restart, young,
@@ -254,9 +269,9 @@ container of a scenario rotates over the main containers; experiments carry made
 municipality.
 
 Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
-coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the
-skeleton. Tests never import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page
-twice).
+coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
+pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the skeleton. Tests
+never import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
 ## 10. Data loading and cache (phase 4)
 `data/loader.py` returns the three frames, read-only through nnedbtools:
@@ -265,8 +280,17 @@ twice).
   and the site address from `nnedbtools.queries.address.select_from_nne_node_adreess_and_nne_addresss(node_ids)`,
   keeping `address_type` site with `valid_to IS NULL`;
 - `experiments`: `nne.measurement_instance` rows of those nodes (active, plus the ones udpping threads refer to), with
-  the provider name of `network_id`;
+  `network_id` and `service_id`;
 - `raw`: `SELECT * FROM report.container_rawdata`.
+
+No lookup tables are read: the container of a `measurement_desc_id`, network and service names and colours come from
+the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
+names of section 4, sentence case).
+
+Code changes with the loader: the expected containers of a node from the configuration map in `data/status.py`
+(never / not configured, section 5) and the orphan container (section 4); synthetic experiments with `service_id` and
+instances for the configured containers, plus an orphan container scenario; the network chips through the service
+decorator (`palette.PROVIDER` removed); the Experiments measurement column with the container name.
 
 Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. Development reads go through the nnedbtools test
@@ -293,8 +317,8 @@ environment with the project, run by systemd. Docker is only for local developme
 
 ## 12. Open points
 
-- `measurement_desc_id` names: only udpping (1) is known.
-- Network → provider mapping for the colours (nne-viz provider names).
+- Networks missing from `enum_mapper` get the colour "red" from nnedbtools; the chip text of an instance without
+  `service_id` from the service decorator is to be checked with the loader.
 - The real `parameters` format (the synthetic JSON is made up).
 - Nodes without a `nne.node_status` record drop out of the report silently; the nimbus sync may overwrite records
   fixed by hand.
