@@ -115,9 +115,12 @@ Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/s
 | Path | Content |
 |---|---|
 | `src/container_status_webpage/app.py` | Dash app (`app`, `server` for gunicorn), development server `main()` |
-| `src/container_status_webpage/settings.py` | settings from environment variables (`DEBUG`, `DB_ENV_FILE`) |
-| `src/container_status_webpage/components/` | layout components in the nne-viz look: page frame, sub-tabs |
+| `src/container_status_webpage/settings.py` | settings from environment variables: `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic`), `CONTAINERS_CACHE_MINUTES` (default `15,45`) |
+| `src/container_status_webpage/data/` | rules (`status.py`), synthetic data (`synthetic.py`), cache (`cache.py`) |
+| `src/container_status_webpage/components/` | page frame, sub-tabs, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Node detail (`node.py`) |
 | `src/container_status_webpage/pages/` | one module per page (Dash Pages): Containers, Plots |
-| `src/container_status_webpage/assets/` | nne-viz style (`style.css`) and logos, served by Dash |
-| `tests/` | smoke tests |
-| `prototype/` | static HTML prototype with the colour rules, reference for phase 3, then removed |
+| `src/container_status_webpage/assets/` | nne-viz style (`style.css`), logos, the Grid tooltip component (`dashAgGridComponentFunctions.js`), served by Dash |
+| `tests/` | rules, cache, tables, node detail and smoke tests, without a browser; never import a page module |
+
+Synthetic nodes worth opening (`/?tab=node&node=<id>`): 90019 mobile, 90020 release history, 90018 orphan threads,
+90010 UDP Ping partial.

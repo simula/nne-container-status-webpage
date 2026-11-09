@@ -9,13 +9,13 @@ running. The data are the container heartbeats that
 |---|---|---|
 | 1 | Prototype: static HTML generator, interaction, colour rules on synthetic data (local) | done |
 | 2 | Skeleton webpage resembling nne-viz: header navigation (Containers, Plots), placeholder sub-tabs on the Containers page (Overview, Grid, Problems, Node detail) in the nne-viz TabButton style, code conventions (section 13), Docker for development | done |
-| 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | next |
-| 4 | Database loader through nnedbtools (read-only), cache | |
+| 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
+| 4 | Database loader through nnedbtools (read-only), cache | next |
 | 5 | nginx / TLS, set up from scratch | before deployment |
 | 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
-The static HTML prototype of phase 1 (`prototype/`) settled the rules of sections 4–6 and the page ideas of sections 7–8;
-it is removed at the end of phase 3.
+The static HTML prototype of phase 1 settled the rules of sections 4–6 and the page ideas of sections 7–8; it was
+removed at the end of phase 3 (git history: `prototype/`).
 
 Figures quoted below were measured on 2026-11-06.
 
@@ -114,6 +114,10 @@ Reference time is the generation time (UTC). Each thread is classified by its la
 
 Starts in 24 h / 7 d are the distinct `start_ts` values in that period; **flapping** means 3 or more starts in 24 h.
 
+`report.container_rawdata` holds one row per run: `start_ts` and the last heartbeat `seen_ts` (on the full hour). More
+than 1 h between the last heartbeat of a run and the next start means the thread was **down** in between; a shorter gap
+is a restart (studied on nodes 7042, 7045, 7056, 4120, 4124 on 2026-11-09).
+
 A grid cell is one node and one container:
 
 - **state**: worst last seen class among the expected threads that have rows
@@ -156,10 +160,13 @@ depend on colour alone.
 | TESTING node | dashed cell border |
 | status chips | DEPLOYED `#1f3a93`, TESTING `#7b3fb5` |
 | theme (header line, active tab) | `#f15d22` |
-| udpping bars in the timeline | provider colour (Telenor `#19aaf8`, Telia `#9308db`, ICE `#ffb900`, …) |
+| provider chips | Telenor `#19aaf8`, Telia `#9308db`, ICE `#ffb900`, ICE-R `#ff8800`, LAN `#00cc5c`, others grey |
+| timeline: run / silence to now | uptime class of the run / last seen class, as the grid |
+| timeline: down period | down colour at 40 % |
+| timeline: version change | dark diamond |
 
 ## 7. Page structure
-**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet edge", one navigation
+**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one navigation
 button per page and the Norway clock; the page; orange footer with the SimulaMet logo. Pages: Containers (`/`),
 Plots (`/plots`). Pages have no title of their own: the selected header button and sub-tab name the view.
 
@@ -167,47 +174,52 @@ Plots (`/plots`). Pages have no title of their own: the selected header button a
 
 | Sub-tab | Content |
 |---|---|
-| Overview | per status (DEPLOYED, TESTING, all): nodes, *all main OK*, *some issue*, *nothing running*; per container the nodes running it, per status |
-| Grid | AG Grid, one row per node (DEPLOYED then TESTING, by `node_id`): node, status, municipality, then the main and the extra containers as column groups. A container cell shows the symbol and label of its state (section 5) and is coloured by the rules of section 6 (AG Grid cell style conditions built from the palette, section 9); its tooltip lists every thread (state, version, uptime, last seen, starts). Sorting and filters per column. Click on a cell: Node detail of that node and container |
-| Problems | AG Grid, one row per node that is not fully OK: node, status, municipality, issues, last heartbeat; DEPLOYED first, then the longest silent. Click on a row: Node detail of that node |
+| Overview | per status (Deployed, Testing, All): nodes, *all main OK*, *some issue*, *nothing running*; "Running containers by node status": per container the nodes running it / the nodes, per status |
+| Grid | AG Grid, one row per node (Deployed then Testing, by `node_id`): node, status, municipality, then the main and the extra containers as column groups. A container cell shows the symbol and label of its state (section 5) and is coloured by the rules of section 6 (AG Grid cell style conditions built from the palette, section 9); its tooltip is a table of the threads (state on its colour, version, up, last seen, ago, starts 24 h / 7 d; never-seen and orphan rows). Toolbar: Status, State (a node matches when any cell has a chosen state or marker), Node and Municipality (multi-select with search). Sorting per column. Click on a row: Node detail of that node, on a container cell also of that container |
+| Problems | AG Grid, one row per node that is not fully OK: node, status, municipality, issues, last heartbeat (sortable, never first); Deployed first, then the longest silent. Toolbar: Status, Issues (text, case-insensitive), Node, Municipality. Click on a row: Node detail of that node |
 | Node detail | see below |
 
-**Node detail**:
+Display names: container names Metadata, MQTT, Speedtest, UDP Ping, Traceroute, NetPerfMeter; status Deployed /
+Testing; headers in sentence case. The data keep the database values.
 
-- Node selector (searchable list of the reported nodes) and container selector; both are also in the URL
-  (`/?node=<id>&container=<name>`), so the view of a node can be linked.
-- Header: site address, status since, active interfaces and experiments, main containers never seen.
-- Timeline (Plotly): one row per thread, one bar per run from `start_ts` to `seen_ts`; green shade by the uptime class
-  of the run, udpping sender / receiver in the provider colour of their experiment, a thin bar from the last
-  heartbeat to now in the last seen colour, a marker at a version change, orphan rows in dark red. Range buttons
-  1 / 3 / 7 / 14 d, zoom and pan, hover with start, last seen, uptime and version. Click on a bar: the run detail
-  below the timeline, for udpping with the parameters of the experiment.
-- Threads (AG Grid): thread, experiment, version, started, uptime, last seen, state, starts in 24 h / 7 d.
-- Experiments (AG Grid): the active measurement instances and the stopped ones that threads seen in the window refer
-  to: id, `measurement_desc_id`, network, iccid, start, stop, udpping thread states. Click on a row: its `parameters`
-  as pretty-printed JSON below the table.
+**Node detail** (all containers of a node in one view: a node-wide outage or a release shows across all rows):
+
+- Node selector (searchable) and range buttons 1 / 3 / 7 / 14 d and All (7 d first). The URL
+  `/?tab=node&node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
+- Header: node, status chip, municipality, provider chips of the active experiments.
+- Timeline (Plotly): one row per expected thread of every deployed container (main first), then the orphans (dark red,
+  ⚠) and the never-seen threads ("(never)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
+  length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
+  heartbeat, the silence from the last heartbeat to now in its last seen colour; a diamond at the start of a run with
+  another version than the run before (hover: old → new). Hover boxes are white. Click on a bar: thread, segment,
+  from, to, length, version, gap before and after below the timeline.
+- Threads (AG Grid), in the order of the timeline: container, thread, state on its colour, version, up, last seen,
+  ago, starts in 24 h / 7 d.
+- Experiments (AG Grid): the measurement instances of the node, active first, stopped ones in grey: id, measurement
+  (`1 (UDP Ping)`), provider, network, iccid, start, stop. Click on a row: its `parameters` as indented JSON below
+  the table.
 
 **Plots page**: one section per plot from the notebooks; a matplotlib figure of nnedbtools is shown as an image
 first and rewritten in Plotly when it needs interaction.
 
 ## 8. Interaction
-Dash server callbacks and the built-in interaction of AG Grid and Plotly; no hand-written JavaScript apart from the
-clock.
+Dash server callbacks and the built-in interaction of AG Grid and Plotly; hand-written JavaScript only for the clock
+and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`, React elements, no HTML strings).
 
 | Action | Result |
 |---|---|
 | Header button | the page (Dash Pages) |
 | Sub-tab | the content of the sub-tab |
-| Grid cell click (`cellClicked`) | Node detail of that node and container, URL updated |
-| Problems row click | Node detail of that node |
-| Node or container selector | Node detail redrawn, URL updated |
-| Timeline range button, zoom, pan | Plotly: range changed; double click resets |
-| Timeline bar click (`clickData`) | the run detail below the timeline, udpping with the experiment parameters |
+| Grid / Problems toolbar | the rows filtered in a callback from a store of all rows |
+| Grid / Problems row click (`cellClicked`) | the URL query of the node (and of a container cell): the page is built again on Node detail |
+| Node selector | the URL query of the node: the page is built again |
+| Range button | the x range of the timeline set in a callback; zoom and pan in Plotly |
+| Timeline bar click (`clickData`) | the segment detail below the timeline |
 | Experiments row click | the `parameters` of the instance below the table |
-| Hover on a grid cell or timeline bar | tooltip or hover label with the detail |
+| Hover on a grid cell or timeline bar | tooltip table or hover label with the detail |
 
-The page shows when its data were loaded; every page load uses the cached data until their time-to-live ends
-(section 10).
+The page shows when its data were loaded; every page load uses the cached data until the next refresh point (section
+10).
 
 ## 9. Code structure
 Package `src/container_status_webpage` (layout in `documentation/DEVELOPMENT.md`); modules added in phase 3 or 4
@@ -218,14 +230,15 @@ are marked.
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CONTAINERS_CACHE_MINUTES` |
 | `data/status.py` (3) | the rules of sections 4–6 ported from the prototype: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
-| `data/synthetic.py` (3) | synthetic data with the scenarios of the prototype |
+| `data/synthetic.py` (3) | synthetic data: the scenarios of the prototype, a mobile node and a release history |
 | `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
 | `components/frame.py`, `components/tabs.py` | page frame and sub-tabs |
 | `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
-| `components/grid.py` (3) | AG Grid column definitions, cell style conditions and tooltips of the Grid and Problems sub-tabs |
-| `components/timeline.py` (3) | Plotly timeline figure of one node and container |
-| `pages/containers.py` | layout and callbacks of the Containers page |
+| `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems sub-tabs |
+| `components/node.py` (3) | Node detail: URL query, header, timeline segments and figure, range, segment detail, threads and experiments tables |
+| `assets/dashAgGridComponentFunctions.js` (3) | `ThreadTable`, the tooltip table of a grid cell |
+| `pages/containers.py` | layout and callbacks of the Containers page: toolbars, filters, navigation, range, clicks |
 | `pages/plots.py` | Plots page |
 
 Input contract: the synthetic data and the loader produce the same three frames.
@@ -236,15 +249,18 @@ Input contract: the synthetic data and the loader produce the same three frames.
 | `experiments` | `id`, `node_id`, `network_id`, `provider`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
 | `raw` | the columns of `report.container_rawdata` |
 
-Synthetic data: 18 scenarios × DEPLOYED / TESTING = 36 nodes with ids from 90001: all long-run, fresh restart, young,
+Synthetic data: 20 scenarios × DEPLOYED / TESTING = 40 nodes with ids from 90001: all long-run, fresh restart, young,
 stable, late, stale, down, long down, never, udpping partial, thread missing, thread down, flapping, version change,
-extra containers, nothing running, no data, inactive experiment. The target container of a scenario rotates over the
-main containers; experiments carry made-up parameters; some nodes have no municipality.
+extra containers, nothing running, no data, inactive experiment, mobile (three short trips a day, parked 5 days, as
+7042 / 7045), release history (all containers change version together, a dev build, 50 h down, as 7056). The target
+container of a scenario rotates over the main containers; experiments carry made-up parameters; some nodes have no
+municipality.
 
 Tests without a browser: the rule checks of the prototype (class boundaries, flapping, worst thread / partial /
-orphan, synthetic coverage) on `data/status.py`; the grid columns and the timeline figure as built objects; page
-callbacks called as functions; the smoke tests of the skeleton. The prototype (`prototype/`) is removed at the end of
-phase 3.
+orphan, synthetic coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built
+objects; the pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the smoke tests of the
+skeleton. Tests never import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page
+twice).
 
 ## 10. Data loading and cache (phase 4)
 `data/loader.py` returns the three frames, read-only through nnedbtools:
@@ -262,8 +278,8 @@ harness (read-only guards). The first real run is compared with the figures in t
 
 `data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point. Containers
 tab: `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and
-gets 5 minutes to finish). The other main tabs define their own cache rule. `DATA_SOURCE=synthetic` serves the synthetic data without a
-database, for development and tests.
+gets 5 minutes to finish). The other main tabs define their own cache rule. `DATA_SOURCE=synthetic` serves the
+synthetic data without a database, for development and tests.
 
 ## 11. Deployment on oculus (phase 6)
 
@@ -287,9 +303,13 @@ environment with the project, run by systemd. Docker is only for local developme
 - Nodes without a `nne.node_status` record drop out of the report silently; the nimbus sync may overwrite records
   fixed by hand.
 - Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts) are constants to calibrate after real use.
-- Cache per gunicorn worker: with 2 workers the data are loaded twice per time-to-live; a shared cache only if the load
-  turns out heavy.
-- Timeline with real data: about 13,000 runs in the table, far fewer per node and 14 days.
+- Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the
+  load turns out heavy.
+- Mobile nodes (7042, 7045: 2–3 runs a day, off for hours to days): the rules show them as flapping, late or stale
+  although they are only switched off; own rules or a marker, and how to recognise a mobile node in `nne`, are open.
+  On All their timeline has about 2,000 bars.
+- `extra` of `report.container_rawdata` (an integer on `receiver-*` threads only) is not shown; its meaning is open.
+- Header of the node detail without site address, status since and interface count (phase 4 data).
 
 ## 13. Code conventions
 
