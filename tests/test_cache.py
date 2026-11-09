@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the data cache (data/cache.py): one load per time-to-live, the synthetic snapshot.
+Checks of the data cache (data/cache.py): one load per refresh point, the synthetic snapshot.
 
 Sample code:
 ```bash
@@ -52,19 +52,25 @@ from container_status_webpage.data.cache import Cache, load
 NOW = pd.Timestamp("2026-11-06 12:00")
 
 
-def test_one_load_per_time_to_live():
-    """The snapshot is kept for 300 s and loaded again at 300 s."""
+def test_one_load_per_refresh_point():
+    """Refresh points at minute 15 and 45: loaded at 10:15, kept at 10:44, loaded again at 10:45;
+    across the full hour kept at 11:14, loaded again at 11:15."""
     loads = []
 
     def loader(now):
         loads.append(now)
         return SimpleNamespace(loaded_at=now)
 
-    cache = Cache(300, loader)
-    first = cache.get(NOW)
-    assert cache.get(NOW + pd.Timedelta(seconds=299)) is first
-    assert cache.get(NOW + pd.Timedelta(seconds=300)) is not first
-    assert loads == [NOW, NOW + pd.Timedelta(seconds=300)]
+    def at(clock):
+        return pd.Timestamp(f"2026-11-06 {clock}")
+
+    cache = Cache([15, 45], loader)
+    first = cache.get(at("10:15"))
+    assert cache.get(at("10:44")) is first
+    second = cache.get(at("10:45"))
+    assert cache.get(at("11:14")) is second
+    assert cache.get(at("11:15")) is not second
+    assert loads == [at("10:15"), at("10:45"), at("11:15")]
 
 
 def test_synthetic_snapshot():

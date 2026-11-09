@@ -36,25 +36,26 @@
 
 """
 Loaded data of the selected source (settings.DATA_SOURCE) with their summary and load time, kept per
-process for
-settings.CACHE_TTL seconds: every page load within that time uses the same snapshot.
+process until the next refresh point, a minute of the hour after the importer has written: every
+page load in between uses the same snapshot. The Containers tab uses CONTAINERS_CACHE
+(settings.CONTAINERS_CACHE_MINUTES); other main tabs define their own cache.
 
 Integrations:
-    1. settings - DATA_SOURCE, CACHE_TTL.
+    1. settings - DATA_SOURCE, CONTAINERS_CACHE_MINUTES.
     2. data.synthetic - synthetic frames; the database loader follows in phase 4.
 
 Sample code:
 ```python
-from container_status_webpage.data.cache import CACHE
+from container_status_webpage.data.cache import CONTAINERS_CACHE
 
-snapshot = CACHE.get()
+snapshot = CONTAINERS_CACHE.get()
 snapshot.summary.cells
 ```
 """
 
 import threading
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 
@@ -113,16 +114,35 @@ def load(source: str, now: pd.Timestamp) -> Snapshot:
     )
 
 
-class Cache:
-    """Snapshot of the loaded data, loaded again when older than its time-to-live."""
+def last_refresh(now: pd.Timestamp, minutes: List[int]) -> pd.Timestamp:
+    """
+    Latest refresh point not later than a time.
 
-    def __init__(self, ttl_s: int, loader: Callable[[pd.Timestamp], Snapshot]) -> None:
+    Args:
+        now (pd.Timestamp): Time (UTC, naive).
+        minutes (List[int]): Minutes of the hour of the refresh points.
+
+    Returns:
+        pd.Timestamp: Full hour plus one of the minutes, at or before now.
+    """
+    points = [now.floor("h") + pd.Timedelta(minutes=minute) for minute in minutes]
+    return max(
+        point if point <= now else point - pd.Timedelta(hours=1) for point in points
+    )
+
+
+class Cache:
+    """Snapshot of the loaded data, loaded again after each refresh point."""
+
+    def __init__(
+        self, minutes: List[int], loader: Callable[[pd.Timestamp], Snapshot]
+    ) -> None:
         """
         Args:
-            ttl_s (int): Time-to-live in seconds.
+            minutes (List[int]): Minutes of the hour of the refresh points.
             loader (Callable[[pd.Timestamp], Snapshot]): Loads a snapshot at a given time.
         """
-        self._ttl: pd.Timedelta = pd.Timedelta(seconds=ttl_s)
+        self._minutes: List[int] = minutes
         self._loader: Callable[[pd.Timestamp], Snapshot] = loader
         self._snapshot: Optional[Snapshot] = None
         # Callbacks of the development server run in threads: one load at a time
@@ -130,8 +150,8 @@ class Cache:
 
     def get(self, now: Optional[pd.Timestamp] = None) -> Snapshot:
         """
-        Current snapshot; loaded on the first call and when the kept one is older than the
-        time-to-live.
+        Current snapshot; loaded on the first call and when a refresh point has passed since the
+        last load.
 
         Args:
             now (Optional[pd.Timestamp]): Time of the request (UTC, naive). Defaults to utc_now().
@@ -141,10 +161,14 @@ class Cache:
         """
         now = utc_now() if now is None else now
         with self._lock:
-            if self._snapshot is None or now - self._snapshot.loaded_at >= self._ttl:
+            if self._snapshot is None or self._snapshot.loaded_at < last_refresh(
+                now, self._minutes
+            ):
                 self._snapshot = self._loader(now)
             return self._snapshot
 
 
-# Cache of the process
-CACHE: Cache = Cache(settings.CACHE_TTL, lambda now: load(settings.DATA_SOURCE, now))
+# Cache of the Containers tab: loaded again after each run of the importer
+CONTAINERS_CACHE: Cache = Cache(
+    settings.CONTAINERS_CACHE_MINUTES, lambda now: load(settings.DATA_SOURCE, now)
+)

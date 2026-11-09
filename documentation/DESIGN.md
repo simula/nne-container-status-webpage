@@ -216,10 +216,10 @@ are marked.
 | Module | Content |
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
-| `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CACHE_TTL` |
+| `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CONTAINERS_CACHE_MINUTES` |
 | `data/status.py` (3) | the rules of sections 4–6 ported from the prototype: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
 | `data/synthetic.py` (3) | synthetic data with the scenarios of the prototype |
-| `data/cache.py` (3) | the frames of the selected source with their load time, kept per process for `CACHE_TTL` |
+| `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
 | `components/frame.py`, `components/tabs.py` | page frame and sub-tabs |
 | `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
@@ -260,8 +260,9 @@ Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, r
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. Development reads go through the nnedbtools test
 harness (read-only guards). The first real run is compared with the figures in this document.
 
-`data/cache.py` keeps the frames with their load time in each gunicorn worker for `CACHE_TTL` (default 5 minutes; the
-importer writes at minute 10 and 40 of every hour). `DATA_SOURCE=synthetic` serves the synthetic data without a
+`data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point. Containers
+tab: `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and
+gets 5 minutes to finish). The other main tabs define their own cache rule. `DATA_SOURCE=synthetic` serves the synthetic data without a
 database, for development and tests.
 
 ## 11. Deployment on oculus (phase 6)

@@ -43,7 +43,8 @@ Integrations:
         * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
                         report), used by the data loader from phase 4 (default .db_env)
         * DATA_SOURCE - synthetic (default); database follows with the loader in phase 4
-        * CACHE_TTL   - seconds the loaded data are kept per process (default 300)
+        * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the Containers tab loads its
+                                     data again (default 15,45; the importer writes at 10 and 40)
 
 Sample code:
 ```python
@@ -53,6 +54,8 @@ if settings.DEBUG:
     ...
 ```
 """
+
+from typing import List
 
 from environs import Env
 from marshmallow.validate import OneOf
@@ -69,5 +72,8 @@ DB_ENV_FILE: str = _env.str("DB_ENV_FILE", ".db_env")
 # Source of the data (database follows with the loader in phase 4)
 DATA_SOURCE: str = _env.str("DATA_SOURCE", "synthetic", validate=OneOf(["synthetic"]))
 
-# Seconds the loaded data are kept per process (the importer writes at minute 10 and 40)
-CACHE_TTL: int = _env.int("CACHE_TTL", 300)
+# Minutes of the hour after which the Containers tab loads its data again (the importer writes at
+# minute 10 and 40 and gets 5 minutes to finish)
+CONTAINERS_CACHE_MINUTES: List[int] = _env.list(
+    "CONTAINERS_CACHE_MINUTES", [15, 45], subcast=int
+)

@@ -40,7 +40,7 @@ Node detail (documentation/DESIGN.md section 7). No page title: the header butto
 name the view.
 
 Integrations:
-    1. data.cache.CACHE - loaded data of settings.DATA_SOURCE.
+    1. data.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
 
 Sample code:
     Served on / by the app (container_status_webpage.app).
@@ -56,7 +56,7 @@ from container_status_webpage.components import grid
 from container_status_webpage.components.formatting import when
 from container_status_webpage.components.tabs import sub_tabs
 from container_status_webpage.data import status
-from container_status_webpage.data.cache import CACHE
+from container_status_webpage.data.cache import CONTAINERS_CACHE
 
 dash.register_page(
     __name__, path="/", name="Containers", title="NorNet edge – containers", order=0
@@ -179,7 +179,7 @@ def layout(**_query: str) -> html.Div:
         html.Div: Data line and the sub-tabs.
     """
     # 1. Loaded data
-    snapshot = CACHE.get()
+    snapshot = CONTAINERS_CACHE.get()
     info = (
         f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
         f"loaded {when(snapshot.loaded_at)} UTC"

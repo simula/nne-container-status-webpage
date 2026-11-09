@@ -47,9 +47,9 @@ Integrations:
 Sample code:
 ```python
 from container_status_webpage.components import grid
-from container_status_webpage.data.cache import CACHE
+from container_status_webpage.data.cache import CONTAINERS_CACHE
 
-grid.status_grid(CACHE.get())
+grid.status_grid(CONTAINERS_CACHE.get())
 ```
 """
 
