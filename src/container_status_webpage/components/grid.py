@@ -72,6 +72,15 @@ DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": False, "resizable"
 # Grid options of every table: tooltips after 300 ms
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
 
+# Node column of the grid and the problem list: a click on the row opens the node detail
+# (pages/containers.py navigate), rows are identified by the node id (getRowId)
+NODE_COLUMN: Dict[str, Any] = {
+    "headerName": "Node",
+    "field": "node_id",
+    "width": 90,
+    "cellClass": "node-link",
+}
+
 # States and markers of the grid filter: a node matches when any of its cells has one
 STATES: Tuple[str, ...] = status.SEVERITY + ("partial", "orphan", "flapping")
 
@@ -209,7 +218,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
 
     # 3. Grid: filtered by the toolbar (filter_rows), not by column filters
     columns = [
-        {"headerName": "Node", "field": "node_id", "width": 90, "pinned": "left"},
+        {**NODE_COLUMN, "pinned": "left"},
         {**status_column(), "pinned": "left"},
         {
             "headerName": "Municipality",
@@ -226,6 +235,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
     return dag.AgGrid(
         id="status-grid",
         rowData=rows,
+        getRowId="params.data.node_id",
         columnDefs=columns,
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
@@ -359,7 +369,7 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
         for row in found.itertuples()
     ]
     columns = [
-        {"headerName": "Node", "field": "node_id", "width": 90},
+        NODE_COLUMN,
         status_column(),
         {"headerName": "Municipality", "field": "municipality", "width": 130},
         {
@@ -379,6 +389,7 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
     return dag.AgGrid(
         id="problems-grid",
         rowData=rows,
+        getRowId="params.data.node_id",
         columnDefs=columns,
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,

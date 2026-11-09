@@ -223,7 +223,6 @@ code {
   white-space: pre-line;
 }
 
-/* Legend of the colour grid (components/grid.py) */
 /* Filter toolbar above a table */
 .toolbar {
   align-items: center;
@@ -250,6 +249,34 @@ code {
   min-width: 200px;
 }
 
+/* Node cells of the grid and the problem list: a click opens the node detail */
+.node-link {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Header of the node detail (components/node.py) */
+.node-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 8px 0 12px 0;
+}
+
+.node-id {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.chip {
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+/* Legend of the colour grid (components/grid.py) */
 .legend {
   display: flex;
   flex-wrap: wrap;

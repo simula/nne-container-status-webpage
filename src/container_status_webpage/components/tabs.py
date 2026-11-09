@@ -49,26 +49,29 @@ sub_tabs("containers-tabs", [("overview", "Overview", html.P("Nodes per status")
 ```
 """
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from dash import dcc
 from dash.development.base_component import Component
 
 
-def sub_tabs(tabs_id: str, tabs: List[Tuple[str, str, Component]]) -> dcc.Tabs:
+def sub_tabs(
+    tabs_id: str, tabs: List[Tuple[str, str, Component]], value: Optional[str] = None
+) -> dcc.Tabs:
     """
-    Tabs in the nne-viz TabButton look; the first tab is selected.
+    Tabs in the nne-viz TabButton look.
 
     Args:
         tabs_id (str): Component id of the tabs.
         tabs (List[Tuple[str, str, Component]]): Value, label and content of each tab.
+        value (Optional[str], optional): Selected tab. Defaults to None (the first tab).
 
     Returns:
         dcc.Tabs: Tabs component.
     """
     return dcc.Tabs(
         id=tabs_id,
-        value=tabs[0][0],
+        value=value or tabs[0][0],
         className="sub-tabs",
         children=[
             dcc.Tab(

@@ -49,14 +49,17 @@ Sample code:
 from typing import Any, Dict, List, Optional
 
 import dash
-from dash import Input, Output, State, callback, dcc, html
+from dash import Input, Output, State, callback, ctx, dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.components import grid
 from container_status_webpage.components.formatting import when
+from container_status_webpage.components.node import click_query
+from container_status_webpage.components.node import header as node_header
+from container_status_webpage.components.node import node_query
 from container_status_webpage.components.tabs import sub_tabs
 from container_status_webpage.data import status
-from container_status_webpage.data.cache import CONTAINERS_CACHE
+from container_status_webpage.data.cache import CONTAINERS_CACHE, Snapshot
 
 dash.register_page(
     __name__, path="/", name="Containers", title="NorNet edge – containers", order=0
@@ -195,18 +198,86 @@ def filter_problems(
     )
 
 
-def layout(**_query: str) -> html.Div:
+@callback(
+    Output("_pages_location", "search"),
+    Input("node-select", "value"),
+    Input("status-grid", "cellClicked"),
+    Input("problems-grid", "cellClicked"),
+    prevent_initial_call=True,
+)
+def navigate(
+    node_id: Optional[int],
+    grid_cell: Optional[Dict[str, Any]],
+    problem_cell: Optional[Dict[str, Any]],
+) -> str:
     """
-    Page content, built on every page load from the cached data.
+    Opens the node detail: the selected node, or the node of a clicked grid or problem list row;
+    the page is built again from the URL query (layout).
 
     Args:
-        **_query (str): Query string values (not used yet).
+        node_id (Optional[int]): Selected node.
+        grid_cell (Optional[Dict[str, Any]]): Clicked cell of the grid.
+        problem_cell (Optional[Dict[str, Any]]): Clicked cell of the problem list.
+
+    Returns:
+        str: Query string.
+    """
+    if ctx.triggered_id == "node-select":
+        return node_query(node_id)
+    return click_query(grid_cell if ctx.triggered_id == "status-grid" else problem_cell)
+
+
+def node_tab(snapshot: Snapshot, node_id: Optional[int]) -> html.Div:
+    """
+    Node detail tab: node selector and the detail of the selected node.
+
+    Args:
+        snapshot (Snapshot): Loaded data.
+        node_id (Optional[int]): Selected node, None for none.
+
+    Returns:
+        html.Div: Selector (id node-select) and detail.
+    """
+    selector = item(
+        "Node",
+        dcc.Dropdown(
+            id="node-select",
+            options=status.ordered(snapshot.nodes).node_id.tolist(),
+            value=node_id,
+            placeholder="Select a node",
+            className="toolbar-nodes",
+        ),
+    )
+    detail = (
+        node_header(snapshot, node_id)
+        if node_id is not None
+        else html.P("Select a node.", className="data-info")
+    )
+    return html.Div([html.Div(selector, className="toolbar"), detail])
+
+
+def layout(
+    tab: Optional[str] = None, node: Optional[str] = None, **_query: str
+) -> html.Div:
+    """
+    Page content, built on every page load from the cached data and the URL query
+    (/?tab=node&node=<id>).
+
+    Args:
+        tab (Optional[str], optional): Selected sub-tab. Defaults to None (Overview).
+        node (Optional[str], optional): Node of the Node detail tab. Defaults to None.
+        **_query (str): Other query values (container: Grid cell click, step C4).
 
     Returns:
         html.Div: Data line and the sub-tabs.
     """
-    # 1. Loaded data
+    # 1. Loaded data and the query; unknown values select nothing
     snapshot = CONTAINERS_CACHE.get()
+    node_id = (
+        int(node)
+        if node and node.isdigit() and int(node) in set(snapshot.nodes.node_id)
+        else None
+    )
     info = (
         f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
         f"loaded {when(snapshot.loaded_at)} UTC"
@@ -277,14 +348,9 @@ def layout(**_query: str) -> html.Div:
                             ]
                         ),
                     ),
-                    (
-                        "node",
-                        "Node detail",
-                        html.P(
-                            "Placeholder: timeline, threads and experiments of one node."
-                        ),
-                    ),
+                    ("node", "Node detail", node_tab(snapshot, node_id)),
                 ],
+                tab if tab in ("overview", "grid", "problems", "node") else None,
             ),
         ]
     )
