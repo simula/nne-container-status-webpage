@@ -63,71 +63,64 @@ dash.register_page(
 )
 
 
-def grid_toolbar(rows: List[Dict[str, Any]]) -> html.Div:
+def item(label: str, control: Any) -> html.Div:
     """
-    Filter toolbar of the colour grid: status, state, node, municipality; the dropdowns search
-    their options while typing.
+    One labelled control of a toolbar.
 
     Args:
-        rows (List[Dict[str, Any]]): Rows of the grid, source of the node and municipality options.
+        label (str): Label in front of the control.
+        control (Any): Dash component.
 
     Returns:
-        html.Div: The controls (ids grid-status, grid-state, grid-node, grid-municipality).
+        html.Div: Label and control.
+    """
+    return html.Div([html.Span(label), control], className="toolbar-item")
+
+
+def toolbar(prefix: str, rows: List[Dict[str, Any]], own: html.Div) -> html.Div:
+    """
+    Filter toolbar of a table: status, the control of the tab, node, municipality; the dropdowns
+    search their options while typing.
+
+    Args:
+        prefix (str): Prefix of the control ids, e.g. "grid".
+        rows (List[Dict[str, Any]]): Rows of the table, source of the node and municipality
+            options.
+        own (html.Div): Control of the tab (item).
+
+    Returns:
+        html.Div: The controls (ids <prefix>-status, <prefix>-node, <prefix>-municipality).
     """
     statuses = [name.capitalize() for name in status.STATUS_ORDER]
     municipalities = sorted({row["municipality"] for row in rows} - {""})
     return html.Div(
         [
-            html.Div(
-                [
-                    html.Span("Status"),
-                    dcc.Checklist(
-                        id="grid-status", options=statuses, value=statuses, inline=True
-                    ),
-                ],
-                className="toolbar-item",
+            item(
+                "Status",
+                dcc.Checklist(
+                    id=f"{prefix}-status", options=statuses, value=statuses, inline=True
+                ),
             ),
-            html.Div(
-                [
-                    html.Span("State"),
-                    dcc.Dropdown(
-                        id="grid-state",
-                        options=[
-                            {"label": name.capitalize(), "value": name}
-                            for name in grid.STATES
-                        ],
-                        multi=True,
-                        placeholder="All states",
-                        className="toolbar-states",
-                    ),
-                ],
-                className="toolbar-item",
+            own,
+            item(
+                "Node",
+                dcc.Dropdown(
+                    id=f"{prefix}-node",
+                    options=[row["node_id"] for row in rows],
+                    multi=True,
+                    placeholder="All nodes",
+                    className="toolbar-nodes",
+                ),
             ),
-            html.Div(
-                [
-                    html.Span("Node"),
-                    dcc.Dropdown(
-                        id="grid-node",
-                        options=[row["node_id"] for row in rows],
-                        multi=True,
-                        placeholder="All nodes",
-                        className="toolbar-nodes",
-                    ),
-                ],
-                className="toolbar-item",
-            ),
-            html.Div(
-                [
-                    html.Span("Municipality"),
-                    dcc.Dropdown(
-                        id="grid-municipality",
-                        options=municipalities,
-                        multi=True,
-                        placeholder="All municipalities",
-                        className="toolbar-municipalities",
-                    ),
-                ],
-                className="toolbar-item",
+            item(
+                "Municipality",
+                dcc.Dropdown(
+                    id=f"{prefix}-municipality",
+                    options=municipalities,
+                    multi=True,
+                    placeholder="All municipalities",
+                    className="toolbar-municipalities",
+                ),
             ),
         ],
         className="toolbar",
@@ -168,6 +161,40 @@ def filter_grid(
     )
 
 
+@callback(
+    Output("problems-grid", "rowData"),
+    Input("problems-status", "value"),
+    Input("problems-text", "value"),
+    Input("problems-node", "value"),
+    Input("problems-municipality", "value"),
+    State("problems-rows", "data"),
+    prevent_initial_call=True,
+)
+def filter_problems(
+    statuses: Optional[List[str]],
+    text: Optional[str],
+    nodes: Optional[List[int]],
+    municipalities: Optional[List[str]],
+    rows: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Rows of the problem list that match the toolbar.
+
+    Args:
+        statuses (Optional[List[str]]): Checked statuses.
+        text (Optional[str]): Text in the issues.
+        nodes (Optional[List[int]]): Selected node ids.
+        municipalities (Optional[List[str]]): Selected municipalities.
+        rows (List[Dict[str, Any]]): All rows of the problem list.
+
+    Returns:
+        List[Dict[str, Any]]: Matching rows.
+    """
+    return grid.filter_rows(
+        rows, statuses or [], [], nodes or [], municipalities or [], text=text or ""
+    )
+
+
 def layout(**_query: str) -> html.Div:
     """
     Page content, built on every page load from the cached data.
@@ -185,8 +212,10 @@ def layout(**_query: str) -> html.Div:
         f"loaded {when(snapshot.loaded_at)} UTC"
     )
     table = grid.status_grid(snapshot)
-    rows = table.rowData  # pylint: disable=no-member
-    # 2. Sub-tabs; the grid tab keeps all rows in a store for filter_grid
+    problems = grid.problems_grid(snapshot)
+    # pylint: disable-next=no-member
+    rows, problem_rows = table.rowData, problems.rowData
+    # 2. Sub-tabs; grid and problems keep all rows in a store for filter_grid / filter_problems
     return html.Div(
         [
             html.P(info, className="data-info"),
@@ -199,14 +228,55 @@ def layout(**_query: str) -> html.Div:
                         "Grid",
                         html.Div(
                             [
-                                grid_toolbar(rows),
+                                toolbar(
+                                    "grid",
+                                    rows,
+                                    item(
+                                        "State",
+                                        dcc.Dropdown(
+                                            id="grid-state",
+                                            options=[
+                                                {
+                                                    "label": name.capitalize(),
+                                                    "value": name,
+                                                }
+                                                for name in grid.STATES
+                                            ],
+                                            multi=True,
+                                            placeholder="All states",
+                                            className="toolbar-states",
+                                        ),
+                                    ),
+                                ),
                                 grid.legend(),
                                 table,
                                 dcc.Store(id="grid-rows", data=rows),
                             ]
                         ),
                     ),
-                    ("problems", "Problems", grid.problems_grid(snapshot)),
+                    (
+                        "problems",
+                        "Problems",
+                        html.Div(
+                            [
+                                toolbar(
+                                    "problems",
+                                    problem_rows,
+                                    item(
+                                        "Issues",
+                                        dcc.Input(
+                                            id="problems-text",
+                                            type="text",
+                                            placeholder="Text in the issues",
+                                            className="toolbar-text",
+                                        ),
+                                    ),
+                                ),
+                                problems,
+                                dcc.Store(id="problems-rows", data=problem_rows),
+                            ]
+                        ),
+                    ),
                     (
                         "node",
                         "Node detail",

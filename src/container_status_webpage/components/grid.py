@@ -66,7 +66,8 @@ from container_status_webpage.data import status
 from container_status_webpage.data.cache import Snapshot
 
 # Column options of every table
-DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": True, "resizable": True}
+# Column options of every table: filtered by the toolbars (filter_rows), not by column filters
+DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": False, "resizable": True}
 
 # Grid options of every table: tooltips after 300 ms
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
@@ -226,7 +227,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         id="status-grid",
         rowData=rows,
         columnDefs=columns,
-        defaultColDef={**DEFAULT_COLUMN, "filter": False},
+        defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
         style={"height": "70vh"},
@@ -239,20 +240,26 @@ def filter_rows(
     states: List[str],
     nodes: List[int],
     municipalities: List[str],
+    *,
+    text: str = "",
 ) -> List[Dict[str, Any]]:
     """
-    Rows of the colour grid that match the toolbar; an empty control does not filter.
+    Rows of the colour grid or the problem list that match the toolbar; an empty control does not
+    filter.
 
     Args:
-        rows (List[Dict[str, Any]]): Rows of status_grid.
+        rows (List[Dict[str, Any]]): Rows of status_grid or problems_grid.
         statuses (List[str]): Displayed statuses, e.g. ["Deployed"].
-        states (List[str]): Values of STATES; a node matches when any of its cells has one.
+        states (List[str]): Values of STATES; a node matches when any of its cells has one (grid).
         nodes (List[int]): Node ids.
         municipalities (List[str]): Municipalities.
+        text (str, optional): Text anywhere in the issues, case-insensitive (problem list).
+            Defaults to "".
 
     Returns:
         List[Dict[str, Any]]: Matching rows in their order.
     """
+    needle = text.strip().lower()
     return [
         row
         for row in rows
@@ -260,6 +267,7 @@ def filter_rows(
         and (not states or set(states) & set(row["states"]))
         and (not nodes or row["node_id"] in nodes)
         and (not municipalities or row["municipality"] in municipalities)
+        and (not needle or needle in row["issues"].lower())
     ]
 
 
@@ -338,6 +346,10 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
             "status": row.status.capitalize(),
             "municipality": blank(row.municipality),
             "issues": row.issues,
+            # Sort key of the last heartbeat column: None (never) first, then the oldest
+            "last_seen": (
+                None if math.isinf(row.silent_h) else row.last_seen.isoformat()
+            ),
             "last_heartbeat": (
                 "Never"
                 if math.isinf(row.silent_h)
@@ -347,12 +359,7 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
         for row in found.itertuples()
     ]
     columns = [
-        {
-            "headerName": "Node",
-            "field": "node_id",
-            "width": 90,
-            "filter": "agNumberColumnFilter",
-        },
+        {"headerName": "Node", "field": "node_id", "width": 90},
         status_column(),
         {"headerName": "Municipality", "field": "municipality", "width": 130},
         {
@@ -364,9 +371,9 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
         },
         {
             "headerName": "Last heartbeat (UTC)",
-            "field": "last_heartbeat",
+            "field": "last_seen",
+            "valueFormatter": {"function": "params.data.last_heartbeat"},
             "width": 230,
-            "sortable": False,
         },
     ]
     return dag.AgGrid(

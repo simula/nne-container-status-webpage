@@ -241,7 +241,8 @@ code {
 }
 
 .toolbar-states,
-.toolbar-municipalities {
+.toolbar-municipalities,
+.toolbar-text {
   min-width: 300px;
 }
 

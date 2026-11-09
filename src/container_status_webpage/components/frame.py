@@ -110,7 +110,7 @@ def layout() -> html.Div:
                                 href=NNTB_URL,
                                 target="_blank",
                             ),
-                            html.H1("NorNet edge", className="header-text"),
+                            html.H1("NorNet is on the Edge", className="header-text"),
                         ],
                     ),
                     html.Div(navigation + [clock], className="header-end"),

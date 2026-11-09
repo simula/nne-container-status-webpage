@@ -106,10 +106,15 @@ def test_filter_rows():
 
 
 def test_problems_grid_rows():
-    """The problem list shows every node that is not fully OK; a node without heartbeat first."""
+    """The problem list shows every node that is not fully OK; a node without heartbeat first, with
+    no sort key (sorts first); the issues text filter is case-insensitive."""
     table = grid.problems_grid(SNAPSHOT)
     assert len(table.rowData) == 26
     assert table.rowData[0]["last_heartbeat"] == "Never"
+    assert table.rowData[0]["last_seen"] is None
+    found = grid.filter_rows(table.rowData, [], [], [], [], text="udp ping")
+    assert found and all("UDP Ping" in row["issues"] for row in found)
+    assert len(found) < len(table.rowData)
 
 
 def test_overview_rows():
