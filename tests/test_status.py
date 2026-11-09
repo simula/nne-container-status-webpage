@@ -179,6 +179,21 @@ def test_satellite_without_metadata_and_mqtt():
     assert status.problems(nodes, summary, rawdata).empty
 
 
+def test_grade():
+    """Grade of a node: long-run only when every configured container runs 7 days or more (the
+    containers that are not configured left out), else the worst class of its cells."""
+    nodes, experiments, rawdata = synthetic(NOW)
+    summary = status.summarise(nodes, experiments, rawdata, NOW)
+    scenario = nodes.set_index("node_id").scenario
+    grade = {s: status.grade(summary, n) for n, s in scenario.items()}
+    assert (grade["all long-run"], grade["young"], grade["late"]) == (
+        "long-run",
+        "young",
+        "late",
+    )
+    assert grade["no data"] == "never"
+
+
 def test_synthetic_covers_every_class():
     """The synthetic data show every state, shade and marker for both status groups."""
     nodes, experiments, rawdata = synthetic(NOW)

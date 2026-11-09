@@ -122,6 +122,12 @@ UPTIME: Tuple[Tuple[float, str], ...] = (
     (math.inf, "long-run"),
 )
 
+# Colour classes from best to worst, the grade of a node on the map: uptime shades of running
+# cells, longest first, then the last seen classes
+GRADE_ORDER: Tuple[str, ...] = (
+    tuple(name for _, name in reversed(UPTIME)) + SEVERITY[1:]
+)
+
 # Starts within 24 h from which a thread is flapping
 FLAPPING: int = 3
 
@@ -477,6 +483,30 @@ def summarise(
         for container in MAIN + EXTRA
     }
     return Summary(now=now, states=states, cells=cells)
+
+
+def grade(summary: Summary, node_id: int) -> str:
+    """
+    Grade of a node for the map: the worst colour class of its cells (the uptime shade when
+    running, the state otherwise), cells of containers that are not configured left out.
+
+    Args:
+        summary (Summary): Cells of the nodes.
+        node_id (int): Node identifier.
+
+    Returns:
+        str: Class of GRADE_ORDER, "none" without any configured container.
+    """
+    cells = [summary.cells[node_id, container] for container in MAIN + EXTRA]
+    return max(
+        (
+            c.shade if c.state == "running" else c.state
+            for c in cells
+            if c.state != "none"
+        ),
+        key=GRADE_ORDER.index,
+        default="none",
+    )
 
 
 def ordered(nodes: pd.DataFrame) -> pd.DataFrame:

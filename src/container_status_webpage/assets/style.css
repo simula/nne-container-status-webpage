@@ -371,3 +371,21 @@ code {
   vertical-align: -4px;
   width: 16px;
 }
+
+/* Overview: map on the left (60 %), counts on the right (40 %); stacked on narrow screens */
+.overview-split {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.overview-split > * {
+  min-width: 0;
+}
+
+@media (max-width: 1000px) {
+  .overview-split {
+    grid-template-columns: 1fr;
+  }
+}

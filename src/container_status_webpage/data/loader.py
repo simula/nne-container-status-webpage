@@ -89,8 +89,8 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: nodes (node_id, status, interfaces,
-        experiments, municipality), experiments (measurement_instance rows of the nodes, active
-        and stopped), raw (report.container_rawdata).
+        experiments, municipality, loc_lat, loc_lon), experiments (measurement_instance rows of
+        the nodes, active and stopped), raw (report.container_rawdata).
     """
     # 1. Credentials and engines, once per process
     if engines.nne_engine is None:
@@ -105,7 +105,8 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
         satellite | (nodes.status.isin(STATUS_ORDER) & (nodes.interfaces > 0))
     ]
     node_ids = nodes.node_id.tolist()
-    # 3. Municipality of the current site address (optional)
+    # 3. Municipality and location of the current site address (optional); coordinates rounded to
+    #    2 decimals (about 1 km), the map does not pinpoint the sites
     site = pd.read_sql(
         select_from_nne_node_adreess_and_nne_addresss(node_ids).where(
             NneNodeAddress.address_type == NneAddressType.site,
@@ -113,7 +114,10 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
         ),
         engines.nne_engine,
     ).drop_duplicates("node_id")
-    nodes = nodes.merge(site[["node_id", "municipality"]], on="node_id", how="left")
+    site = site[["node_id", "municipality", "loc_lat", "loc_lon"]].round(
+        {"loc_lat": 2, "loc_lon": 2}
+    )
+    nodes = nodes.merge(site, on="node_id", how="left")
     # 4. Experiments of the reported nodes and the container runs
     experiments = pd.read_sql(
         select_from_nne_measurement_instance(node_ids), engines.nne_engine

@@ -69,6 +69,15 @@ from container_status_webpage.data.cache import Snapshot
 # Column options of every table: filtered by the toolbars (filter_rows), not by column filters
 DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": False, "resizable": True}
 
+# Columns of the overview tables: share the width, headers wrap (the tables fit the narrow half of
+# the Overview)
+FIT_COLUMN: Dict[str, Any] = {
+    "flex": 1,
+    "minWidth": 80,
+    "wrapHeaderText": True,
+    "autoHeaderHeight": True,
+}
+
 # Grid options of every table: tooltips after 300 ms
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
 
@@ -495,12 +504,13 @@ def overview(snapshot: Snapshot) -> html.Div:
             for row in counts.to_dict("records")
         ],
         columnDefs=[
-            {"headerName": "Status", "field": "status", "width": 130},
+            {"headerName": "Status", "field": "status", "minWidth": 100},
             {"headerName": "Nodes", "field": "nodes"},
             {"headerName": "All main OK", "field": "all_main_ok"},
             {"headerName": "Some issue", "field": "some_issue"},
             {"headerName": "Nothing running", "field": "nothing_running"},
         ],
+        defaultColDef=FIT_COLUMN,
         dashGridOptions={**GRID_OPTIONS, "domLayout": "autoHeight"},
         className="nne-grid",
     )
@@ -517,14 +527,20 @@ def overview(snapshot: Snapshot) -> html.Div:
     by_container = dag.AgGrid(
         id="overview-containers",
         rowData=rows,
-        columnDefs=[{"headerName": "Container", "field": "container", "width": 150}]
+        columnDefs=[{"headerName": "Container", "field": "container", "minWidth": 120}]
         + [
             {"headerName": f"{g.capitalize()} (running / nodes)", "field": g}
             for g in groups
         ],
+        defaultColDef=FIT_COLUMN,
         dashGridOptions={**GRID_OPTIONS, "domLayout": "autoHeight"},
         className="nne-grid",
     )
     return html.Div(
-        [by_status, html.H3("Running containers by node status"), by_container]
+        [
+            html.H3("Nodes by status"),
+            by_status,
+            html.H3("Running containers by node status"),
+            by_container,
+        ]
     )

@@ -35,9 +35,9 @@
 # Contact: crna-eng@simula.no
 
 """
-Containers page: container status of the reported nodes in sub-tabs Overview, Grid, Problems and
-Node detail (documentation/DESIGN.md section 7). No page title: the header button and the sub-tabs
-name the view.
+Containers page: container status of the reported nodes in sub-tabs Overview (map and counts),
+Grid, Problems and Node detail (documentation/DESIGN.md section 7). No page title: the header
+button and the sub-tabs name the view.
 
 Integrations:
     1. data.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
@@ -71,6 +71,8 @@ from container_status_webpage.components.node import (
     timeline,
     x_range,
 )
+from container_status_webpage.components.nodemap import click_query as map_query
+from container_status_webpage.components.nodemap import node_map
 from container_status_webpage.components.tabs import sub_tabs
 from container_status_webpage.data import status
 from container_status_webpage.data.cache import CONTAINERS_CACHE, Snapshot
@@ -213,32 +215,57 @@ def filter_problems(
 
 
 @callback(
+    Output("node-map", "figure"),
+    Input("map-status", "value"),
+    prevent_initial_call=True,
+)
+def filter_map(statuses: Optional[List[str]]) -> Any:
+    """
+    Map of the nodes with a checked status.
+
+    Args:
+        statuses (Optional[List[str]]): Checked statuses.
+
+    Returns:
+        Any: The figure.
+    """
+    return node_map(CONTAINERS_CACHE.get(), statuses or [])
+
+
+@callback(
     Output("_pages_location", "search"),
     Input("node-select", "value"),
     Input("status-grid", "cellClicked"),
     Input("problems-grid", "cellClicked"),
+    Input("node-map", "clickData"),
     prevent_initial_call=True,
 )
 def navigate(
     node_id: Optional[int],
     grid_cell: Optional[Dict[str, Any]],
     problem_cell: Optional[Dict[str, Any]],
+    map_click: Optional[Dict[str, Any]],
 ) -> str:
     """
-    Opens the node detail: the selected node, or the node of a clicked grid or problem list row;
-    the page is built again from the URL query (layout).
+    Opens the node detail: the selected node, the node of a clicked grid or problem list row, or
+    of a clicked map dot; the page is built again from the URL query (layout). The empty values
+    the tables, the map and the selector report when they appear change nothing.
 
     Args:
         node_id (Optional[int]): Selected node.
         grid_cell (Optional[Dict[str, Any]]): Clicked cell of the grid.
         problem_cell (Optional[Dict[str, Any]]): Clicked cell of the problem list.
+        map_click (Optional[Dict[str, Any]]): Clicked dot of the map.
 
     Returns:
         str: Query string.
     """
     if ctx.triggered_id == "node-select":
-        return node_query(node_id)
-    return click_query(grid_cell if ctx.triggered_id == "status-grid" else problem_cell)
+        return dash.no_update if node_id is None else node_query(node_id)
+    if ctx.triggered_id == "node-map":
+        return map_query(map_click) if map_click else dash.no_update
+    cell = grid_cell if ctx.triggered_id == "status-grid" else problem_cell
+    return click_query(cell) if cell else dash.no_update
 
 
 @callback(
@@ -372,6 +399,46 @@ def node_tab(
     )
 
 
+def map_view(snapshot: Snapshot) -> html.Div:
+    """
+    Map half of the Overview: status filter, the number of nodes without location, the zoomable
+    map; a click on a dot opens the node detail.
+
+    Args:
+        snapshot (Snapshot): Loaded data.
+
+    Returns:
+        html.Div: Toolbar and map (ids map-status, node-map).
+    """
+    statuses = [name.capitalize() for name in status.STATUS_ORDER]
+    nodes = snapshot.nodes
+    missing = int((nodes.loc_lat.isna() | nodes.loc_lon.isna()).sum())
+    return html.Div(
+        [
+            html.Div(
+                [
+                    item(
+                        "Status",
+                        dcc.Checklist(
+                            id="map-status",
+                            options=statuses,
+                            value=statuses,
+                            inline=True,
+                        ),
+                    ),
+                    html.Span(f"{missing} nodes without location"),
+                ],
+                className="toolbar",
+            ),
+            dcc.Graph(
+                id="node-map",
+                figure=node_map(snapshot, statuses),
+                config={"scrollZoom": True},
+            ),
+        ]
+    )
+
+
 def layout(
     tab: Optional[str] = None,
     node: Optional[str] = None,
@@ -414,7 +481,14 @@ def layout(
             sub_tabs(
                 "containers-tabs",
                 [
-                    ("overview", "Overview", grid.overview(snapshot)),
+                    (
+                        "overview",
+                        "Overview",
+                        html.Div(
+                            [map_view(snapshot), grid.overview(snapshot)],
+                            className="overview-split",
+                        ),
+                    ),
                     (
                         "grid",
                         "Grid",

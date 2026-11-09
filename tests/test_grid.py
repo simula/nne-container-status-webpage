@@ -147,7 +147,7 @@ def test_problems_grid_rows():
 
 def test_overview_rows():
     """Overview: Deployed, Testing and All; one row per container with its display name."""
-    by_status, _, by_container = grid.overview(SNAPSHOT).children
+    _, by_status, _, by_container = grid.overview(SNAPSHOT).children
     assert [row["status"] for row in by_status.rowData] == [
         "Deployed",
         "Testing",

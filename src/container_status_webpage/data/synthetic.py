@@ -111,6 +111,15 @@ MUNICIPALITIES: Tuple[Any, ...] = (
     None,
 )
 
+# Centre of each municipality (latitude, longitude)
+CENTRES: Dict[str, Tuple[float, float]] = {
+    "Oslo": (59.91, 10.75),
+    "Bergen": (60.39, 5.32),
+    "Trondheim": (63.43, 10.40),
+    "Tromsø": (69.65, 18.96),
+    "Stavanger": (58.97, 5.73),
+}
+
 # Interfaces (network_id, service_id) of the synthetic experiments: Telenor 4G, Telia 5G, Ice 4G;
 # MQTT runs on the dummy network 0
 INTERFACES: Tuple[Tuple[int, int], ...] = ((1, 1), (2, 2), (18, 1))
@@ -300,6 +309,28 @@ def synthetic_experiments(
     return rows
 
 
+def site(node_id: int) -> Dict[str, Any]:
+    """
+    Site of a synthetic node: municipality and a location near its centre, rounded to 2 decimals
+    as the loader does; no municipality, no location.
+
+    Args:
+        node_id (int): Node identifier.
+
+    Returns:
+        Dict[str, Any]: municipality, loc_lat, loc_lon.
+    """
+    municipality = MUNICIPALITIES[node_id % len(MUNICIPALITIES)]
+    if municipality is None:
+        return {"municipality": None, "loc_lat": None, "loc_lon": None}
+    lat, lon = CENTRES[municipality]
+    return {
+        "municipality": municipality,
+        "loc_lat": round(lat + (node_id % 5 - 2) * 0.02, 2),
+        "loc_lon": round(lon + (node_id // 5 % 5 - 2) * 0.04, 2),
+    }
+
+
 def receiver_restarts(scenario: str, process: str, run_h: float) -> Optional[str]:
     """
     extra of a container_rawdata row (text, as in the table): the restart counter of a receiver;
@@ -356,7 +387,7 @@ def synthetic(now: pd.Timestamp) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
                     ),
                     # active instances, + 1 for metadata
                     "experiments": sum(pd.isna(e["stop_time"]) for e in instances) + 1,
-                    "municipality": MUNICIPALITIES[node_id % len(MUNICIPALITIES)],
+                    **site(node_id),
                     "scenario": scenario,
                 }
             )
