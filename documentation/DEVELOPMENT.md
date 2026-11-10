@@ -41,6 +41,8 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 
 | Task | Command |
 |---|---|
+| Build and start on the database, loading the SSH key first | `./build-web.sh` |
+| Build and start on synthetic data | `./build-web.sh synthetic` |
 | Build and start | `docker compose up -d --build` → http://localhost:8050 |
 | Build and start on the database (Database mode below) | `DB_ENV_FILE=./.db_env_test DATA_SOURCE=database docker compose up -d --build` |
 | Start the last built image (no GitHub access needed) | `docker compose up -d` |
