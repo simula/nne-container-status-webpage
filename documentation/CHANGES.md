@@ -29,5 +29,7 @@
 - Overview: node map on the left (OpenStreetMap, one dot per node in the colour of its grade, legend with counts,
   hover with the issues, click opens Node detail, Deployed / Testing filter), the tables on the right with the title
   "Nodes by status".
+- Map: satellite nodes 4071–4073 shown next to the site of node 7056 (SimulaMet), 0.01° longitude apart.
+- Fixed: database coordinates arrive as strings: converted to numbers, so the rounding to 2 decimals applies.
 - Fixed: map clicks reached the server without the node id (`customdata` as a plain list); a 500 at page load from
   the navigation callback on the empty values of the tables and the node selector.

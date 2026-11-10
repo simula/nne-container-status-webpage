@@ -62,6 +62,9 @@ from sqlalchemy import select, text
 
 from container_status_webpage.data.status import SATELLITE_NODES, STATUS_ORDER
 
+# Satellite nodes have no address: the map shows them next to the site of this node (SimulaMet)
+SATELLITE_SITE_NODE: int = 7056
+
 # Candidate nodes with their status and counts: an active experiment bound to a network and a
 # service, node_id >= 3100, or a satellite node; interfaces without service 7 (power switch SIM),
 # experiments + 1 for metadata
@@ -108,14 +111,27 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     # 3. Municipality and location of the current site address (optional); coordinates rounded to
     #    2 decimals (about 1 km), the map does not pinpoint the sites
     site = pd.read_sql(
-        select_from_nne_node_adreess_and_nne_addresss(node_ids).where(
+        select_from_nne_node_adreess_and_nne_addresss(
+            node_ids + [SATELLITE_SITE_NODE]
+        ).where(
             NneNodeAddress.address_type == NneAddressType.site,
             NneNodeAddress.valid_to.is_(None),
         ),
         engines.nne_engine,
     ).drop_duplicates("node_id")
-    site = site[["node_id", "municipality", "loc_lat", "loc_lon"]].round(
-        {"loc_lat": 2, "loc_lon": 2}
+    site = site[["node_id", "municipality", "loc_lat", "loc_lon"]]
+    site[["loc_lat", "loc_lon"]] = (
+        site[["loc_lat", "loc_lon"]].apply(pd.to_numeric, errors="coerce").round(2)
+    )
+    simulamet = site[site.node_id == SATELLITE_SITE_NODE]
+    # Satellite nodes have no address: shown next to the site of node 7056 (SimulaMet),
+    # 0.01° longitude (about 0.5 km) apart so that each dot can be clicked
+    site = pd.concat(
+        [site]
+        + [
+            simulamet.assign(node_id=n, loc_lon=simulamet.loc_lon + 0.01 * (i + 1))
+            for i, n in enumerate(SATELLITE_NODES)
+        ]
     )
     nodes = nodes.merge(site, on="node_id", how="left")
     # 4. Experiments of the reported nodes and the container runs

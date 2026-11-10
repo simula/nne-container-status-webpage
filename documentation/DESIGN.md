@@ -68,7 +68,8 @@ A node is reported when all of these hold:
 Exception: the satellite nodes **4071, 4072, 4073** are reported as DEPLOYED although nne has no `node`, `node_info`
 or `node_status` row for them (hardcoded, `data/status.py` `SATELLITE_NODES`). They run neither the metadata nor
 the mqtt container: both are never expected there, and their experiment count has no +1 for metadata. Satellite
-measurements on other nodes are ad hoc and follow the rules above.
+measurements on other nodes are ad hoc and follow the rules above. Without an address, the map shows them next to
+the site of node 7056 (SimulaMet), 0.01° longitude apart (`data/loader.py` `SATELLITE_SITE_NODE`).
 
 On 2026-11-06: DEPLOYED 100, TESTING 16, unchanged with the conditions above on 2026-11-09. Missing status records
 found on the way were fixed in `nne.node_status`: 11085 DESTROYED (from 2026-11-06), 10964 and 11165 TESTING (from
