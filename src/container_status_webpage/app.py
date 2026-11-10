@@ -56,7 +56,9 @@ from container_status_webpage import settings
 from container_status_webpage.components import frame
 
 # Dash app with the pages of pages/ and the assets of assets/
-app: Dash = Dash(__name__, use_pages=True, title="NorNet edge – container status")
+app: Dash = Dash(
+    __name__, use_pages=True, title="NorNet edge – container status", update_title=None
+)
 
 # WSGI server for gunicorn
 server: Flask = app.server
