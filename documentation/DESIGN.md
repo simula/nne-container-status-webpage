@@ -385,6 +385,8 @@ environment with the project, run by systemd. Docker is only for local developme
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
 - The nnedbtools log files (`logs/`, one per worker start) on oculus: rotation or cleanup.
+- Nodes without any address in nne on 2026-11-10, so not on the map: 10063, 10087 (DEPLOYED), 9991, 11165 (TESTING);
+  their site addresses need adding in nne.
 
 ## 13. Code conventions
 
