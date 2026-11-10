@@ -151,10 +151,10 @@ Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/s
 | `src/container_status_webpage/app.py` | Dash app (`app`, `server` for gunicorn), development server `main()` |
 | `src/container_status_webpage/settings.py` | settings from environment variables: `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` (default `15,45`) |
 | `src/container_status_webpage/data/` | rules (`status.py`), synthetic data (`synthetic.py`), database loader (`loader.py`), cache (`cache.py`) |
-| `src/container_status_webpage/components/` | page frame, sub-tabs, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Overview map (`nodemap.py`), Node detail (`node.py`) |
-| `src/container_status_webpage/pages/` | one module per page (Dash Pages): Containers, Plots |
+| `src/container_status_webpage/components/` | page frame, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Overview map (`nodemap.py`), Node detail (`node.py`) |
+| `src/container_status_webpage/pages/` | `containers.py`: the pages Overview, Grid, Problems and Node detail (Dash Pages) |
 | `src/container_status_webpage/assets/` | nne-viz style (`style.css`), logos, the Grid tooltip component (`dashAgGridComponentFunctions.js`), served by Dash |
 | `tests/` | rules, cache, tables, node detail and smoke tests, without a browser; never import a page module |
 
-Synthetic nodes worth opening (`/?tab=node&node=<id>`): 90019 mobile, 90020 release history, 90018 orphan threads,
+Synthetic nodes worth opening (`/node?node=<id>`): 90019 mobile, 90020 release history, 90018 orphan threads,
 90010 UDP Ping partial.

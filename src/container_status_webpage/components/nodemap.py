@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Map of the Containers page: reported nodes coloured by their grade
+# Map of the Overview page: reported nodes coloured by their grade
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -166,12 +166,12 @@ def node_map(snapshot: Snapshot, statuses: List[str]) -> go.Figure:
 
 def click_query(click: Dict[str, Any]) -> str:
     """
-    URL query of the node detail of a clicked dot.
+    URL of the node detail of a clicked dot.
 
     Args:
         click (Dict[str, Any]): clickData of the map (customdata is the node id).
 
     Returns:
-        str: Query string.
+        str: URL of the node detail.
     """
     return node_query(click["points"][0]["customdata"])

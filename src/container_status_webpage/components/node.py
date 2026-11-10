@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Node detail of the Containers page: header, timeline, threads, experiments
+# Node detail page: header, timeline, threads, experiments
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Node detail of the Containers page (documentation/DESIGN.md section 7): the header of the selected
+Node detail page (documentation/DESIGN.md section 7): the header of the selected
 node; the timeline, the threads and the experiments follow.
 
 Integrations:
@@ -88,29 +88,28 @@ DEFAULT_RANGE: str = "7"
 
 def node_query(node_id: Any, container: Optional[str] = None) -> str:
     """
-    URL query of the node detail (pages/containers.py builds the page from it).
+    URL of the node detail page (pages/containers.py node_page builds the page from it).
 
     Args:
-        node_id (Any): Node id, None for none.
+        node_id (Any): Node id.
         container (Optional[str], optional): Container to highlight. Defaults to None.
 
     Returns:
-        str: Query string, e.g. "?tab=node&node=90001&container=udpping".
+        str: URL, e.g. "/node?node=90001&container=udpping".
     """
-    query = "?tab=node" + ("" if node_id is None else f"&node={node_id}")
-    return query + (f"&container={container}" if container else "")
+    return f"/node?node={node_id}" + (f"&container={container}" if container else "")
 
 
 def click_query(cell: Dict[str, Any]) -> str:
     """
-    URL query of a clicked grid or problem list cell: its node, and its container for a container
+    URL of a clicked grid or problem list cell: its node, and its container for a container
     cell.
 
     Args:
         cell (Dict[str, Any]): cellClicked of the AG Grid (rowId is the node id).
 
     Returns:
-        str: Query string.
+        str: URL of the node detail.
     """
     column = cell["colId"]
     return node_query(cell["rowId"], column if column in status.NAME else None)

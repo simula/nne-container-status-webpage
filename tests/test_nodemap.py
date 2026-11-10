@@ -75,7 +75,7 @@ def test_dots_filter_and_click():
     assert grades == sorted(grades, key=status.GRADE_ORDER.index)
     node_id = node_ids(figure)[0]
     click = {"points": [{"customdata": node_id}]}
-    assert nodemap.click_query(click) == f"?tab=node&node={node_id}"
+    assert nodemap.click_query(click) == f"/node?node={node_id}"
     # customdata as plain JSON lists, so that dcc.Graph passes it with the click
     traces = json.loads(figure.to_json())["data"]
     assert all(isinstance(trace["customdata"], list) for trace in traces)

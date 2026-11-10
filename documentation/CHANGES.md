@@ -30,6 +30,8 @@
   hover with the issues, click opens Node detail, Deployed / Testing filter), the tables on the right with the title
   "Nodes by status".
 - Map: satellite nodes 4071–4073 shown next to the site of node 7056 (SimulaMet), 0.01° longitude apart.
+- Overview, Grid, Problems and Node detail are header pages (`/`, `/grid`, `/problems`,
+  `/node?node=<id>&container=<name>`) instead of sub-tabs of Containers; the Plots placeholder page removed.
 - Fixed: database coordinates arrive as strings: converted to numbers, so the rounding to 2 decimals applies.
 - Fixed: map clicks reached the server without the node id (`customdata` as a plain list); a 500 at page load from
   the navigation callback on the empty values of the tables and the node selector.

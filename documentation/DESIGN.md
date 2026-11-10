@@ -19,8 +19,7 @@ Figures quoted below were measured on 2026-11-06 unless dated otherwise (first d
 ## 1. Scope
 - A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx / TLS
   on oculus (section 11).
-- Pages: **Containers**, the container status dashboard (sections 7–8); **Plots**, the plots now rendered in the
-  nne-report and nne-exploratory notebooks, added later page by page.
+- Pages: **Overview**, **Grid**, **Problems** and **Node detail**, the container status dashboard (sections 7–8).
 - Live data, read-only: through nnedbtools with the nne-reader account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
 - Python only, apart from client-side callbacks where a request to the server makes no sense (the clock).
@@ -208,12 +207,10 @@ orphans, restarts) do not change the grade; they are listed in the hover.
 ## 7. Page structure
 **Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one
 navigation button per page and the Norway clock; the page; orange footer with the SimulaMet logo on a light
-background. Pages: Containers (`/`), Plots (`/plots`). Pages have no title of their own: the selected header button
-and sub-tab name the view.
+background. Pages: Overview (`/`), Grid (`/grid`), Problems (`/problems`), Node detail (`/node`). Pages have no title
+of their own: the selected header button names the view. Each page starts with the time of the last data load.
 
-**Containers page**: the time of the last data load, then sub-tabs in the nne-viz TabButton style.
-
-| Sub-tab | Content |
+| Page | Content |
 |---|---|
 | Overview | left (60 %): node map on OpenStreetMap (Plotly `Scattermap`, zoom and pan), one dot per node with a location in the colour of its grade (section 6), one legend entry per grade with its count (a click hides it), hover with node, status, municipality, grade and issues, click on a dot: Node detail of that node; toolbar: Status (Deployed / Testing) and the number of nodes without location. Right (40 %): "Nodes by status" (Deployed, Testing, All: nodes, *all main OK*, *some issue*, *nothing running*) and "Running containers by node status" (per container the nodes running it / the nodes, per status), columns sharing the width with wrapped headers. Below 1000 px the two halves stack |
 | Grid | AG Grid, one row per node (Deployed then Testing, by `node_id`): node, status, municipality, then the main and the extra containers as column groups. A container cell shows the symbol and label of its state (section 5) and is coloured by the rules of section 6 (AG Grid cell style conditions built from the palette, section 9); its tooltip is a table of the threads (state on its colour, version, up, last seen, ago, starts 24 h / 7 d; never-seen and orphan rows). Toolbar: Status, State (a node matches when any cell has a chosen state or marker), Node and Municipality (multi-select with search). Sorting per column. Click on a row: Node detail of that node, on a container cell also of that container |
@@ -226,7 +223,7 @@ Testing; headers in sentence case. The data keep the database values.
 **Node detail** (all containers of a node in one view: a node-wide outage or a release shows across all rows):
 
 - Node selector (searchable) and range buttons 1 / 3 / 7 / 14 d and All (7 d first). The URL
-  `/?tab=node&node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
+  `/node?node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
 - Header: node, status chip, municipality (never the street address: the nodes are not doxed), network chips of the
   active experiments (section 6), the number of active interfaces (`service_id <> 7`) and of experiments (active
   instances + 1 for metadata, which is always configured). No "status since": `nne.node_status.valid_from` is not
@@ -244,9 +241,6 @@ Testing; headers in sentence case. The data keep the database values.
   names prevail over the long descriptions), network, iccid, start, stop. Click on a row: its `parameters` as
   indented JSON below the table.
 
-**Plots page**: one section per plot from the notebooks; a matplotlib figure of nnedbtools is shown as an image
-first and rewritten in Plotly when it needs interaction.
-
 ## 8. Interaction
 Dash server callbacks and the built-in interaction of AG Grid and Plotly; hand-written JavaScript only for the clock
 and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`, React elements, no HTML strings).
@@ -254,7 +248,6 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Action | Result |
 |---|---|
 | Header button | the page (Dash Pages) |
-| Sub-tab | the content of the sub-tab |
 | Grid / Problems toolbar | the rows filtered in a callback from a store of all rows |
 | Grid / Problems row click (`cellClicked`) | the URL query of the node (and of a container cell): the page is built again on Node detail |
 | Map toolbar (Status) | the map drawn again in a callback; zoom and pan stay (`uirevision`) |
@@ -284,14 +277,13 @@ are marked.
 | `data/synthetic.py` (3) | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
 | `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
-| `components/frame.py`, `components/tabs.py` | page frame and sub-tabs |
+| `components/frame.py` | page frame |
 | `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
-| `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems sub-tabs |
+| `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
 | `components/node.py` (3) | Node detail: URL query, header, timeline segments and figure, range, segment detail, threads and experiments tables |
 | `components/nodemap.py` (4) | Overview map: hover lines, located nodes with their grade, `Scattermap` figure, URL query of a clicked dot |
 | `assets/dashAgGridComponentFunctions.js` (3) | `ThreadTable`, the tooltip table of a grid cell |
-| `pages/containers.py` | layout and callbacks of the Containers page: toolbars, filters, map, navigation, range, clicks |
-| `pages/plots.py` | Plots page |
+| `pages/containers.py` | the pages Overview, Grid, Problems and Node detail with their callbacks: toolbars, filters, map, navigation, range, clicks |
 
 Input contract: the synthetic data and the loader produce the same three frames.
 

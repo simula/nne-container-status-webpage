@@ -35,5 +35,6 @@
 # Contact: crna-eng@simula.no
 
 """
-Pages of the webpage, one module per page, registered with dash.register_page (Dash Pages).
+Pages of the webpage, registered with dash.register_page (Dash Pages): containers.py registers
+Overview, Grid, Problems and Node detail.
 """

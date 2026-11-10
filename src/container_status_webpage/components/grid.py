@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# AG Grid tables of the Containers page: overview, grid, problems
+# AG Grid tables of the pages Overview, Grid and Problems
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-AG Grid tables of the Containers page (documentation/DESIGN.md section 7): the overview counts, the
+AG Grid tables of the container pages (documentation/DESIGN.md section 7): the overview counts, the
 colour grid of nodes and containers with its legend, the problem list. Cell styles come from
 components.palette: dash-ag-grid applies the first matching style condition only, so every cell gets
 the id of its complete style and every container column one condition per style id.

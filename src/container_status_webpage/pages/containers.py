@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Containers page: container status of the reported nodes
+# Container status pages: Overview, Grid, Problems, Node detail
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,22 +35,22 @@
 # Contact: crna-eng@simula.no
 
 """
-Containers page: container status of the reported nodes in sub-tabs Overview (map and counts),
-Grid, Problems and Node detail (documentation/DESIGN.md section 7). No page title: the header
-button and the sub-tabs name the view.
+Container status pages of the reported nodes: Overview (map and counts), Grid, Problems and Node
+detail (documentation/DESIGN.md section 7), registered here with dash.register_page. No page
+title: the header button names the view.
 
 Integrations:
     1. data.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
 
 Sample code:
-    Served on / by the app (container_status_webpage.app).
+    Served on /, /grid, /problems and /node by the app (container_status_webpage.app).
 """
 
 from typing import Any, Dict, List, Optional
 
 import dash
 import pandas as pd
-from dash import Input, Output, Patch, State, callback, ctx, dcc, html
+from dash import Input, Output, Patch, State, callback, dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.components import grid
@@ -73,13 +73,8 @@ from container_status_webpage.components.node import (
 )
 from container_status_webpage.components.nodemap import click_query as map_query
 from container_status_webpage.components.nodemap import node_map
-from container_status_webpage.components.tabs import sub_tabs
 from container_status_webpage.data import status
 from container_status_webpage.data.cache import CONTAINERS_CACHE, Snapshot
-
-dash.register_page(
-    __name__, path="/", name="Containers", title="NorNet edge – containers", order=0
-)
 
 
 def item(label: str, control: Any) -> html.Div:
@@ -98,14 +93,14 @@ def item(label: str, control: Any) -> html.Div:
 
 def toolbar(prefix: str, rows: List[Dict[str, Any]], own: html.Div) -> html.Div:
     """
-    Filter toolbar of a table: status, the control of the tab, node, municipality; the dropdowns
+    Filter toolbar of a table: status, the control of the page, node, municipality; the dropdowns
     search their options while typing.
 
     Args:
         prefix (str): Prefix of the control ids, e.g. "grid".
         rows (List[Dict[str, Any]]): Rows of the table, source of the node and municipality
             options.
-        own (html.Div): Control of the tab (item).
+        own (html.Div): Control of the page (item).
 
     Returns:
         html.Div: The controls (ids <prefix>-status, <prefix>-node, <prefix>-municipality).
@@ -232,40 +227,81 @@ def filter_map(statuses: Optional[List[str]]) -> Any:
     return node_map(CONTAINERS_CACHE.get(), statuses or [])
 
 
+# Each page opens the node detail from its own component: a callback on the components of several
+# pages would miss those of the pages not shown. The empty values the selector, the tables and the
+# map report when they appear change nothing.
+
+
 @callback(
-    Output("_pages_location", "search"),
+    Output("_pages_location", "href", allow_duplicate=True),
     Input("node-select", "value"),
-    Input("status-grid", "cellClicked"),
-    Input("problems-grid", "cellClicked"),
-    Input("node-map", "clickData"),
     prevent_initial_call=True,
 )
-def navigate(
-    node_id: Optional[int],
-    grid_cell: Optional[Dict[str, Any]],
-    problem_cell: Optional[Dict[str, Any]],
-    map_click: Optional[Dict[str, Any]],
-) -> str:
+def open_selected(node_id: Optional[int]) -> str:
     """
-    Opens the node detail: the selected node, the node of a clicked grid or problem list row, or
-    of a clicked map dot; the page is built again from the URL query (layout). The empty values
-    the tables, the map and the selector report when they appear change nothing.
+    Opens the node detail of the selected node.
 
     Args:
         node_id (Optional[int]): Selected node.
-        grid_cell (Optional[Dict[str, Any]]): Clicked cell of the grid.
-        problem_cell (Optional[Dict[str, Any]]): Clicked cell of the problem list.
-        map_click (Optional[Dict[str, Any]]): Clicked dot of the map.
 
     Returns:
-        str: Query string.
+        str: URL of the node detail.
     """
-    if ctx.triggered_id == "node-select":
-        return dash.no_update if node_id is None else node_query(node_id)
-    if ctx.triggered_id == "node-map":
-        return map_query(map_click) if map_click else dash.no_update
-    cell = grid_cell if ctx.triggered_id == "status-grid" else problem_cell
+    return dash.no_update if node_id is None else node_query(node_id)
+
+
+@callback(
+    Output("_pages_location", "href", allow_duplicate=True),
+    Input("status-grid", "cellClicked"),
+    prevent_initial_call=True,
+)
+def open_from_grid(cell: Optional[Dict[str, Any]]) -> str:
+    """
+    Opens the node detail of a clicked grid row, on a container cell also of that container.
+
+    Args:
+        cell (Optional[Dict[str, Any]]): Clicked cell of the grid.
+
+    Returns:
+        str: URL of the node detail.
+    """
     return click_query(cell) if cell else dash.no_update
+
+
+@callback(
+    Output("_pages_location", "href", allow_duplicate=True),
+    Input("problems-grid", "cellClicked"),
+    prevent_initial_call=True,
+)
+def open_from_problems(cell: Optional[Dict[str, Any]]) -> str:
+    """
+    Opens the node detail of a clicked problem list row.
+
+    Args:
+        cell (Optional[Dict[str, Any]]): Clicked cell of the problem list.
+
+    Returns:
+        str: URL of the node detail.
+    """
+    return click_query(cell) if cell else dash.no_update
+
+
+@callback(
+    Output("_pages_location", "href", allow_duplicate=True),
+    Input("node-map", "clickData"),
+    prevent_initial_call=True,
+)
+def open_from_map(click: Optional[Dict[str, Any]]) -> str:
+    """
+    Opens the node detail of a clicked map dot.
+
+    Args:
+        click (Optional[Dict[str, Any]]): Clicked dot of the map.
+
+    Returns:
+        str: URL of the node detail.
+    """
+    return map_query(click) if click else dash.no_update
 
 
 @callback(
@@ -331,11 +367,11 @@ def set_range(choice: str, first_now: List[str]) -> Patch:
     return figure
 
 
-def node_tab(
+def node_view(
     snapshot: Snapshot, node_id: Optional[int], container: Optional[str]
 ) -> html.Div:
     """
-    Node detail tab: node selector and the detail of the selected node: header, timeline, detail
+    Node detail: node selector and the detail of the selected node: header, timeline, detail
     of the clicked segment.
 
     Args:
@@ -439,121 +475,183 @@ def map_view(snapshot: Snapshot) -> html.Div:
     )
 
 
-def layout(
-    tab: Optional[str] = None,
-    node: Optional[str] = None,
-    container: Optional[str] = None,
-    **_query: str,
-) -> html.Div:
+def data_line(snapshot: Snapshot) -> html.P:
     """
-    Page content, built on every page load from the cached data and the URL query
-    (/?tab=node&node=<id>&container=<name>).
+    Data line on top of every page: data source, number of nodes and load time.
 
     Args:
-        tab (Optional[str], optional): Selected sub-tab. Defaults to None (Overview).
-        node (Optional[str], optional): Node of the Node detail tab. Defaults to None.
+        snapshot (Snapshot): Loaded data.
+
+    Returns:
+        html.P: The line.
+    """
+    return html.P(
+        f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
+        f"loaded {when(snapshot.loaded_at)} UTC",
+        className="data-info",
+    )
+
+
+def overview(**_query: str) -> html.Div:
+    """
+    Overview page (/), built on every page load from the cached data.
+
+    Args:
+        **_query (str): URL query values (ignored).
+
+    Returns:
+        html.Div: Data line, map and count tables.
+    """
+    snapshot = CONTAINERS_CACHE.get()
+    return html.Div(
+        [
+            data_line(snapshot),
+            html.Div(
+                [map_view(snapshot), grid.overview(snapshot)],
+                className="overview-split",
+            ),
+        ]
+    )
+
+
+def grid_page(**_query: str) -> html.Div:
+    """
+    Grid page (/grid); all rows kept in a store for filter_grid.
+
+    Args:
+        **_query (str): URL query values (ignored).
+
+    Returns:
+        html.Div: Data line, toolbar, legend and grid.
+    """
+    snapshot = CONTAINERS_CACHE.get()
+    table = grid.status_grid(snapshot)
+    # pylint: disable-next=no-member
+    rows = table.rowData
+    return html.Div(
+        [
+            data_line(snapshot),
+            toolbar(
+                "grid",
+                rows,
+                item(
+                    "State",
+                    dcc.Dropdown(
+                        id="grid-state",
+                        options=[
+                            {"label": name.capitalize(), "value": name}
+                            for name in grid.STATES
+                        ],
+                        multi=True,
+                        placeholder="All states",
+                        className="toolbar-states",
+                    ),
+                ),
+            ),
+            grid.legend(),
+            table,
+            dcc.Store(id="grid-rows", data=rows),
+        ]
+    )
+
+
+def problems_page(**_query: str) -> html.Div:
+    """
+    Problems page (/problems); all rows kept in a store for filter_problems.
+
+    Args:
+        **_query (str): URL query values (ignored).
+
+    Returns:
+        html.Div: Data line, toolbar and problem list.
+    """
+    snapshot = CONTAINERS_CACHE.get()
+    problems = grid.problems_grid(snapshot)
+    # pylint: disable-next=no-member
+    rows = problems.rowData
+    return html.Div(
+        [
+            data_line(snapshot),
+            toolbar(
+                "problems",
+                rows,
+                item(
+                    "Issues",
+                    dcc.Input(
+                        id="problems-text",
+                        type="text",
+                        placeholder="Text in the issues",
+                        className="toolbar-text",
+                    ),
+                ),
+            ),
+            problems,
+            dcc.Store(id="problems-rows", data=rows),
+        ]
+    )
+
+
+def node_page(
+    node: Optional[str] = None, container: Optional[str] = None, **_query: str
+) -> html.Div:
+    """
+    Node detail page (/node?node=<id>&container=<name>); unknown values select nothing.
+
+    Args:
+        node (Optional[str], optional): Node to show. Defaults to None.
         container (Optional[str], optional): Container highlighted in the timeline. Defaults to
             None.
         **_query (str): Other query values (ignored).
 
     Returns:
-        html.Div: Data line and the sub-tabs.
+        html.Div: Data line and the node detail.
     """
-    # 1. Loaded data and the query; unknown values select nothing
     snapshot = CONTAINERS_CACHE.get()
     node_id = (
         int(node)
         if node and node.isdigit() and int(node) in set(snapshot.nodes.node_id)
         else None
     )
-    info = (
-        f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
-        f"loaded {when(snapshot.loaded_at)} UTC"
-    )
-    table = grid.status_grid(snapshot)
-    problems = grid.problems_grid(snapshot)
-    # pylint: disable-next=no-member
-    rows, problem_rows = table.rowData, problems.rowData
-    # 2. Sub-tabs; grid and problems keep all rows in a store for filter_grid / filter_problems
     return html.Div(
         [
-            html.P(info, className="data-info"),
-            sub_tabs(
-                "containers-tabs",
-                [
-                    (
-                        "overview",
-                        "Overview",
-                        html.Div(
-                            [map_view(snapshot), grid.overview(snapshot)],
-                            className="overview-split",
-                        ),
-                    ),
-                    (
-                        "grid",
-                        "Grid",
-                        html.Div(
-                            [
-                                toolbar(
-                                    "grid",
-                                    rows,
-                                    item(
-                                        "State",
-                                        dcc.Dropdown(
-                                            id="grid-state",
-                                            options=[
-                                                {
-                                                    "label": name.capitalize(),
-                                                    "value": name,
-                                                }
-                                                for name in grid.STATES
-                                            ],
-                                            multi=True,
-                                            placeholder="All states",
-                                            className="toolbar-states",
-                                        ),
-                                    ),
-                                ),
-                                grid.legend(),
-                                table,
-                                dcc.Store(id="grid-rows", data=rows),
-                            ]
-                        ),
-                    ),
-                    (
-                        "problems",
-                        "Problems",
-                        html.Div(
-                            [
-                                toolbar(
-                                    "problems",
-                                    problem_rows,
-                                    item(
-                                        "Issues",
-                                        dcc.Input(
-                                            id="problems-text",
-                                            type="text",
-                                            placeholder="Text in the issues",
-                                            className="toolbar-text",
-                                        ),
-                                    ),
-                                ),
-                                problems,
-                                dcc.Store(id="problems-rows", data=problem_rows),
-                            ]
-                        ),
-                    ),
-                    (
-                        "node",
-                        "Node detail",
-                        node_tab(
-                            snapshot,
-                            node_id,
-                            container if container in status.NAME else None,
-                        ),
-                    ),
-                ],
-                tab if tab in ("overview", "grid", "problems", "node") else None,
+            data_line(snapshot),
+            node_view(
+                snapshot, node_id, container if container in status.NAME else None
             ),
         ]
     )
+
+
+# The four views as pages, one header button each (components/frame.py)
+dash.register_page(
+    "overview",
+    path="/",
+    name="Overview",
+    title="NorNet edge – Overview",
+    order=0,
+    layout=overview,
+)
+dash.register_page(
+    "grid",
+    path="/grid",
+    name="Grid",
+    title="NorNet edge – Grid",
+    order=1,
+    layout=grid_page,
+)
+dash.register_page(
+    "problems",
+    path="/problems",
+    name="Problems",
+    title="NorNet edge – Problems",
+    order=2,
+    layout=problems_page,
+)
+dash.register_page(
+    "node",
+    path="/node",
+    name="Node detail",
+    title="NorNet edge – Node detail",
+    order=3,
+    layout=node_page,
+)

@@ -52,31 +52,20 @@ from container_status_webpage.components.node import click_query
 
 
 def test_pages_registered_in_order():
-    """Pages come from pages/ of the package, Containers first."""
+    """The four container status views are the header pages, Overview first."""
     assert [(page["name"], page["path"]) for page in dash.page_registry.values()] == [
-        ("Containers", "/"),
-        ("Plots", "/plots"),
-    ]
-
-
-def test_containers_page_has_placeholder_sub_tabs():
-    """The Containers page has the sub-tabs Overview, Grid, Problems and Node detail."""
-    page = next(page for page in dash.page_registry.values() if page["path"] == "/")
-    tabs = page["layout"]()["containers-tabs"]
-    assert [tab.label for tab in tabs.children] == [
-        "Overview",
-        "Grid",
-        "Problems",
-        "Node detail",
+        ("Overview", "/"),
+        ("Grid", "/grid"),
+        ("Problems", "/problems"),
+        ("Node detail", "/node"),
     ]
 
 
 def test_node_detail_from_query():
-    """/?tab=node&node=<id> opens Node detail with the node selected and its header; an unknown
-    node selects none."""
-    page = next(page for page in dash.page_registry.values() if page["path"] == "/")
-    built = page["layout"](tab="node", node="90001")
-    assert built["containers-tabs"].value == "node"
+    """/node?node=<id> opens Node detail with the node selected and its header; an unknown node
+    selects none."""
+    page = next(page for page in dash.page_registry.values() if page["path"] == "/node")
+    built = page["layout"](node="90001")
     assert built["node-select"].value == 90001
     texts = [part.children for part in built["node-header"].children]
     assert {"Node 90001", "Deployed", "Bergen"} <= set(texts)
@@ -86,22 +75,20 @@ def test_node_detail_from_query():
 def test_click_opens_node_detail():
     """A click on a grid or problem list row opens its node; a container cell also names the
     container."""
-    assert click_query({"colId": "node_id", "rowId": "90001"}) == (
-        "?tab=node&node=90001"
-    )
+    assert click_query({"colId": "node_id", "rowId": "90001"}) == ("/node?node=90001")
     assert click_query({"colId": "udpping", "rowId": "90001"}) == (
-        "?tab=node&node=90001&container=udpping"
+        "/node?node=90001&container=udpping"
     )
-    assert click_query({"colId": "issues", "rowId": "90003"}) == (
-        "?tab=node&node=90003"
-    )
+    assert click_query({"colId": "issues", "rowId": "90003"}) == ("/node?node=90003")
 
 
 @pytest.mark.parametrize(
     "path",
     [
         "/",
-        "/plots",
+        "/grid",
+        "/problems",
+        "/node",
         "/_dash-layout",
         "/assets/style.css",
         "/assets/nornet.png",
