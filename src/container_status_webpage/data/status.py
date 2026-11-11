@@ -139,7 +139,7 @@ RESTARTS_LONG_RUN_H: float = 168
 
 # Satellite nodes (documentation/DESIGN.md section 3): reported as DEPLOYED without node, node_info
 # or node_status rows; they run neither metadata nor mqtt
-SATELLITE_NODES: Tuple[int, ...] = (4071, 4072, 4073)
+SATELLITE_NODES: Tuple[int, ...] = (4071, 4072, 4073, 4074)
 SATELLITE_WITHOUT: Tuple[str, ...] = ("metadata", "mqtt")
 
 
