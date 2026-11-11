@@ -371,8 +371,6 @@ environment with the project, run by systemd. Docker is only for local developme
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools (none on 2026-11-09).
 - The map tiles come from `tile.openstreetmap.org`: fine for light use under the OpenStreetMap tile usage policy;
   heavier use on oculus needs another tile provider.
-- Overview: an empty band under the "Nodes by status" table. Threads table: the "Receiver restarts" column cuts long
-  values (`314,076 (479/…`).
 - Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour / 1440 per day) are constants
   to calibrate after real use.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the

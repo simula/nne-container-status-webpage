@@ -548,7 +548,13 @@ def threads_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
         {"headerName": "Last seen (UTC)", "field": "seen", "width": 160},
         {"headerName": "Ago", "field": "ago", "width": 90},
         {"headerName": "Starts 24 h / 7 d", "field": "starts", "width": 140},
-        {"headerName": "Receiver restarts", "field": "restarts", "flex": 1},
+        # Below its minimum width the table scrolls instead of cutting "314,076 (479/h)"
+        {
+            "headerName": "Receiver restarts",
+            "field": "restarts",
+            "flex": 1,
+            "minWidth": 170,
+        },
     ]
     return dag.AgGrid(
         id="node-threads",

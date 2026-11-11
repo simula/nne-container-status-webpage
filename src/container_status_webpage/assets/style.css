@@ -180,6 +180,12 @@ code {
   margin-top: 0.5em;
 }
 
+/* autoHeight grids: AG Grid keeps the rows area at least 150px high (empty band under short
+   tables such as "Nodes by status"); the documented override lets a table end at its last row */
+.nne-grid .ag-center-cols-viewport {
+  min-height: unset !important;
+}
+
 .nne-grid .ag-root-wrapper {
   --ag-font-family: inherit;
   --ag-font-size: 14px;
