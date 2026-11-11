@@ -222,7 +222,8 @@ Testing; headers in sentence case. The data keep the database values.
 
 **Node detail** (all containers of a node in one view: a node-wide outage or a release shows across all rows):
 
-- Node selector (searchable) and range buttons 1 / 3 / 7 / 14 d and All (7 d first). The URL
+- Node selector (searchable), range buttons 1 / 3 / 7 / 14 d and All (7 d first) and the From / To date pickers that
+  the buttons fill (UTC days as the timeline; To ends at the end of its day, at most at the newest data). The URL
   `/node?node=<id>&container=<name>` opens the view; `container` highlights the rows of that container.
 - Header: node, status chip, municipality (never the street address: the nodes are not doxed), network chips of the
   active experiments (section 6), the number of active interfaces (`service_id <> 7`) and of experiments (active
@@ -253,7 +254,8 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Map toolbar (Status) | the map drawn again in a callback; zoom and pan stay (`uirevision`) |
 | Map dot click (`clickData`) | the URL query of the node: the page is built again on Node detail |
 | Node selector | the URL query of the node: the page is built again |
-| Range button | the x range of the timeline set in a callback; zoom and pan in Plotly |
+| Range button | the exact x range of the timeline (`x_range`) set in a callback; fills the From / To pickers with its days |
+| From / To pickers | whole days as x range in the same callback (`picker_range`; an invalid range leaves it); zoom and pan in Plotly do not update the pickers |
 | Timeline bar click (`clickData`) | the segment detail below the timeline |
 | Experiments row click | the `parameters` of the instance below the table |
 | Hover on a grid cell, timeline bar or map dot | tooltip table or hover label with the detail |
@@ -304,8 +306,9 @@ does); some nodes have no municipality and no location.
 
 Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
 coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
-pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`); the map figure (one dot per located
-node, status filter, grade order, plain-list `customdata`); the smoke tests of the skeleton. Tests never import a
+pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`, `picker_range`); the
+map figure (one dot per located node, status filter, grade order, plain-list `customdata`); the smoke tests of the
+skeleton. Tests never import a
 page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
 ## 10. Data loading and cache (phase 4)

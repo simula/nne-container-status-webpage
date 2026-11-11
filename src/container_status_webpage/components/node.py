@@ -344,6 +344,32 @@ def x_range(first: pd.Timestamp, now: pd.Timestamp, choice: str) -> List[pd.Time
     return [first if choice == "all" else now - pd.Timedelta(days=int(choice)), now]
 
 
+def picker_range(
+    from_date: Optional[str], to_date: Optional[str], now: pd.Timestamp
+) -> Optional[List[pd.Timestamp]]:
+    """
+    X range of the timeline from the From / To date pickers (UTC days as the timeline): From at
+    00:00, To to the end of its day, at most the load time (the newest data).
+
+    Args:
+        from_date (Optional[str]): From date, YYYY-MM-DD.
+        to_date (Optional[str]): To date, YYYY-MM-DD.
+        now (pd.Timestamp): Load time (span).
+
+    Returns:
+        Optional[List[pd.Timestamp]]: Start and end; None for an empty or malformed date or an
+            end not after the start.
+    """
+    if not (from_date and to_date):
+        return None
+    try:
+        start, end = (pd.Timestamp(value).normalize() for value in (from_date, to_date))
+    except ValueError:
+        return None
+    end = min(end + pd.Timedelta(days=1), now)
+    return [start, end] if start < end else None
+
+
 def timeline(
     snapshot: Snapshot, node_id: int, container: Optional[str] = None
 ) -> dcc.Graph:

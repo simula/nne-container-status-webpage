@@ -102,6 +102,23 @@ def test_range_buttons():
     assert [pd.Timestamp(t) for t in shown] == [now - pd.Timedelta(days=7), now]
 
 
+def test_range_pickers():
+    """From / To date pickers: whole days from 00:00, one day too; To at most the load time (today
+    ends at the newest data); a reversed range or an empty date gives None (the timeline stays).
+    """
+    now, day = pd.Timestamp("2026-11-11 06:00"), pd.Timestamp("2026-06-01")
+    assert node.picker_range("2026-06-01", "2026-06-01", now) == [
+        day,
+        day + pd.Timedelta(days=1),
+    ]
+    assert node.picker_range("2026-11-10", "2026-11-11", now) == [
+        now.normalize() - pd.Timedelta(days=1),
+        now,
+    ]
+    assert node.picker_range("2026-06-02", "2026-06-01", now) is None
+    assert node.picker_range(None, "2026-06-01", now) is None
+
+
 def test_threads_and_experiments_tables():
     """Threads table: one row per timeline row, the orphans with their inactive experiment as
     state. Experiments table: the 4 active ones first, the stopped UDP Ping one last; parameters as

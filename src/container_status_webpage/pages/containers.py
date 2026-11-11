@@ -46,7 +46,7 @@ Sample code:
     Served on /, /grid, /problems and /node by the app (container_status_webpage.app).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import dash
 import pandas as pd
@@ -65,6 +65,7 @@ from container_status_webpage.components.node import header as node_header
 from container_status_webpage.components.node import (
     node_query,
     parameters_view,
+    picker_range,
     run_detail,
     span,
     threads_table,
@@ -344,27 +345,49 @@ def show_parameters(cell: Dict[str, Any], rows: List[Dict[str, Any]]) -> html.Di
 
 
 @callback(
+    Output("node-from", "date"),
+    Output("node-to", "date"),
     Output("node-timeline", "figure"),
     Input("node-range", "value"),
+    Input("node-from", "date"),
+    Input("node-to", "date"),
     State("node-span", "data"),
     prevent_initial_call=True,
 )
-def set_range(choice: str, first_now: List[str]) -> Patch:
+def set_range(
+    choice: str,
+    from_date: Optional[str],
+    to_date: Optional[str],
+    first_now: List[str],
+) -> Tuple[Any, Any, Any]:
     """
-    X range of the timeline for the chosen range button.
+    X range of the timeline: a range button sets its exact range (x_range) and fills the From / To
+    pickers with its days; a picker sets whole days, To at most the load time (picker_range).
+    One callback for both, so filling the pickers does not trigger it again.
 
     Args:
         choice (str): Value of node.RANGES.
+        from_date (Optional[str]): From date.
+        to_date (Optional[str]): To date.
         first_now (List[str]): First start and load time of the timeline (node.span).
 
     Returns:
-        Patch: The new x range of the figure.
+        Tuple[Any, Any, Any]: From date, to date and the Patch of the figure x range; no_update
+            for an invalid picker range.
     """
     first, now = (pd.Timestamp(value) for value in first_now)
+    if dash.ctx.triggered_id in ("node-from", "node-to"):
+        shown = picker_range(from_date, to_date, now)
+        dates = [dash.no_update, dash.no_update]
+    else:  # a range button, or the page load
+        shown = x_range(first, now, choice)
+        dates = [str(t.date()) for t in shown]
+    if shown is None:
+        return dash.no_update, dash.no_update, dash.no_update
     figure = Patch()
-    figure["layout"]["xaxis"]["range"] = [str(t) for t in x_range(first, now, choice)]
+    figure["layout"]["xaxis"]["range"] = [str(t) for t in shown]
     figure["layout"]["xaxis"]["autorange"] = False
-    return figure
+    return dates[0], dates[1], figure
 
 
 def node_view(
@@ -411,12 +434,27 @@ def node_view(
             inline=True,
         ),
     )
+    first, now = span(snapshot, node_id)
+    dates = [str(t.date()) for t in x_range(first, now, DEFAULT_RANGE)]
+    pickers = [
+        item(
+            label,
+            dcc.DatePickerSingle(
+                id=f"node-{label.lower()}",
+                date=date,
+                min_date_allowed=str(first.date()),
+                max_date_allowed=str(now.date()),
+                display_format="YYYY-MM-DD",
+            ),
+        )
+        for label, date in zip(("From", "To"), dates)
+    ]
     return html.Div(
         [
-            html.Div([selector, ranges], className="toolbar"),
+            html.Div([selector, ranges, *pickers], className="toolbar"),
             node_header(snapshot, node_id),
             timeline(snapshot, node_id, container),
-            dcc.Store(id="node-span", data=[str(t) for t in span(snapshot, node_id)]),
+            dcc.Store(id="node-span", data=[str(first), str(now)]),
             html.Div(
                 html.P("Click a bar for its detail.", className="data-info"),
                 id="node-run",
