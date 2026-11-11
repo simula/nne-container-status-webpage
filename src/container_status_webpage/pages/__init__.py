@@ -36,5 +36,5 @@
 
 """
 Pages of the webpage, registered with dash.register_page (Dash Pages): containers.py registers
-Overview, Grid, Problems and Node detail.
+Overview, Grid, Problems and Node.
 """

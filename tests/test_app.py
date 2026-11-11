@@ -57,12 +57,12 @@ def test_pages_registered_in_order():
         ("Overview", "/"),
         ("Grid", "/grid"),
         ("Problems", "/problems"),
-        ("Node detail", "/node"),
+        ("Node", "/node"),
     ]
 
 
 def test_node_detail_from_query():
-    """/node?node=<id> opens Node detail with the node selected and its header; an unknown node
+    """/node?node=<id> opens Node with the node selected and its header; an unknown node
     selects none."""
     page = next(page for page in dash.page_registry.values() if page["path"] == "/node")
     built = page["layout"](node="90001")

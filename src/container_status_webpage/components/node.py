@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Node detail page: header, timeline, threads, experiments
+# Node page: header, timeline, threads, experiments
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Node detail page (documentation/DESIGN.md section 7): the header of the selected
+Node page (documentation/DESIGN.md section 7): the header of the selected
 node; the timeline, the threads and the experiments follow.
 
 Integrations:

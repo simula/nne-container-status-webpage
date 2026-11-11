@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Container status pages: Overview, Grid, Problems, Node detail
+# Container status pages: Overview, Grid, Problems, Node
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -394,7 +394,7 @@ def node_view(
     snapshot: Snapshot, node_id: Optional[int], container: Optional[str]
 ) -> html.Div:
     """
-    Node detail: node selector and the detail of the selected node: header, timeline, detail
+    Node: node selector and the detail of the selected node: header, timeline, detail
     of the clicked segment.
 
     Args:
@@ -633,7 +633,7 @@ def node_page(
     node: Optional[str] = None, container: Optional[str] = None, **_query: str
 ) -> html.Div:
     """
-    Node detail page (/node?node=<id>&container=<name>); unknown values select nothing.
+    Node page (/node?node=<id>&container=<name>); unknown values select nothing.
 
     Args:
         node (Optional[str], optional): Node to show. Defaults to None.
@@ -688,8 +688,8 @@ dash.register_page(
 dash.register_page(
     "node",
     path="/node",
-    name="Node detail",
-    title="NorNet edge – Node detail",
+    name="Node",
+    title="NorNet edge – Node",
     order=3,
     layout=node_page,
 )
