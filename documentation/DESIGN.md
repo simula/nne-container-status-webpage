@@ -255,7 +255,7 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Map dot click (`clickData`) | the URL query of the node: the page is built again on Node |
 | Node selector | the URL query of the node: the page is built again |
 | Range button | the exact x range of the timeline (`x_range`) set in a callback; fills the From / To pickers with its days |
-| From / To pickers | whole days as x range in the same callback (`picker_range`; an invalid range leaves it); zoom and pan in Plotly do not update the pickers |
+| From / To pickers | whole days as x range in the same callback (`picker_range`; an invalid range leaves it); clears the range button; zoom and pan in Plotly do not update the pickers |
 | Timeline bar click (`clickData`) | the segment detail below the timeline |
 | Experiments row click | the `parameters` of the instance below the table |
 | Hover on a grid cell, timeline bar or map dot | tooltip table or hover label with the detail |

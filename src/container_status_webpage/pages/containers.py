@@ -345,6 +345,7 @@ def show_parameters(cell: Dict[str, Any], rows: List[Dict[str, Any]]) -> html.Di
 
 
 @callback(
+    Output("node-range", "value"),
     Output("node-from", "date"),
     Output("node-to", "date"),
     Output("node-timeline", "figure"),
@@ -359,11 +360,12 @@ def set_range(
     from_date: Optional[str],
     to_date: Optional[str],
     first_now: List[str],
-) -> Tuple[Any, Any, Any]:
+) -> Tuple[Any, Any, Any, Any]:
     """
     X range of the timeline: a range button sets its exact range (x_range) and fills the From / To
-    pickers with its days; a picker sets whole days, To at most the load time (picker_range).
-    One callback for both, so filling the pickers does not trigger it again.
+    pickers with its days; a picker sets whole days, To at most the load time (picker_range), and
+    clears the range button (a click on it sets its range again). One callback for both, so its
+    own outputs do not trigger it again.
 
     Args:
         choice (str): Value of node.RANGES.
@@ -372,22 +374,22 @@ def set_range(
         first_now (List[str]): First start and load time of the timeline (node.span).
 
     Returns:
-        Tuple[Any, Any, Any]: From date, to date and the Patch of the figure x range; no_update
-            for an invalid picker range.
+        Tuple[Any, Any, Any, Any]: Range button, from date, to date and the Patch of the figure
+            x range; no_update for an invalid picker range.
     """
     first, now = (pd.Timestamp(value) for value in first_now)
     if dash.ctx.triggered_id in ("node-from", "node-to"):
         shown = picker_range(from_date, to_date, now)
-        dates = [dash.no_update, dash.no_update]
+        button, dates = None, [dash.no_update, dash.no_update]
     else:  # a range button, or the page load
         shown = x_range(first, now, choice)
-        dates = [str(t.date()) for t in shown]
+        button, dates = dash.no_update, [str(t.date()) for t in shown]
     if shown is None:
-        return dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     figure = Patch()
     figure["layout"]["xaxis"]["range"] = [str(t) for t in shown]
     figure["layout"]["xaxis"]["autorange"] = False
-    return dates[0], dates[1], figure
+    return button, dates[0], dates[1], figure
 
 
 def node_view(
