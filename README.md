@@ -2,7 +2,7 @@
 
 Web dashboard of the NorNet Edge node containers: which docker containers and threads run on the reported nodes,
 from the heartbeats in `report.container_rawdata` checked against the experiment setup in `nne`, read-only through
-[nnedbtools](https://github.com/simula/nnedbtools). A Dash app with the look of nne-viz, to run detached on oculus.
+[nnedbtools](https://github.com/simula/nnedbtools). A Dash app with the look of nne-viz, to run detached on specula.
 
 ## Quick start
 

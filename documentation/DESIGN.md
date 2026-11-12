@@ -12,13 +12,13 @@ running. The data are the container heartbeats that
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
 | 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums; node map on the Overview (sections 4, 7, 9, 10) | done |
 | 5 | nginx / TLS, set up from scratch | before deployment |
-| 6 | Deployment on oculus: venv and systemd service, as nne-container-status-importer (section 11) | later |
+| 6 | Deployment on specula: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
 Figures quoted below were measured on 2026-11-06 unless dated otherwise (first database run: 2026-11-09).
 
 ## 1. Scope
 - A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx / TLS
-  on oculus (section 11).
+  on specula (section 11).
 - Pages: **Overview**, **Grid**, **Problems** and **Node**, the container status dashboard (sections 7–8).
 - Live data, read-only: through nnedbtools with the nne-reader account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
@@ -353,7 +353,7 @@ first receiver restart rule (1 per hour / 1 per day), 24 with 60 / 1440 (12 of t
 show their load time; the next request tries again. `DATA_SOURCE=synthetic` serves the synthetic data without a
 database, for development and tests.
 
-## 11. Deployment on oculus (phase 6)
+## 11. Deployment on specula (phase 6)
 
 As the batch nne-container-status-importer on the same host (its `documentation/INSTALLATION.md`): a virtual
 environment with the project, run by systemd. Docker is only for local development.
@@ -373,14 +373,14 @@ environment with the project, run by systemd. Docker is only for local developme
 
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools (none on 2026-11-09).
 - The map tiles come from `tile.openstreetmap.org`: fine for light use under the OpenStreetMap tile usage policy;
-  heavier use on oculus needs another tile provider.
+  heavier use on specula needs another tile provider.
 - Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour / 1440 per day) are constants
   to calibrate after real use.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
-- The nnedbtools log files (`logs/`, one per worker start) on oculus: rotation or cleanup.
+- The nnedbtools log files (`logs/`, one per worker start) on specula: rotation or cleanup.
 - Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
   decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
 - The legend and the timeline repeat the class limits as text (`components/grid.py` `legend`, `components/node.py`):
