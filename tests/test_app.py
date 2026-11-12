@@ -36,7 +36,7 @@
 
 """
 Smoke tests of the webpage without a browser: pages registered from the installed package,
-Containers sub-tabs, pages, layout and nne-viz assets served.
+Node page from its URL query, row clicks, pages, layout and nne-viz assets served.
 
 Sample code:
 ```bash

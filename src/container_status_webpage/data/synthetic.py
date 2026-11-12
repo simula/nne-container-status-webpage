@@ -36,10 +36,9 @@
 
 """
 Synthetic input frames (DESIGN.md section 9) covering every class and marker of the container status
-rules:
-22 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used for development and tests
-until the
-database loader exists, and with DATA_SOURCE=synthetic afterwards.
+rules: 22 scenarios for DEPLOYED and TESTING on fake node ids from 90001. Used by the tests and,
+with DATA_SOURCE=synthetic, for development without a database. The nodes frame carries the extra
+column scenario.
 
 Sample code:
 ```python

@@ -35,9 +35,9 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the container status rules (data/status.py): class boundaries, flapping, worst thread /
-partial / orphan,
-coverage of the synthetic data, problem list and overview.
+Checks of the container status rules (data/status.py): class boundaries, flapping, receiver
+restarts, worst thread / partial / orphan, satellite nodes, grade, coverage of the synthetic data,
+problem list and overview.
 
 Sample code:
 ```bash
@@ -125,8 +125,7 @@ def test_receiver_restart_warning():
 
 def test_worst_thread_partial_and_orphans():
     """Worst seen thread sets the state; never seen threads make a cell partial; running threads of
-    inactive
-    experiments are orphans, stopped ones are history."""
+    inactive experiments are orphans, stopped ones are history."""
     states = status.thread_states(
         raw(
             ("udpping", "container", 100, 0.5),
@@ -214,8 +213,7 @@ def test_synthetic_covers_every_class():
 
 def test_problems_and_overview():
     """Problems: every scenario with an issue, none of the healthy ones; DEPLOYED first, the silent
-    ones first.
-    Overview: the counts of each group add up."""
+    ones first. Overview: the counts of each group add up."""
     nodes, experiments, rawdata = synthetic(NOW)
     summary = status.summarise(nodes, experiments, rawdata, NOW)
     found = status.problems(nodes, summary, rawdata)

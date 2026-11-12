@@ -36,7 +36,7 @@
 
 """
 Container status pages of the reported nodes: Overview (map and counts), Grid, Problems and Node
-detail (documentation/DESIGN.md section 7), registered here with dash.register_page. No page
+(documentation/DESIGN.md section 7), registered here with dash.register_page. No page
 title: the header button names the view.
 
 Integrations:
@@ -228,7 +228,7 @@ def filter_map(statuses: Optional[List[str]]) -> Any:
     return node_map(CONTAINERS_CACHE.get(), statuses or [])
 
 
-# Each page opens the node detail from its own component: a callback on the components of several
+# Each page opens the Node page from its own component: a callback on the components of several
 # pages would miss those of the pages not shown. The empty values the selector, the tables and the
 # map report when they appear change nothing.
 
@@ -240,13 +240,13 @@ def filter_map(statuses: Optional[List[str]]) -> Any:
 )
 def open_selected(node_id: Optional[int]) -> str:
     """
-    Opens the node detail of the selected node.
+    Opens the Node page of the selected node.
 
     Args:
         node_id (Optional[int]): Selected node.
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     return dash.no_update if node_id is None else node_query(node_id)
 
@@ -258,13 +258,13 @@ def open_selected(node_id: Optional[int]) -> str:
 )
 def open_from_grid(cell: Optional[Dict[str, Any]]) -> str:
     """
-    Opens the node detail of a clicked grid row, on a container cell also of that container.
+    Opens the Node page of a clicked grid row, on a container cell also of that container.
 
     Args:
         cell (Optional[Dict[str, Any]]): Clicked cell of the grid.
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     return click_query(cell) if cell else dash.no_update
 
@@ -276,13 +276,13 @@ def open_from_grid(cell: Optional[Dict[str, Any]]) -> str:
 )
 def open_from_problems(cell: Optional[Dict[str, Any]]) -> str:
     """
-    Opens the node detail of a clicked problem list row.
+    Opens the Node page of a clicked problem list row.
 
     Args:
         cell (Optional[Dict[str, Any]]): Clicked cell of the problem list.
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     return click_query(cell) if cell else dash.no_update
 
@@ -294,13 +294,13 @@ def open_from_problems(cell: Optional[Dict[str, Any]]) -> str:
 )
 def open_from_map(click: Optional[Dict[str, Any]]) -> str:
     """
-    Opens the node detail of a clicked map dot.
+    Opens the Node page of a clicked map dot.
 
     Args:
         click (Optional[Dict[str, Any]]): Clicked dot of the map.
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     return map_query(click) if click else dash.no_update
 
@@ -478,7 +478,7 @@ def node_view(
 def map_view(snapshot: Snapshot) -> html.Div:
     """
     Map half of the Overview: status filter, the number of nodes without location, the zoomable
-    map; a click on a dot opens the node detail.
+    map; a click on a dot opens the Node page.
 
     Args:
         snapshot (Snapshot): Loaded data.
@@ -644,7 +644,7 @@ def node_page(
         **_query (str): Other query values (ignored).
 
     Returns:
-        html.Div: Data line and the node detail.
+        html.Div: Data line and the Node page.
     """
     snapshot = CONTAINERS_CACHE.get()
     node_id = (

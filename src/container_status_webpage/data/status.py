@@ -36,10 +36,8 @@
 
 """
 Rules of the container status (documentation/DESIGN.md sections 3-6): latest run and classes of
-every thread, the cell
-of a node and container (worst thread, partial, flapping, orphans), the overview counts and the
-problem list.
-Pandas only, no Dash.
+every thread, the cell of a node and container (worst thread, partial, flapping, orphans), the
+overview counts and the problem list. Pandas only, no Dash.
 
 Integrations:
     1. Input frames of DESIGN.md section 9: nodes, experiments, raw (report.container_rawdata).
@@ -297,8 +295,8 @@ def thread_states(
 
     Returns:
         Dict[Tuple[int, str, str], Dict[str, Any]]: Per (node_id, container, process): start_ts,
-            seen_ts, uptime,
-            version of the latest run, age_h, seen and up classes, starts_24h, starts_7d.
+            seen_ts, uptime and version of the latest run, restarts (extra as a number) and run_h
+            (seen_ts - start_ts), age_h, seen and up classes, starts_24h, starts_7d.
     """
     # 1. Latest run per thread
     key = ["node_id", "container", "process"]

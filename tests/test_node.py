@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Checks of the node detail of the Containers page: timeline segments
+# Checks of the Node page: timeline segments
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the node detail (components/node.py) on the synthetic data: timeline segments of a
+Checks of the Node page (components/node.py) on the synthetic data: timeline segments of a
 mobile node and of a node with a release history, the timeline rows.
 
 Sample code:

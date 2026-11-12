@@ -65,7 +65,6 @@ from container_status_webpage.components.formatting import blank, duration, when
 from container_status_webpage.data import status
 from container_status_webpage.data.cache import Snapshot
 
-# Column options of every table
 # Column options of every table: filtered by the toolbars (filter_rows), not by column filters
 DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": False, "resizable": True}
 
@@ -81,8 +80,9 @@ FIT_COLUMN: Dict[str, Any] = {
 # Grid options of every table: tooltips after 300 ms
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
 
-# Node column of the grid and the problem list: a click on the row opens the node detail
-# (pages/containers.py navigate), rows are identified by the node id (getRowId)
+# Node column of the grid and the problem list: a click on the row opens the Node page
+# (pages/containers.py open_from_grid, open_from_problems), rows are identified by the node id
+# (getRowId)
 NODE_COLUMN: Dict[str, Any] = {
     "headerName": "Node",
     "field": "node_id",
@@ -126,7 +126,7 @@ def status_column(field: str = "status") -> Dict[str, Any]:
 
 def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """
-    Row of the tooltip table and the threads table of the node detail: the latest run of a thread.
+    Row of the tooltip table and the threads table of the Node page: the latest run of a thread.
 
     Args:
         name (str): Thread name.

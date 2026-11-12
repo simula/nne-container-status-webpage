@@ -37,8 +37,8 @@
 """
 Loaded data of the selected source (settings.DATA_SOURCE) with their summary and load time, kept per
 process until the next refresh point, a minute of the hour after the importer has written: every
-page load in between uses the same snapshot. The Containers tab uses CONTAINERS_CACHE
-(settings.CONTAINERS_CACHE_MINUTES); other main tabs define their own cache.
+page load in between uses the same snapshot. All pages use CONTAINERS_CACHE
+(settings.CONTAINERS_CACHE_MINUTES). A load that fails is logged and the previous snapshot stays.
 
 Integrations:
     1. settings - DATA_SOURCE, CONTAINERS_CACHE_MINUTES.
@@ -191,7 +191,7 @@ class Cache:
             return self._snapshot
 
 
-# Cache of the Containers tab: loaded again after each run of the importer
+# Cache of the pages: loaded again after each run of the importer
 CONTAINERS_CACHE: Cache = Cache(
     settings.CONTAINERS_CACHE_MINUTES, lambda now: load(settings.DATA_SOURCE, now)
 )

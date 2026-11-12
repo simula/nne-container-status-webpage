@@ -64,7 +64,7 @@ def node_ids(figure) -> list:
 def test_dots_filter_and_click():
     """Every node with a location is one dot, the nodes without municipality none; the status
     filter keeps its nodes; grades from best to worst, so the worst lie on top; a click opens the
-    node detail of the dot."""
+    Node page of the dot."""
     nodes = SNAPSHOT.nodes.set_index("node_id")
     figure = nodemap.node_map(SNAPSHOT, ["Deployed", "Testing"])
     assert sorted(node_ids(figure)) == sorted(nodes.index[nodes.loc_lat.notna()])

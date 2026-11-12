@@ -134,8 +134,8 @@ def cell_text(cell: Cell) -> str:
 
 def cell_style(cell: Cell, testing: bool) -> Dict[str, str]:
     """
-    Complete CSS style of a grid cell: colours, hatching, flapping dot, inner borders, TESTING
-        border.
+    Complete CSS style of a grid cell: colours, hatching, flapping and restart dots, inner
+    borders, TESTING border.
 
     Args:
         cell (Cell): The cell.
@@ -147,7 +147,7 @@ def cell_style(cell: Cell, testing: bool) -> Dict[str, str]:
     # 1. Colours of the class
     background, text = COLOUR[colour_class(cell)]
     style = {"backgroundColor": background, "color": text, "textAlign": "center"}
-    # 2. Flapping dot and hatching
+    # 2. Flapping dot, receiver restart dot and hatching
     images: List[str] = (
         ([FLAP_DOT] if cell.flapping else [])
         + ([RESTART_DOT] if cell.restart_warnings else [])

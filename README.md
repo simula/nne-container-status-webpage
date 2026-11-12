@@ -9,7 +9,8 @@ from the heartbeats in `report.container_rawdata` checked against the experiment
 ```bash
 conda env create -f environment.yml
 conda activate nne-container-status-webpage
-container-status-webpage            # development server on http://localhost:8050
+container-status-webpage            # development server on http://localhost:8050, synthetic data
+./build-web.sh                      # or the Docker container on the real data, read-only (DEVELOPMENT.md)
 ```
 
 ## Documentation

@@ -273,13 +273,13 @@ code {
   min-width: 200px;
 }
 
-/* Node cells of the grid and the problem list: a click opens the node detail */
+/* Node cells of the grid and the problem list: a click opens the Node page */
 .node-link {
   cursor: pointer;
   text-decoration: underline;
 }
 
-/* Header of the node detail (components/node.py) */
+/* Header of the Node page (components/node.py) */
 .node-header {
   align-items: center;
   display: flex;
@@ -318,7 +318,7 @@ code {
   font-weight: normal;
 }
 
-/* Experiments of the node detail: stopped ones in grey, parameters as indented JSON */
+/* Experiments of the Node page: stopped ones in grey, parameters as indented JSON */
 .experiment-stopped {
   color: var(--graphic-text);
 }

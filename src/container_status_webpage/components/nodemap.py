@@ -166,12 +166,12 @@ def node_map(snapshot: Snapshot, statuses: List[str]) -> go.Figure:
 
 def click_query(click: Dict[str, Any]) -> str:
     """
-    URL of the node detail of a clicked dot.
+    URL of the Node page of a clicked dot.
 
     Args:
         click (Dict[str, Any]): clickData of the map (customdata is the node id).
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     return node_query(click["points"][0]["customdata"])

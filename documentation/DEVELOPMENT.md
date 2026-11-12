@@ -112,8 +112,6 @@ conda env remove -n nne-container-status-webpage
 conda env create -f environment.yml          # needs the SSH key in the agent (see above)
 ```
 
-After a change of `pyproject.toml` only: `pip install -e ".[test,dev]"` in the activated environment.
-
 On this Mac `conda run -n nne-container-status-webpage …` runs the wrong interpreter; in scripts call
 `/opt/anaconda3/envs/nne-container-status-webpage/bin/python` by its absolute path.
 
@@ -131,7 +129,7 @@ On this Mac `conda run -n nne-container-status-webpage …` runs the wrong inter
 ## Tests
 
 ```bash
-pytest                                        # smoke tests without a browser (tests/README.md)
+pytest                                        # without a browser and a database (tests/README.md)
 ```
 
 ## Code conventions
@@ -146,15 +144,8 @@ Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/s
 
 ## Code structure
 
-| Path | Content |
-|---|---|
-| `src/container_status_webpage/app.py` | Dash app (`app`, `server` for gunicorn), development server `main()` |
-| `src/container_status_webpage/settings.py` | settings from environment variables: `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` (default `15,45`) |
-| `src/container_status_webpage/data/` | rules (`status.py`), synthetic data (`synthetic.py`), database loader (`loader.py`), cache (`cache.py`) |
-| `src/container_status_webpage/components/` | page frame, palette, formatting, Grid / Problems / Overview tables (`grid.py`), Overview map (`nodemap.py`), Node (`node.py`) |
-| `src/container_status_webpage/pages/` | `containers.py`: the pages Overview, Grid, Problems and Node (Dash Pages) |
-| `src/container_status_webpage/assets/` | nne-viz style (`style.css`), logos, the Grid tooltip component (`dashAgGridComponentFunctions.js`), served by Dash |
-| `tests/` | rules, cache, tables, node detail and smoke tests, without a browser; never import a page module |
+Modules and their content: [DESIGN.md section 9](DESIGN.md#9-code-structure). Tests:
+[tests/README.md](../tests/README.md).
 
 Synthetic nodes worth opening (`/node?node=<id>`): 90019 mobile, 90020 release history, 90018 orphan threads,
 90010 UDP Ping partial.

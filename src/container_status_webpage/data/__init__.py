@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Data layer of the webpage: rules, synthetic data, cache
+# Data layer of the webpage: rules, synthetic data, database loader, cache
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -36,6 +36,5 @@
 
 """
 Data layer of the webpage, without Dash: the container status rules (status), the synthetic data
-(synthetic) and,
-from the next steps, the cache of the loaded data.
+(synthetic), the read-only database loader (loader) and the cache of the loaded data (cache).
 """

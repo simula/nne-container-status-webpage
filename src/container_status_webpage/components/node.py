@@ -35,11 +35,12 @@
 # Contact: crna-eng@simula.no
 
 """
-Node page (documentation/DESIGN.md section 7): the header of the selected
-node; the timeline, the threads and the experiments follow.
+Node page (documentation/DESIGN.md section 7): URL query, header, timeline segments and
+figure, range of the timeline, segment detail, threads and experiments tables of the selected node.
 
 Integrations:
-    1. data.cache.Snapshot - nodes and experiments frames.
+    1. data.cache.Snapshot - frames and summary.
+    2. nnedbtools enum_mapper - network names and colours.
 
 Sample code:
 ```python
@@ -88,7 +89,7 @@ DEFAULT_RANGE: str = "7"
 
 def node_query(node_id: Any, container: Optional[str] = None) -> str:
     """
-    URL of the node detail page (pages/containers.py node_page builds the page from it).
+    URL of the Node page (pages/containers.py node_page builds the page from it).
 
     Args:
         node_id (Any): Node id.
@@ -109,7 +110,7 @@ def click_query(cell: Dict[str, Any]) -> str:
         cell (Dict[str, Any]): cellClicked of the AG Grid (rowId is the node id).
 
     Returns:
-        str: URL of the node detail.
+        str: URL of the Node page.
     """
     column = cell["colId"]
     return node_query(cell["rowId"], column if column in status.NAME else None)

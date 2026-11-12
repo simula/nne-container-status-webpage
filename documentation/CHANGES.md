@@ -2,40 +2,31 @@
 
 ## Unreleased
 
-- Skeleton webpage with the nne-viz look: Dash Pages app with header, navigation, Norway clock and footer; pages
-  Containers (placeholder sub-tabs Overview, Grid, Problems, Node detail) and Plots (placeholder).
-- Package `container_status_webpage` (src layout, `pyproject.toml`), nnedbtools pinned to `v.2026-11-06-Heartbeat-Split`.
-- Development Docker image (gunicorn) and compose file; the nne-reader env file is mounted as a secret.
-- Container dashboard on synthetic data (phase 3): rules of the container status (`data/status.py`), 44 synthetic
-  nodes in 22 scenarios including a mobile node, a release history, an orphan container and receiver restarts, cache
-  refreshed after each importer run (`CONTAINERS_CACHE_MINUTES`).
-- Overview, Grid (colour grid, thread table tooltip, toolbar filters) and Problems (toolbar filters, issues text
-  search, sortable last heartbeat); display names for containers and status, sentence case headers.
-- Node detail: node selector and links from Grid / Problems (`/?tab=node&node=<id>&container=<name>`), header,
-  timeline of all threads (runs, down periods, silence to now, version changes, range buttons), segment detail,
-  threads and experiments tables with the parameters JSON.
-- Header "NorNet is on the Edge", light background behind the SimulaMet footer logo.
-- Manual for starting and restarting the container and the environment (DEVELOPMENT.md).
-- Expected containers from the node configuration map of nnedbtools (metadata always; "never" when configured without
-  rows, empty when not configured); a running container without a configured instance is a problem.
-- UDP Ping receiver restart warning (`extra` per hour of the run): above 60 per hour, or 1440 per day after 7 days;
-  `↻` and an amber dot in the grid, an issue in Problems, a Receiver restarts column in the tooltip and the Threads
-  table.
-- Node header with the interface and experiment counts and one network chip per network and service (`Telenor:5G`,
-  names and colours from the nnedbtools enum_mapper); Experiments table with the container of the measurement.
-- Read-only database loader (`DATA_SOURCE=database`, `data/loader.py`): reported nodes, satellite nodes 4071–4073 as
-  DEPLOYED without Metadata and MQTT, municipality and location of the site, measurement instances,
-  `report.container_rawdata`; compose passes `DATA_SOURCE` and maps the nnedbtools log files to `exports/logs`.
-- Overview: node map on the left (OpenStreetMap, one dot per node in the colour of its grade, legend with counts,
-  hover with the issues, click opens Node detail, Deployed / Testing filter), the tables on the right with the title
-  "Nodes by status".
-- Map: satellite nodes 4071–4073 shown next to the site of node 7056 (SimulaMet), 0.01° longitude apart.
-- Overview, Grid, Problems and Node detail are header pages (`/`, `/grid`, `/problems`,
-  `/node?node=<id>&container=<name>`) instead of sub-tabs of Containers; the Plots placeholder page removed.
-- Fixed: database coordinates arrive as strings: converted to numbers, so the rounding to 2 decimals applies.
-- Fixed: map clicks reached the server without the node id (`customdata` as a plain list); a 500 at page load from
-  the navigation callback on the empty values of the tables and the node selector.
-- Header title "Container Status"; the header clock shows UTC ("UTC:") instead of Norway time.
-- Fixed: the Overview counted a node with nothing running and no main container configured twice (now only as
-  nothing running); a measurement instance without `service_id` broke the Node page; a failed data load took every
-  page down (now logged, the previous data stay); a satellite node with an address of its own got two rows.
+First version of the container status dashboard (design: [DESIGN.md](DESIGN.md)).
+
+- Dash Pages app with the nne-viz look: header "Container Status" with one button per page and a UTC clock, footer.
+  Package `container_status_webpage` (src layout, `pyproject.toml`), nnedbtools pinned to
+  `v.2026-11-06-Heartbeat-Split`.
+- Rules of the container status (`data/status.py`): last seen and uptime classes per thread; the cell of a node and
+  container (worst thread, partial, flapping); expected containers from the node configuration map of nnedbtools
+  (metadata always; "never" when configured without rows, empty when not configured); orphan threads and orphan
+  containers; UDP Ping receiver restart warning (above 60 per hour, or 1440 per day after 7 days).
+- Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
+  Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
+  status".
+- Grid (`/grid`): one row per node, one coloured cell per container, thread table as tooltip, toolbar filters
+  (status, state, node, municipality).
+- Problems (`/problems`): nodes that are not fully OK, Deployed first, then the longest silent; toolbar filters with
+  an issues text search.
+- Node (`/node?node=<id>&container=<name>`): header with status, municipality, interface and experiment counts and
+  network chips; timeline of all threads (runs, down periods, silence to now, version changes) with the range buttons
+  1 / 3 / 7 / 14 d / All and From / To date pickers; segment detail; threads table; experiments table with the
+  parameters JSON.
+- Read-only database loader (`DATA_SOURCE=database`, `data/loader.py`): reported nodes with their municipality and
+  location, measurement instances, `report.container_rawdata`; satellite nodes 4071–4074 reported as DEPLOYED without
+  Metadata and MQTT, on the map next to the site of node 7056.
+- Synthetic data (`DATA_SOURCE=synthetic`, the default): 44 nodes in 22 scenarios covering every class and marker.
+- Cache per process, loaded again after each importer run (`CONTAINERS_CACHE_MINUTES`); a failed load is logged and
+  the previous data stay.
+- Development: Docker image (gunicorn) and compose file with the nne-reader env file as a secret, `build-web.sh`,
+  manual in DEVELOPMENT.md.

@@ -8,7 +8,7 @@ running. The data are the container heartbeats that
 | Phase | Content | State |
 |---|---|---|
 | 1 | Prototype: static HTML generator, interaction, colour rules on synthetic data (local) | done |
-| 2 | Skeleton webpage resembling nne-viz: header navigation (Containers, Plots), placeholder sub-tabs on the Containers page (Overview, Grid, Problems, Node detail) in the nne-viz TabButton style, code conventions (section 13), Docker for development | done |
+| 2 | Skeleton webpage resembling nne-viz: page frame with header navigation, code conventions (section 13), Docker for development | done |
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
 | 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums; node map on the Overview (sections 4, 7, 9, 10) | done |
 | 5 | nginx / TLS, set up from scratch | before deployment |
@@ -160,11 +160,12 @@ A grid cell is one node and one container:
   On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
   first hour.
 
-Per node (Overview tab), each node counted once: *nothing running* = no cell has a running thread (checked first);
+Per node (Overview page), each node counted once: *nothing running* = no cell has a running thread (checked first);
 *all main OK* = something runs and every configured main cell is running, not partial, without orphans or warnings;
-*some issue* = the rest.
+*some issue* = the rest. Flapping alone and issues of the extra containers do not count here: such a node is *all
+main OK* and still listed in Problems.
 
-A node is listed on the Problems tab when a cell is not running (except not configured), partial, flapping, has
+A node is listed on the Problems page when a cell is not running (except not configured), partial, flapping, has
 orphans or a receiver restart warning; DEPLOYED first, then the longest silent. Mobile nodes follow these rules too:
 nne has nothing that marks a node as mobile, and a hardcoded list cannot be maintained.
 
@@ -269,8 +270,7 @@ The page shows when its data were loaded; every page load uses the cached data u
 10).
 
 ## 9. Code structure
-Package `src/container_status_webpage` (layout in `documentation/DEVELOPMENT.md`); modules added in phase 3 or 4
-are marked.
+Package `src/container_status_webpage`; modules added in phase 3 or 4 are marked.
 
 | Module | Content |
 |---|---|
@@ -281,6 +281,7 @@ are marked.
 | `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
 | `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
 | `components/frame.py` | page frame |
+| `components/formatting.py` (3) | text of times, durations and missing values, shared by the tables and the timeline |
 | `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
 | `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
 | `components/node.py` (3) | Node: URL query, header, timeline segments and figure, range, segment detail, threads and experiments tables |
@@ -292,7 +293,7 @@ Input contract: the synthetic data and the loader produce the same three frames.
 
 | Frame | Columns |
 |---|---|
-| `nodes` | `node_id`, `status`, `interfaces`, `experiments`, `municipality`, `loc_lat`, `loc_lon` (the only parts of the site address that are loaded; the coordinates rounded to 2 decimals, about 1 km, so the map does not pinpoint the sites) |
+| `nodes` | `node_id`, `status`, `interfaces`, `experiments`, `municipality`, `loc_lat`, `loc_lon` (the only parts of the site address that are loaded; the coordinates rounded to 2 decimals, about 1 km, so the map does not pinpoint the sites); the synthetic frame adds `scenario`, used by the tests |
 | `experiments` | `id`, `node_id`, `network_id`, `service_id`, `measurement_desc_id`, `iccid`, `start_time`, `stop_time`, `parameters` |
 | `raw` | the columns of `report.container_rawdata` |
 
@@ -307,10 +308,10 @@ does); some nodes have no municipality and no location.
 
 Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
 coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
-pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`, `picker_range`); the
-map figure (one dot per located node, status filter, grade order, plain-list `customdata`); the smoke tests of the
-skeleton. Tests never import a
-page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
+pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`, `picker_range`); the map figure (one
+dot per located node, status filter, grade order, plain-list `customdata`); the cache (one load per refresh point, a
+failed load keeps the snapshot); the smoke tests of the pages. One line per test file: `tests/README.md`. Tests never
+import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
 ## 10. Data loading and cache (phase 4)
 `data/loader.py` returns the three frames, read-only through nnedbtools:
@@ -346,10 +347,11 @@ service decorator (5G on all mobile networks, LAN with GeoSat, OneWeb, Starlink)
 13,563 rows of `container_rawdata`; header and Experiments built for every node. Problems: 96 of 119 nodes with the
 first receiver restart rule (1 per hour / 1 per day), 24 with 60 / 1440 (12 of them for receiver restarts).
 
-`data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point. Containers
-tab: `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and
-gets 5 minutes to finish). The other main tabs define their own cache rule. `DATA_SOURCE=synthetic` serves the
-synthetic data without a database, for development and tests.
+`data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point:
+`CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and gets
+5 minutes to finish). A load that fails is logged and the previous snapshot stays: the pages keep the older data and
+show their load time; the next request tries again. `DATA_SOURCE=synthetic` serves the synthetic data without a
+database, for development and tests.
 
 ## 11. Deployment on oculus (phase 6)
 
@@ -379,6 +381,20 @@ environment with the project, run by systemd. Docker is only for local developme
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
 - The nnedbtools log files (`logs/`, one per worker start) on oculus: rotation or cleanup.
+- Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
+  decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
+- The legend and the timeline repeat the class limits as text (`components/grid.py` `legend`, `components/node.py`):
+  a calibration of the constants in `data/status.py` must change them too.
+- Rows with a node clock error (`start_ts` 2011, section 2) stretch All and the From picker of that node to 2011.
+- A data load that fails is tried again on every request until it succeeds; a retry delay if an outage makes the
+  pages slow.
+- `data/loader.py` has no test: its frame logic (satellite nodes, filter, site merge) is not separated from the
+  database reads.
+- Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
+  is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
+  `assets/network_indicator.png` is not used.
+- The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
+  decided with nginx (phase 5).
 
 ## 13. Code conventions
 
@@ -420,8 +436,8 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   nnedbtools modules under the nnedbtools aliases (`import nnedbtools.connection as con`,
   `import nnedbtools.tables as tb`).
 - **Constants**: module level, upper case, with a type annotation (`UNDEFINED_NODE_STATUS: int = -1`).
-- **Docstrings**: Google style with `Args:`, `Returns:`, `Raises:`, an example for public functions; raw strings
-  when a docstring contains a backslash.
+- **Docstrings**: Google style with `Args:`, `Returns:`, `Raises:`; an example in the module docstring
+  (`Sample code:`); raw strings when a docstring contains a backslash.
 - **Step comments** inside functions as in nnedbtools: lettered phases, numbered steps, lettered sub-steps
   (`# A. Normalize input`, `# 1. Check if node exists`, `# a. Shorthand for nne.node table`); short aliases for
   ORM tables (`mi = tb.NneMeasurementInstance`).
@@ -430,7 +446,7 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   exist, new selects as SQLAlchemy `select` in the same style, engines from `nnedbtools.connection`.
 - **Logging** with `logging`, no `print` in the application.
 - **JavaScript** only where Dash needs it (client-side callbacks), short and commented the same way.
-- **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc .` with a copy of the
+- **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc src tests` with a copy of the
   nnedbtools `.pylintrc` (maximum line length 100).
 - **Branches** `feat/{feature}` and `fix/{fix}`, merged through pull requests on
   https://github.com/simula/nne-container-status-webpage.

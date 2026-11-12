@@ -41,9 +41,9 @@ Integrations:
     1. Environment variables (Docker compose, systemd unit or shell):
         * DEBUG       - Dash development mode: hot reload, error overlay (default False)
         * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
-                        report), used by the data loader from phase 4 (default .db_env)
+                        report), used by the data loader (default .db_env)
         * DATA_SOURCE - synthetic (default) or database (data.loader, read-only)
-        * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the Containers tab loads its
+        * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the pages load their
                                      data again (default 15,45; the importer writes at 10 and 40)
 
 Sample code:
@@ -74,7 +74,7 @@ DATA_SOURCE: str = _env.str(
     "DATA_SOURCE", "synthetic", validate=OneOf(["synthetic", "database"])
 )
 
-# Minutes of the hour after which the Containers tab loads its data again (the importer writes at
+# Minutes of the hour after which the pages load their data again (the importer writes at
 # minute 10 and 40 and gets 5 minutes to finish)
 CONTAINERS_CACHE_MINUTES: List[int] = _env.list(
     "CONTAINERS_CACHE_MINUTES", [15, 45], subcast=int

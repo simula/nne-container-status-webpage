@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Checks of the tables of the Containers page
+# Checks of the tables of the pages Overview, Grid and Problems
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,9 +35,9 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the tables of the Containers page (components/grid.py) on the synthetic data: every cell
-of the colour grid has a style condition, every colour class is used, the problem list and the
-overview rows.
+Checks of the tables of Overview, Grid and Problems (components/grid.py) on the synthetic data:
+every cell of the colour grid has a style condition, every colour class is used, the tooltip rows,
+the toolbar filter, the problem list and the overview rows.
 
 Sample code:
 ```bash
