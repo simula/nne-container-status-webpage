@@ -11,6 +11,7 @@ running. The data are the container heartbeats that
 | 2 | Skeleton webpage resembling nne-viz: page frame with header navigation, code conventions (section 13), Docker for development | done |
 | 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
 | 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums; node map on the Overview (sections 4, 7, 9, 10) | done |
+| – | Code structure by the model–view–controller pattern, database statements as SQLAlchemy selects (section 9); further steps in the refactoring plan (section 14) | structure done, plan open |
 | 5 | nginx / TLS, set up from scratch | before deployment |
 | 6 | Deployment on specula: venv and systemd service, as nne-container-status-importer (section 11) | later |
 
@@ -389,20 +390,9 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
 - The nnedbtools log files (`logs/`, one per worker start) on specula: rotation or cleanup.
-- Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
-  decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
-- The legend and the timeline repeat the class limits as text (`view/grid.py` `legend`, `view/node.py`):
-  a calibration of the constants in `model/status.py` must change them too.
-- Rows with a node clock error (`start_ts` 2011, section 2) stretch All and the From picker of that node to 2011.
-- A data load that fails is tried again on every request until it succeeds; a retry delay if an outage makes the
-  pages slow.
-- `model/loader.py` has no test: its frame logic (satellite nodes, filter, site merge) is not separated from the
-  database reads.
-- Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
-  is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
-  `assets/network_indicator.png` is not used.
 - The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
   decided with nginx (phase 5).
+- The open points of the code itself are steps of the refactoring plan (section 14).
 
 ## 13. Code conventions
 
@@ -460,3 +450,31 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   nnedbtools `.pylintrc` (maximum line length 100).
 - **Branches** `feat/{feature}` and `fix/{fix}`, merged through pull requests on
   https://github.com/simula/nne-container-status-webpage.
+
+## 14. Refactoring plan
+
+From the code review of 2026-11-12. The structure of section 9 is in place; these steps finish it, in this order.
+Each step is its own `feat/` branch. Steps 0–3 change no behaviour: the layout of every page and the registered
+callbacks, built on the synthetic data at a fixed time, are compared before and after and must be identical.
+
+| Step | Content | Proven by | State |
+|---|---|---|---|
+| 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; CI running isort, black, pylint and pytest on every pull request (needs a deploy key for nnedbtools as a repository secret) | the test fails on a deliberate violation, then passes | open |
+| 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | open |
+| 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | open |
+| 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | open |
+| 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | open |
+| 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | identical layouts | open |
+
+Rule points of step 4:
+
+- Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
+  decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
+- The legend and the timeline repeat the class limits as text (`view/grid.py` `legend`, `view/node.py`):
+  a calibration of the constants in `model/status.py` must change them too.
+- Rows with a node clock error (`start_ts` 2011, section 2) stretch All and the From picker of that node to 2011.
+- A data load that fails is tried again on every request until it succeeds; a retry delay if an outage makes the
+  pages slow.
+- Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
+  is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
+  `assets/network_indicator.png` is not used.
