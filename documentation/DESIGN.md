@@ -355,12 +355,12 @@ database, for development and tests.
 
 ## 11. Deployment on specula (phase 6)
 
-As the batch nne-container-status-importer on the same host (its `documentation/INSTALLATION.md`): a virtual
-environment with the project, run by systemd. Docker is only for local development.
+Set up as the batch nne-container-status-importer is on its host oculus (its `documentation/INSTALLATION.md`): a
+virtual environment with the project, run by systemd. Docker is only for local development.
 
 - Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
   nnedbtools from its release tag over SSH, as for the importer.
-- systemd service `deploy/nne-container-status-webpage.service` under the service user of the importer: runs
+- systemd service `deploy/nne-container-status-webpage.service` under a service user of its own on specula: runs
   `gunicorn container_status_webpage.app:server` bound to localhost, restarted on failure, logs in the journal.
 - Settings as environment variables of the unit; `DB_ENV_FILE` points to the nne-reader env file outside the
   repository (e.g. `~/.config/nne-container-status-webpage/`).
