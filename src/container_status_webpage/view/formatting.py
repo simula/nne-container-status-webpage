@@ -39,7 +39,7 @@ Text formatting shared by the tables and the timeline: times, durations, missing
 
 Sample code:
 ```python
-from container_status_webpage.components.formatting import duration
+from container_status_webpage.view.formatting import duration
 
 duration(93784)   # "1d 2h"
 ```

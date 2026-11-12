@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Data layer of the webpage: rules, synthetic data, database loader, cache
+# Views of the webpage in the nne-viz look
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,6 +35,6 @@
 # Contact: crna-eng@simula.no
 
 """
-Data layer of the webpage, without Dash: the container status rules (status), the synthetic data
-(synthetic), the read-only database loader (loader) and the cache of the loaded data (cache).
+Views of the webpage: functions that build Dash and Plotly objects from the model, in the look of
+nne-viz (https://github.com/simula/nne-viz, web/src/components). No callbacks, no data loading.
 """

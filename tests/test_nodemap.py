@@ -36,7 +36,7 @@
 
 
 """
-Checks of the node map (components/nodemap.py) on the synthetic data: one dot per located node,
+Checks of the node map (view/nodemap.py) on the synthetic data: one dot per located node,
 the status filter, worst grades drawn last, the click target.
 
 Sample code:
@@ -49,9 +49,10 @@ import json
 
 import pandas as pd
 
-from container_status_webpage.components import nodemap
-from container_status_webpage.data import status
-from container_status_webpage.data.cache import load
+from container_status_webpage.controller import overview
+from container_status_webpage.model import status
+from container_status_webpage.model.cache import load
+from container_status_webpage.view import nodemap
 
 SNAPSHOT = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
 
@@ -75,7 +76,7 @@ def test_dots_filter_and_click():
     assert grades == sorted(grades, key=status.GRADE_ORDER.index)
     node_id = node_ids(figure)[0]
     click = {"points": [{"customdata": node_id}]}
-    assert nodemap.click_query(click) == f"/node?node={node_id}"
+    assert overview.click_query(click) == f"/node?node={node_id}"
     # customdata as plain JSON lists, so that dcc.Graph passes it with the click
     traces = json.loads(figure.to_json())["data"]
     assert all(isinstance(trace["customdata"], list) for trace in traces)

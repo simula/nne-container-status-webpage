@@ -42,7 +42,7 @@ Integrations:
         * DEBUG       - Dash development mode: hot reload, error overlay (default False)
         * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
                         report), used by the data loader (default .db_env)
-        * DATA_SOURCE - synthetic (default) or database (data.loader, read-only)
+        * DATA_SOURCE - synthetic (default) or database (model.loader, read-only)
         * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the pages load their
                                      data again (default 15,45; the importer writes at 10 and 40)
 

@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the data cache (data/cache.py): one load per refresh point, the synthetic snapshot.
+Checks of the data cache (model/cache.py): one load per refresh point, the synthetic snapshot.
 
 Sample code:
 ```bash
@@ -48,7 +48,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from container_status_webpage.data.cache import Cache, load
+from container_status_webpage.model.cache import Cache, load
 
 NOW = pd.Timestamp("2026-11-06 12:00")
 

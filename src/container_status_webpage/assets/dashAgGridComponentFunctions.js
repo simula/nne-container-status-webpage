@@ -1,7 +1,7 @@
 /*
  * Custom AG Grid components of dash-ag-grid, loaded by Dash from assets/.
  *
- * ThreadTable: tooltip of a container cell of the colour grid (components/grid.py hover):
+ * ThreadTable: tooltip of a container cell of the colour grid (view/grid.py hover):
  * props.value = {title, rows: [{thread, state, colour, version, up, seen, ago, starts, restarts,
  * orphan}]}.
  * Built from React elements, no HTML strings.

@@ -65,10 +65,10 @@ A node is reported when all of these hold:
 4. `nne.node_status` is DEPLOYED or TESTING (all other statuses, and nodes without a status record, are excluded).
 
 Exception: the satellite nodes **4071–4074** are reported as DEPLOYED although nne has no `node`, `node_info`
-or `node_status` row for them (hardcoded, `data/status.py` `SATELLITE_NODES`). They run neither the metadata nor
+or `node_status` row for them (hardcoded, `model/status.py` `SATELLITE_NODES`). They run neither the metadata nor
 the mqtt container: both are never expected there, and their experiment count has no +1 for metadata. Satellite
 measurements on other nodes are ad hoc and follow the rules above. Without an address, the map shows them next to
-the site of node 7056 (SimulaMet), 0.01° longitude apart (`data/loader.py` `SATELLITE_SITE_NODE`).
+the site of node 7056 (SimulaMet), 0.01° longitude apart (`model/loader.py` `SATELLITE_SITE_NODE`).
 
 On 2026-11-06: DEPLOYED 100, TESTING 16, unchanged with the conditions above on 2026-11-09. Missing status records
 found on the way were fixed in `nne.node_status`: 11085 DESTROYED (from 2026-11-06), 10964 and 11165 TESTING (from
@@ -270,24 +270,39 @@ The page shows when its data were loaded; every page load uses the cached data u
 10).
 
 ## 9. Code structure
-Package `src/container_status_webpage`; modules added in phase 3 or 4 are marked.
+Package `src/container_status_webpage`, split by the model–view–controller pattern:
+
+- **model** (`model/`): the data and the rules. Pandas only: it imports neither Dash nor Plotly, and nothing from
+  the view or the controller.
+- **view** (`view/`): functions that build Dash and Plotly objects from the model. No callbacks; a view never loads
+  data.
+- **controller** (`controller/`, one module per page): the function that builds the page on a page load (`page`:
+  reads the cached data and hands them to the views) and the callbacks of the page. The only place with callbacks
+  and the only place that reads the cache.
 
 | Module | Content |
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
-| `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`; from phase 3 `DATA_SOURCE` (`synthetic` or `database`) and `CONTAINERS_CACHE_MINUTES` |
-| `data/status.py` (3) | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems; pandas only, no Dash |
-| `data/synthetic.py` (3) | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
-| `data/cache.py` (3) | the frames of the selected source with their load time, kept per process until the next refresh point |
-| `data/loader.py` (4) | the frames from the database through nnedbtools, read-only (section 10) |
-| `components/frame.py` | page frame |
-| `components/formatting.py` (3) | text of times, durations and missing values, shared by the tables and the timeline |
-| `components/palette.py` (3) | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
-| `components/grid.py` (3) | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
-| `components/node.py` (3) | Node: URL query, header, timeline segments and figure, range, segment detail, threads and experiments tables |
-| `components/nodemap.py` (4) | Overview map: hover lines, located nodes with their grade, `Scattermap` figure, URL query of a clicked dot |
-| `assets/dashAgGridComponentFunctions.js` (3) | `ThreadTable`, the tooltip table of a grid cell |
-| `pages/containers.py` | the pages Overview, Grid, Problems and Node with their callbacks: toolbars, filters, map, navigation, range, clicks |
+| `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` |
+| `model/status.py` | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems, issue texts; network names of the experiments |
+| `model/timeline.py` | timeline of a node: rows, segments, time span, x ranges of the range buttons and the date pickers |
+| `model/synthetic.py` | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
+| `model/cache.py` | the frames of the selected source with their load time, kept per process until the next refresh point |
+| `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects (section 10) |
+| `view/frame.py` | page frame |
+| `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
+| `view/formatting.py` | text of times, durations and missing values, shared by the tables and the timeline |
+| `view/palette.py` | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
+| `view/grid.py` | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
+| `view/node.py` | Node: header, timeline figure, segment detail, threads and experiments tables |
+| `view/nodemap.py` | Overview map: hover lines, located nodes with their grade, `Scattermap` figure |
+| `assets/dashAgGridComponentFunctions.js` | `ThreadTable`, the tooltip table of a grid cell |
+| `controller/frame.py` | page frame on a page load, navigation highlight, clock |
+| `controller/overview.py` | Overview: page load, map status filter, map click |
+| `controller/grid.py` | Grid: page load, toolbar filter, row click |
+| `controller/problems.py` | Problems: page load, toolbar filter, row click |
+| `controller/node.py` | Node: URL of the page, page load from the URL query, node selector, range buttons and date pickers, clicks on a segment and on an experiment |
+| `pages/containers.py` | registration of the four pages with the `page` functions of their controllers (Dash Pages needs this folder) |
 
 Input contract: the synthetic data and the loader produce the same three frames.
 
@@ -307,16 +322,16 @@ network 0, and carry made-up parameters; sites lie near five municipality centre
 does); some nodes have no municipality and no location.
 
 Tests without a browser: the rule checks (class boundaries, flapping, worst thread / partial / orphan, synthetic
-coverage) on `data/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
+coverage) on `model/status.py`; the grid columns, tooltip rows, timeline segments and figure as built objects; the
 pure functions behind the callbacks (`filter_rows`, `click_query`, `x_range`, `picker_range`); the map figure (one
 dot per located node, status filter, grade order, plain-list `customdata`); the cache (one load per refresh point, a
 failed load keeps the snapshot); the smoke tests of the pages. One line per test file: `tests/README.md`. Tests never
 import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
 ## 10. Data loading and cache (phase 4)
-`data/loader.py` returns the three frames, read-only through nnedbtools:
+`model/loader.py` returns the three frames, read-only through nnedbtools:
 
-- `nodes`: one statement for the filter of section 3 (`node_info`, `measurement_instance`, `node_status` / `status`)
+- `nodes`: one SQLAlchemy select (`select_reported_node_candidates`) for the filter of section 3 (`node_info`, `measurement_instance`, `node_status` / `status`)
   with the interface and experiment counts, the satellite nodes added as DEPLOYED; then `municipality`, `loc_lat` and
   `loc_lon` from `nnedbtools.queries.address.select_from_nne_node_adreess_and_nne_addresss(node_ids)`, keeping
   `address_type` SITE with `valid_to IS NULL`, the coordinates rounded to 2 decimals;
@@ -328,12 +343,12 @@ No lookup tables are read: the container of a `measurement_desc_id`, network and
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
 names of section 4, sentence case).
 
-Changed with the loader (phase 4): the expected containers of a node from the configuration map in `data/status.py`
+Changed with the loader (phase 4): the expected containers of a node from the configuration map in `model/status.py`
 (never / not configured, section 5) and the orphan container (section 4); synthetic experiments with `service_id` and
 instances for the configured containers, plus an orphan container scenario and a receiver restart scenario; the
 network chips through the service decorator (`palette.PROVIDER` removed); the Experiments measurement column with the
 container name; the receiver restart warning and column (section 5); the header counts; the satellite nodes
-(`data/status.py`, section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
+(`model/status.py`, section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
 
 Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
@@ -347,7 +362,7 @@ service decorator (5G on all mobile networks, LAN with GeoSat, OneWeb, Starlink)
 13,563 rows of `container_rawdata`; header and Experiments built for every node. Problems: 96 of 119 nodes with the
 first receiver restart rule (1 per hour / 1 per day), 24 with 60 / 1440 (12 of them for receiver restarts).
 
-`data/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point:
+`model/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point:
 `CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and gets
 5 minutes to finish). A load that fails is logged and the previous snapshot stays: the pages keep the older data and
 show their load time; the next request tries again. `DATA_SOURCE=synthetic` serves the synthetic data without a
@@ -383,12 +398,12 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - The nnedbtools log files (`logs/`, one per worker start) on specula: rotation or cleanup.
 - Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
   decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
-- The legend and the timeline repeat the class limits as text (`components/grid.py` `legend`, `components/node.py`):
-  a calibration of the constants in `data/status.py` must change them too.
+- The legend and the timeline repeat the class limits as text (`view/grid.py` `legend`, `view/node.py`):
+  a calibration of the constants in `model/status.py` must change them too.
 - Rows with a node clock error (`start_ts` 2011, section 2) stretch All and the From picker of that node to 2011.
 - A data load that fails is tried again on every request until it succeeds; a retry delay if an outage makes the
   pages slow.
-- `data/loader.py` has no test: its frame logic (satellite nodes, filter, site merge) is not separated from the
+- `model/loader.py` has no test: its frame logic (satellite nodes, filter, site merge) is not separated from the
   database reads.
 - Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
   is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
@@ -443,7 +458,9 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   ORM tables (`mi = tb.NneMeasurementInstance`).
 - **Type annotations** on parameters, return values and locals whose type is not obvious, as in nnedbtools.
 - **Database access** only through nnedbtools and read-only: select builders from `nnedbtools.queries` where they
-  exist, new selects as SQLAlchemy `select` in the same style, engines from `nnedbtools.connection`.
+  exist, new selects as SQLAlchemy `select` in the same style, engines from `nnedbtools.connection`. No SQL as text.
+- **Layers**: model, view and controller as in section 9. A new function goes to the layer of what it does, not to
+  the module that calls it.
 - **Logging** with `logging`, no `print` in the application.
 - **JavaScript** only where Dash needs it (client-side callbacks), short and commented the same way.
 - **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc src tests` with a copy of the

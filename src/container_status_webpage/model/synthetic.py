@@ -44,7 +44,7 @@ Sample code:
 ```python
 import pandas as pd
 
-from container_status_webpage.data.synthetic import synthetic
+from container_status_webpage.model.synthetic import synthetic
 
 nodes, experiments, raw = synthetic(pd.Timestamp("2026-11-06 12:00"))
 ```
@@ -56,7 +56,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment
 
-from container_status_webpage.data.status import (
+from container_status_webpage.model.status import (
     EXTRA,
     MAIN,
     STATUS_ORDER,

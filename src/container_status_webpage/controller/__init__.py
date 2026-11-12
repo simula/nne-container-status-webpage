@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Layout components in the nne-viz look
+# Controllers of the webpage, one module per page
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,6 +35,8 @@
 # Contact: crna-eng@simula.no
 
 """
-Layout components shared by the pages, in the look of nne-viz
-(https://github.com/simula/nne-viz, web/src/components).
+Controllers of the webpage, one module per page: the function that builds the page on a page load
+(page: reads the cached data, hands them to the views) and the callbacks of the page. Each page
+opens the Node page from its own component: a callback on components of several pages would miss
+those of the pages that are not shown.
 """
