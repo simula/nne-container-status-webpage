@@ -36,7 +36,7 @@
 
 """
 Page frame in the nne-viz look (web/src/components/Base.tsx, header/Header.tsx, header/Clock.tsx,
-Footer.tsx): header with the NorNet logo, one navigation button per registered page and the Norway
+Footer.tsx): header with the NorNet logo, one navigation button per registered page and the UTC
 clock, the page view, the footer with the SimulaMet logo.
 
 Integrations:
@@ -80,10 +80,10 @@ def layout() -> html.Div:
         )
         for page in dash.page_registry.values()
     ]
-    # 2. Norway date and time, updated in the browser every second
+    # 2. UTC date and time, updated in the browser every second
     clock: html.Div = html.Div(
         [
-            html.Span("Norway datetime :"),
+            html.Span("UTC:"),
             html.Span(id="clock-date"),
             html.Span(id="clock-time"),
         ],
@@ -110,7 +110,7 @@ def layout() -> html.Div:
                                 href=NNTB_URL,
                                 target="_blank",
                             ),
-                            html.H1("NorNet is on the Edge", className="header-text"),
+                            html.H1("Container Status", className="header-text"),
                         ],
                     ),
                     html.Div(navigation + [clock], className="header-end"),
@@ -159,7 +159,7 @@ def select_navigation(pathname: str) -> List[str]:
 # Clock in the browser as nne-viz Clock.tsx: no request to the server every second
 dash.clientside_callback(
     """(tick) => {
-        const now = new Date(), zone = {timeZone: "Europe/Oslo"};
+        const now = new Date(), zone = {timeZone: "UTC"};
         const date = now.toLocaleDateString("en-GB", zone);
         const time = now.toLocaleTimeString("en-GB", {...zone, hour12: false});
         return [date, time];

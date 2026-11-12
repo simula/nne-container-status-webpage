@@ -205,8 +205,8 @@ Dark green (long-run) means every configured container has run 7 days or more. T
 orphans, restarts) do not change the grade; they are listed in the hover.
 
 ## 7. Page structure
-**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "NorNet is on the Edge", one
-navigation button per page and the Norway clock; the page; orange footer with the SimulaMet logo on a light
+**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "Container Status", one
+navigation button per page and the UTC clock; the page; orange footer with the SimulaMet logo on a light
 background. Pages: Overview (`/`), Grid (`/grid`), Problems (`/problems`), Node (`/node`). Pages have no title
 of their own: the selected header button names the view. Each page starts with the time of the last data load.
 
