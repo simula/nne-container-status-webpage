@@ -151,6 +151,13 @@ def test_header_and_networks():
     ]
 
 
+def test_networks_without_service():
+    """A measurement instance without service_id (nullable in nne) counts as service 0 instead of
+    breaking the Node page."""
+    experiments = SNAPSHOT.experiments.head(1).assign(service_id=float("nan"))
+    assert node.networks(experiments).service_id.tolist() == [0]
+
+
 def test_timeline_rows():
     """One timeline row per thread of the deployed containers, orphans included; the highlighted
     container in bold."""

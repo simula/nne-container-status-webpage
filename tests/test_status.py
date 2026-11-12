@@ -166,7 +166,8 @@ def test_worst_thread_partial_and_orphans():
 
 def test_satellite_without_metadata_and_mqtt():
     """A satellite node expects neither metadata nor mqtt, even with an active MQTT instance: no
-    runs is "none", not a problem."""
+    runs is "none", not a problem. With no main container configured and nothing running the
+    Overview counts it once, as nothing running."""
     nodes = pd.DataFrame(
         [{"node_id": 4071, "status": "DEPLOYED", "municipality": None}]
     )
@@ -177,6 +178,8 @@ def test_satellite_without_metadata_and_mqtt():
     summary = status.summarise(nodes, experiments, rawdata, NOW)
     assert [summary.cells[4071, c].state for c in ("metadata", "mqtt")] == ["none"] * 2
     assert status.problems(nodes, summary, rawdata).empty
+    counts = status.overview(nodes, summary).set_index("status").loc["all"]
+    assert (counts.all_main_ok, counts.some_issue, counts.nothing_running) == (0, 0, 1)
 
 
 def test_grade():

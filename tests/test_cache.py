@@ -46,6 +46,7 @@ pytest tests/test_cache.py
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from container_status_webpage.data.cache import Cache, load
 
@@ -71,6 +72,24 @@ def test_one_load_per_refresh_point():
     assert cache.get(at("11:14")) is second
     assert cache.get(at("11:15")) is not second
     assert loads == [at("10:15"), at("10:45"), at("11:15")]
+
+
+def test_failed_load_keeps_snapshot():
+    """A load that fails after a refresh point keeps the previous snapshot; a first load that
+    fails has none and raises."""
+    down = []
+
+    def loader(now):
+        if down:
+            raise RuntimeError("database down")
+        return SimpleNamespace(loaded_at=now)
+
+    cache = Cache([15, 45], loader)
+    first = cache.get(pd.Timestamp("2026-11-06 10:15"))
+    down.append(True)
+    assert cache.get(pd.Timestamp("2026-11-06 10:45")) is first
+    with pytest.raises(RuntimeError):
+        Cache([15, 45], loader).get(pd.Timestamp("2026-11-06 10:45"))
 
 
 def test_synthetic_snapshot():

@@ -54,6 +54,7 @@ snapshot.summary.cells
 ```
 """
 
+import logging
 import threading
 from dataclasses import dataclass
 from typing import Callable, List, Optional
@@ -63,6 +64,9 @@ import pandas as pd
 from container_status_webpage import settings
 from container_status_webpage.data import status
 from container_status_webpage.data.synthetic import synthetic
+
+# Logger of the failed loads
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -159,20 +163,31 @@ class Cache:
     def get(self, now: Optional[pd.Timestamp] = None) -> Snapshot:
         """
         Current snapshot; loaded on the first call and when a refresh point has passed since the
-        last load.
+        last load. A load that fails is logged and the previous snapshot stays (the pages show its
+        load time).
 
         Args:
             now (Optional[pd.Timestamp]): Time of the request (UTC, naive). Defaults to utc_now().
 
         Returns:
             Snapshot: Frames, summary and load time.
+
+        Raises:
+            Exception: The load failed and there is no previous snapshot.
         """
         now = utc_now() if now is None else now
         with self._lock:
             if self._snapshot is None or self._snapshot.loaded_at < last_refresh(
                 now, self._minutes
             ):
-                self._snapshot = self._loader(now)
+                try:
+                    self._snapshot = self._loader(now)
+                # ponytail: every request retries the load while it fails; add a retry delay if
+                # an outage makes the pages slow
+                except Exception:  # pylint: disable=broad-exception-caught
+                    LOGGER.exception("Data load failed")
+                    if self._snapshot is None:
+                        raise
             return self._snapshot
 
 

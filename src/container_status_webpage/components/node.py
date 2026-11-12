@@ -132,7 +132,8 @@ def chip(text: str, colour: str) -> html.Span:
 def networks(experiments: pd.DataFrame) -> pd.DataFrame:
     """
     Experiments with the network name (display_name, as Telenor:5G) and colour (color) of the
-    nnedbtools enum_mapper; no name for network 0, the dummy network without an interface.
+    nnedbtools enum_mapper; no name for network 0, the dummy network without an interface. A
+    missing service_id (nullable in nne) counts as 0, no service.
 
     Args:
         experiments (pd.DataFrame): Experiments with network_id and service_id.
@@ -141,7 +142,9 @@ def networks(experiments: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: A decorated copy.
     """
     frame = enum_mapper.map_network_service_to_plot_attributes_dataframe(
-        experiments.astype({"network_id": int, "service_id": int})
+        experiments.fillna({"service_id": 0}).astype(
+            {"network_id": int, "service_id": int}
+        )
     )
     return frame.assign(
         display_name=frame.display_name.where(frame.network_id != 0, "")

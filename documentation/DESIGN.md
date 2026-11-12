@@ -160,8 +160,9 @@ A grid cell is one node and one container:
   On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
   first hour.
 
-Per node (Overview tab): *all main OK* = every main cell running, not partial, without orphans or warnings; *nothing
-running* = no cell has a running thread; *some issue* = the rest.
+Per node (Overview tab), each node counted once: *nothing running* = no cell has a running thread (checked first);
+*all main OK* = something runs and every configured main cell is running, not partial, without orphans or warnings;
+*some issue* = the rest.
 
 A node is listed on the Problems tab when a cell is not running (except not configured), partial, flapping, has
 orphans or a receiver restart warning; DEPLOYED first, then the longest silent. Mobile nodes follow these rules too:

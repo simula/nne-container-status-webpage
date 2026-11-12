@@ -118,21 +118,22 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
             NneNodeAddress.valid_to.is_(None),
         ),
         engines.nne_engine,
-    ).drop_duplicates("node_id")
+    )
     site = site[["node_id", "municipality", "loc_lat", "loc_lon"]]
     site[["loc_lat", "loc_lon"]] = (
         site[["loc_lat", "loc_lon"]].apply(pd.to_numeric, errors="coerce").round(2)
     )
     simulamet = site[site.node_id == SATELLITE_SITE_NODE]
     # Satellite nodes have no address: shown next to the site of node 7056 (SimulaMet),
-    # 0.01° longitude (about 0.5 km) apart so that each dot can be clicked
+    # 0.01° longitude (about 0.5 km) apart so that each dot can be clicked. One site per node: the
+    # first row, so a satellite node with an address of its own keeps it
     site = pd.concat(
         [site]
         + [
             simulamet.assign(node_id=n, loc_lon=simulamet.loc_lon + 0.01 * (i + 1))
             for i, n in enumerate(SATELLITE_NODES)
         ]
-    )
+    ).drop_duplicates("node_id")
     nodes = nodes.merge(site, on="node_id", how="left")
     # 4. Experiments of the reported nodes and the container runs
     experiments = pd.read_sql(

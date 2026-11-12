@@ -36,3 +36,6 @@
 - Fixed: map clicks reached the server without the node id (`customdata` as a plain list); a 500 at page load from
   the navigation callback on the empty values of the tables and the node selector.
 - Header title "Container Status"; the header clock shows UTC ("UTC:") instead of Norway time.
+- Fixed: the Overview counted a node with nothing running and no main container configured twice (now only as
+  nothing running); a measurement instance without `service_id` broke the Node page; a failed data load took every
+  page down (now logged, the previous data stay); a satellite node with an address of its own got two rows.

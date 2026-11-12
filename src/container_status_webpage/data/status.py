@@ -564,8 +564,9 @@ def main_ok(c: Cell) -> bool:
 
 def overview(nodes: pd.DataFrame, summary: Summary) -> pd.DataFrame:
     """
-    Node counts per status group: all main OK (every configured main cell running, not partial,
-    without orphans), nothing running (no cell with a running thread), some issue (the rest).
+    Node counts per status group: nothing running (no cell with a running thread), all main OK
+    (something runs and every main cell is fine, main_ok), some issue (the rest). A node is
+    counted once: nothing running comes first, also when no main container is configured.
 
     Args:
         nodes (pd.DataFrame): Nodes frame.
@@ -576,17 +577,21 @@ def overview(nodes: pd.DataFrame, summary: Summary) -> pd.DataFrame:
     """
     rows = []
     for group, ids in status_groups(nodes):
-        ok = sum(all(main_ok(summary.cells[n, c]) for c in MAIN) for n in ids)
-        idle = sum(
-            not any(summary.cells[n, c].running for c in MAIN + EXTRA) for n in ids
+        idle = [
+            n for n in ids if not any(summary.cells[n, c].running for c in MAIN + EXTRA)
+        ]
+        ok = sum(
+            all(main_ok(summary.cells[n, c]) for c in MAIN)
+            for n in ids
+            if n not in idle
         )
         rows.append(
             {
                 "status": group,
                 "nodes": len(ids),
                 "all_main_ok": ok,
-                "some_issue": len(ids) - ok - idle,
-                "nothing_running": idle,
+                "some_issue": len(ids) - ok - len(idle),
+                "nothing_running": len(idle),
             }
         )
     return pd.DataFrame(rows)
