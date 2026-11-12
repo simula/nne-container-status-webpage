@@ -1,4 +1,9 @@
 .git
 .db_env*
-__pycache__/
+**/__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
 out.html
+logs/
+exports/

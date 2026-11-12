@@ -1,0 +1,368 @@
+/* nne-viz look, copied from nne-viz web/src: index.css, constants/colors.tsx, constants/config.tsx (breakpoints,
+   font sizes) and the styled-components of Base, Header, HeaderButton, Clock, Footer and TabButton */
+
+:root {
+  --main-theme: #f15d22;
+  --subtheme: #ebecee;
+  --white: #ffffff;
+  --light-gray: #f3f4f6;
+  --medium-gray: #cccccc;
+  --dark-gray: #969696;
+  --text-hover: #3366cc;
+  --border: #e6e6e6;
+  --hover: #aad3df;
+  --node-hover: #c3e6ff;
+  --black: #000000;
+  --graphic-text: #808080;
+  --focus: #1976d2;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans',
+    'Droid Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Base */
+.base {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin: 1em;
+  overflow: auto;
+}
+
+/* Header */
+.header {
+  background: var(--white);
+  border-bottom: 1px solid var(--medium-gray);
+  color: var(--medium-gray);
+  display: flex;
+  padding: 0.2em 1em 0 1em;
+}
+
+.header-start {
+  align-items: center;
+  display: flex;
+}
+
+.logo {
+  background: var(--light-gray);
+  border: 1px solid var(--medium-gray);
+  border-radius: 10px;
+  display: block;
+  height: 2em;
+  margin: 0 1em 0 0;
+  object-fit: contain;
+  padding: 0.5em;
+}
+
+.logo:hover {
+  background: var(--medium-gray);
+  border-color: var(--dark-gray);
+}
+
+.header-text {
+  font-weight: 300;
+  margin: 0;
+}
+
+.header-end {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* HeaderButton */
+.header-button {
+  align-items: center;
+  background: var(--light-gray);
+  border: solid var(--medium-gray);
+  border-radius: 5px 5px 0 0;
+  border-width: 1.5px 1.5px 0 1.5px;
+  color: var(--main-theme);
+  display: flex;
+  font-size: 1em;
+  font-weight: 500;
+  margin: 0.5em 0.25em 0 0.25em;
+  padding: 0 2em;
+  text-decoration: none;
+}
+
+.header-button.selected {
+  background: var(--main-theme);
+  border-color: var(--light-gray);
+  color: var(--white);
+  margin-top: 0.2em;
+}
+
+.header-button:hover {
+  background: var(--medium-gray);
+  border-color: var(--dark-gray);
+  color: var(--main-theme);
+  margin-top: 0.2em;
+}
+
+/* Clock */
+.clock {
+  align-items: flex-end;
+  color: var(--medium-gray);
+  display: flex;
+  flex-direction: column;
+  font-weight: 200;
+  justify-content: center;
+  padding-left: 2em;
+}
+
+.clock span {
+  min-width: 100%;
+  text-align: end;
+}
+
+/* Footer */
+.footer {
+  align-items: center;
+  background: var(--main-theme);
+  color: var(--white);
+  display: flex;
+  padding: 0.3em 2em 0.3em 1em;
+}
+
+.footer-end {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* SimulaMet logo: its orange part needs a light background on the orange footer */
+.footer-end img {
+  background: var(--white);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
+/* Phone landscape (config.tsx MAX_WIDTH_PHONE_LANDSCAPE 950, FONT_SIZE_PHONE 0.6) */
+@media (max-width: 950px) and (min-width: 601px) {
+  .logo { height: 0.8em; }
+  .header-text, .clock { font-size: 0.6em; }
+  .header-button { font-size: 0.6em; padding: 0 2em; }
+  .clock { padding-left: 1em; }
+}
+
+/* Phone portrait (MAX_WIDTH_PHONE_PORTRAIT 600) */
+@media (max-width: 600px) {
+  .logo { height: 0.5em; }
+  .header-text, .clock { font-size: 0.6em; }
+  .header-button { font-size: 0.6em; padding: 0 0.25em; }
+}
+
+/* Data line of a page: source and load time */
+.data-info {
+  color: var(--graphic-text);
+  font-size: 0.9em;
+  margin: 0 0 0.5em 0;
+}
+
+/* AG Grid in the look of the nne-viz tables (components/table, node/NodeItem.tsx): white rows, light lines, hover */
+.nne-grid {
+  margin-top: 0.5em;
+}
+
+/* autoHeight grids: AG Grid keeps the rows area at least 150px high (empty band under short
+   tables such as "Nodes by status"); the documented override lets a table end at its last row */
+.nne-grid .ag-center-cols-viewport {
+  min-height: unset !important;
+}
+
+.nne-grid .ag-root-wrapper {
+  --ag-font-family: inherit;
+  --ag-font-size: 14px;
+  --ag-background-color: var(--white);
+  --ag-header-background-color: var(--white);
+  --ag-header-text-color: var(--black);
+  --ag-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-row-hover-color: var(--border);
+  --ag-wrapper-border-radius: 5px;
+}
+
+.nne-grid .ag-header-cell:hover {
+  color: var(--text-hover);
+}
+
+/* Tooltip of a grid cell: thread table (ThreadTable in dashAgGridComponentFunctions.js) */
+.thread-tip {
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.thread-tip-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.thread-tip table {
+  border-collapse: collapse;
+}
+
+.thread-tip th,
+.thread-tip td {
+  padding: 1px 10px 1px 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.thread-tip th {
+  border-bottom: 1px solid var(--border);
+  color: var(--graphic-text);
+  font-weight: normal;
+}
+
+.thread-tip i {
+  border: 1px solid var(--border);
+  display: inline-block;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  width: 10px;
+}
+
+/* Orphan thread: palette.ORPHAN */
+.thread-tip tr.orphan td {
+  color: #a50f15;
+}
+
+/* Filter toolbar above a table */
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px 24px;
+  margin: 8px 0;
+}
+
+.toolbar-item {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-states,
+.toolbar-municipalities,
+.toolbar-text {
+  min-width: 300px;
+}
+
+.toolbar-nodes {
+  min-width: 200px;
+}
+
+/* Node cells of the grid and the problem list: a click opens the Node page */
+.node-link {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Header of the Node page (components/node.py) */
+.node-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 8px 0 12px 0;
+}
+
+.node-id {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.chip {
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+/* Detail of a clicked timeline segment (components/node.py run_detail) */
+.run-detail {
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.run-detail th,
+.run-detail td {
+  padding: 2px 12px 2px 0;
+  text-align: left;
+}
+
+.run-detail th {
+  color: var(--graphic-text);
+  font-weight: normal;
+}
+
+/* Experiments of the Node page: stopped ones in grey, parameters as indented JSON */
+.experiment-stopped {
+  color: var(--graphic-text);
+}
+
+.parameters {
+  background: #f7f7f7;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  margin: 4px 0 12px 0;
+  padding: 8px;
+}
+
+/* Legend of the colour grid (components/grid.py) */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 6px 14px;
+  margin: 8px 0;
+}
+
+.legend i {
+  border: 1px solid var(--border);
+  display: inline-block;
+  height: 16px;
+  margin-right: 5px;
+  vertical-align: -4px;
+  width: 16px;
+}
+
+/* Overview: map on the left (60 %), counts on the right (40 %); stacked on narrow screens */
+.overview-split {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.overview-split > * {
+  min-width: 0;
+}
+
+@media (max-width: 1000px) {
+  .overview-split {
+    grid-template-columns: 1fr;
+  }
+}
