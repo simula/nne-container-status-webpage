@@ -343,13 +343,6 @@ No lookup tables are read: the container of a `measurement_desc_id`, network and
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
 names of section 4, sentence case).
 
-Changed with the loader (phase 4): the expected containers of a node from the configuration map in `model/status.py`
-(never / not configured, section 5) and the orphan container (section 4); synthetic experiments with `service_id` and
-instances for the configured containers, plus an orphan container scenario and a receiver restart scenario; the
-network chips through the service decorator (`palette.PROVIDER` removed); the Experiments measurement column with the
-container name; the receiver restart warning and column (section 5); the header counts; the satellite nodes
-(`model/status.py`, section 3); the `nodes` frame without `valid_from`, `name`, `address`, `zip`, `country_code`.
-
 Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
 installed nnedbtools (`nnedbtools.certificates`): the Docker container needs only the env file (secret `db_env`).
