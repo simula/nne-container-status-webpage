@@ -322,7 +322,6 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
-        style={"height": "70vh"},
     )
 
 
@@ -482,7 +481,6 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
-        style={"height": "70vh"},
     )
 
 

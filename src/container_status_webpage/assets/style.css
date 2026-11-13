@@ -44,6 +44,28 @@ code {
   overflow: auto;
 }
 
+/* Grid and Problems (page class fill): the table fills the window below its toolbar and scrolls
+   inside, no empty band above the footer. Only on these pages the frame is exactly the window
+   high; every level between the main area and the table passes the height on (Dash Pages adds
+   the page container and #_pages_content in between) */
+.base:has(.fill) {
+  height: 100vh;
+}
+
+.base:has(.fill) .view > div,
+.base:has(.fill) #_pages_content,
+.fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fill > .nne-grid {
+  flex: 1;
+  min-height: 300px;
+}
+
 /* Header */
 .header {
   background: var(--white);
@@ -359,6 +381,19 @@ code {
 
 .overview-split > * {
   min-width: 0;
+}
+
+/* Overview as a fill page: the split takes the rest of the window, the map column runs down to
+   the footer and the map fills it; the tables stay at the top */
+.fill > .overview-split {
+  flex: 1;
+  min-height: 0;
+}
+
+.map-view {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 1000px) {
