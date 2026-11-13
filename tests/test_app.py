@@ -53,7 +53,7 @@ import pytest
 
 from container_status_webpage.app import server
 from container_status_webpage.controller import frame
-from container_status_webpage.controller.node import click_query
+from container_status_webpage.controller.node import click_query, open_selected
 
 
 def test_pages_registered_in_order():
@@ -145,3 +145,13 @@ def test_callback_ids_in_layouts():
     assert (
         used <= defined
     ), f"callback ids without a component: {sorted(used - defined)}"
+
+
+def test_node_selector_keeps_the_page():
+    """The node selector opens a node; the node the URL already shows (the page load inserts the
+    selector with it) opens nothing, so the URL keeps its container and the page is built once.
+    """
+    assert open_selected(7056, "?node=7056&container=udpping") is dash.no_update
+    assert open_selected(None, "?node=7056") is dash.no_update
+    assert open_selected(4120, "?node=7056") == "/node?node=4120"
+    assert open_selected(7056, "") == "/node?node=7056"

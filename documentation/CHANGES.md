@@ -14,6 +14,8 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
+- Node page opened with a container (Grid cell click) keeps the container highlighted: the node selector no longer
+  opens the node the URL already shows (that dropped `&container=` and built the page twice).
 - Tab titles "Containers – <page>" (were "NorNet edge – <page>"); app title "NorNet Edge – Container Status".
 - Limits of the classes and warnings in `model/limits.py`; the legend and the timeline write them from there (young
   now "1–24 h"). The timeline starts no earlier than the first real deployment (2026-01-01), so node clock errors
