@@ -63,9 +63,11 @@ MODEL_FORBIDDEN: Tuple[str, ...] = (
     "container_status_webpage.controller",
     "container_status_webpage.view",
 )
-# A view never loads data and never calls the controller
+# A view never loads data, never takes the snapshot (it builds from model.pages) and never calls
+# the controller
 VIEW_FORBIDDEN: Tuple[str, ...] = (
     "container_status_webpage.controller",
+    "container_status_webpage.model.snapshot",
     "container_status_webpage.model.loader",
     "container_status_webpage.model.synthetic",
 )

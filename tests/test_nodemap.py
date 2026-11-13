@@ -36,8 +36,8 @@
 
 
 """
-Checks of the node map (view/nodemap.py) on the synthetic data: one dot per located node,
-the status filter, worst grades drawn last, the click target.
+Checks of the node map (model/pages.py map_nodes, view/nodemap.py) on the synthetic data: one dot
+per located node, the status filter, worst grades drawn last, the click target.
 
 Sample code:
 ```bash
@@ -50,7 +50,7 @@ import json
 import pandas as pd
 
 from container_status_webpage.controller import overview
-from container_status_webpage.model import status
+from container_status_webpage.model import pages, status
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import nodemap
 
@@ -67,10 +67,10 @@ def test_dots_filter_and_click():
     filter keeps its nodes; grades from best to worst, so the worst lie on top; a click opens the
     Node page of the dot."""
     nodes = SNAPSHOT.nodes.set_index("node_id")
-    figure = nodemap.node_map(SNAPSHOT, ["Deployed", "Testing"])
+    figure = nodemap.node_map(pages.map_nodes(SNAPSHOT, ["Deployed", "Testing"]))
     assert sorted(node_ids(figure)) == sorted(nodes.index[nodes.loc_lat.notna()])
     assert nodes.municipality[nodes.loc_lat.isna()].isna().all()
-    testing = nodemap.node_map(SNAPSHOT, ["Testing"])
+    testing = nodemap.node_map(pages.map_nodes(SNAPSHOT, ["Testing"]))
     assert set(nodes.status[node_ids(testing)]) == {"TESTING"}
     grades = [trace.name.split(" (")[0].lower() for trace in figure.data]
     assert grades == sorted(grades, key=status.GRADE_ORDER.index)

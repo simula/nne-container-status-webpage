@@ -41,17 +41,18 @@ view.palette: dash-ag-grid applies the first matching style condition only, so e
 the id of its complete style and every container column one condition per style id.
 
 Integrations:
-    1. model.snapshot.Snapshot - frames and summary.
+    1. model.pages - page data of Overview, Grid and Problems.
     2. dash-ag-grid - tables; CSS in assets/style.css (class nne-grid).
 
 Sample code:
 ```python
 import pandas as pd
+from container_status_webpage.model import pages
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import grid
 
-snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
-grid.status_grid(snapshot)
+data = pages.grid(load("synthetic", pd.Timestamp("2026-11-06 12:00")))
+grid.status_grid(data.nodes, data.cells, data.states)
 ```
 """
 
@@ -60,10 +61,10 @@ import math
 from typing import Any, Dict, List, Optional, Tuple
 
 import dash_ag_grid as dag
+import pandas as pd
 from dash import html
 
 from container_status_webpage.model import status
-from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank, duration, when
 
@@ -149,12 +150,12 @@ def thread_row(name: str, state: Optional[status.ThreadState]) -> Dict[str, str]
         }
     running = state.seen == "running"
     colour, text = palette.COLOUR[state.up if running else state.seen]
-    rate = status.restart_rate(state)
+    rate = state.rate
     restarts = (
         ""
         if rate is None
         else f"{state.restarts:,.0f} ({status.rate_text(rate)})"
-        + (" ↻" if status.restart_warning(state) else "")
+        + (" ↻" if state.warning else "")
     )
     return {
         "restarts": restarts,
@@ -235,12 +236,18 @@ def hover(
     return {"title": title, "rows": rows}
 
 
-def status_grid(snapshot: Snapshot) -> dag.AgGrid:
+def status_grid(
+    nodes: pd.DataFrame,
+    cells: Dict[Tuple[int, str], status.Cell],
+    thread_states: Dict[Tuple[int, str, str], status.ThreadState],
+) -> dag.AgGrid:
     """
     Colour grid: one row per node, the main and the extra containers as column groups.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        nodes (pd.DataFrame): Nodes in the order of the grid (pages.GridData.nodes).
+        cells (Dict[Tuple[int, str], status.Cell]): Cell per (node_id, container).
+        thread_states (Dict[Tuple[int, str, str], status.ThreadState]): States for the tooltips.
 
     Returns:
         dag.AgGrid: The grid (id status-grid).
@@ -249,7 +256,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
     #    filter
     styles: Dict[str, int] = {}
     rows = []
-    for node in status.ordered(snapshot.nodes).itertuples():
+    for node in nodes.itertuples():
         row: Dict[str, Any] = {
             "node_id": node.node_id,
             "status": node.status.capitalize(),
@@ -257,7 +264,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         }
         states = set()
         for container in status.MAIN + status.EXTRA:
-            cell = snapshot.summary.cells[node.node_id, container]
+            cell = cells[node.node_id, container]
             states |= {cell.state} - {"none"}
             states |= {
                 marker
@@ -275,7 +282,7 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
             row[container] = palette.cell_text(cell)
             row[f"{container}__style"] = styles.setdefault(style, len(styles))
             row[f"{container}__tip"] = hover(
-                node.node_id, node.status, container, cell, snapshot.summary.states
+                node.node_id, node.status, container, cell, thread_states
             )
         row["states"] = sorted(states)
         rows.append(row)
@@ -426,17 +433,16 @@ def legend() -> html.Div:
     return html.Div(items, className="legend")
 
 
-def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
+def problems_grid(found: pd.DataFrame) -> dag.AgGrid:
     """
     Problem list: nodes that are not fully OK, DEPLOYED first, then the longest silent.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        found (pd.DataFrame): Problems (pages.ProblemsData.problems).
 
     Returns:
         dag.AgGrid: The grid (id problems-grid).
     """
-    found = status.problems(snapshot.nodes, snapshot.summary, snapshot.raw)
     rows = [
         {
             "node_id": row.node_id,
@@ -484,18 +490,18 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
     )
 
 
-def overview(snapshot: Snapshot) -> html.Div:
+def overview(counts: pd.DataFrame, running: pd.DataFrame) -> html.Div:
     """
     Overview: node counts per status group, nodes running each container per status group.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        counts (pd.DataFrame): Node counts per status group (pages.OverviewData.counts).
+        running (pd.DataFrame): Running containers per status group (OverviewData.running).
 
     Returns:
         html.Div: Two tables.
     """
     # 1. Node counts per status group
-    counts = status.overview(snapshot.nodes, snapshot.summary)
     nodes_per_group = dict(zip(counts.status, counts.nodes))
     by_status = dag.AgGrid(
         id="overview-status",
@@ -515,7 +521,6 @@ def overview(snapshot: Snapshot) -> html.Div:
         className="nne-grid",
     )
     # 2. Nodes running each container per status group: "running / nodes"
-    running = status.container_counts(snapshot.nodes, snapshot.summary)
     groups = [column for column in running.columns if column != "container"]
     rows: List[Dict[str, Any]] = [
         {

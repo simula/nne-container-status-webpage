@@ -40,7 +40,8 @@ from its query, the node selector, the range buttons and date pickers of the tim
 a clicked segment and the parameters of a clicked experiment.
 
 Integrations:
-    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
+    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE; model.pages - page
+       data built from it.
     2. model.timeline - x ranges of the timeline.
     3. view.layouts, view.node - page layout, segment detail and parameters.
 
@@ -54,7 +55,7 @@ import dash
 import pandas as pd
 from dash import Input, Output, Patch, State, callback, html
 
-from container_status_webpage.model import status
+from container_status_webpage.model import pages, status
 from container_status_webpage.model.cache import CONTAINERS_CACHE
 from container_status_webpage.model.timeline import picker_range, x_range
 from container_status_webpage.view import layouts
@@ -113,7 +114,7 @@ def page(
         else None
     )
     return layouts.node_page(
-        snapshot, node_id, container if container in status.NAME else None
+        pages.node(snapshot, node_id, container if container in status.NAME else None)
     )
 
 

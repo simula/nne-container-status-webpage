@@ -39,7 +39,8 @@ Controller of the Problems page (/problems): builds the page, filters the rows b
 opens the Node page of a clicked row.
 
 Integrations:
-    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
+    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE; model.pages - page
+       data built from it.
     2. view.layouts, view.grid - page layout and the row filter.
 
 Sample code:
@@ -52,6 +53,7 @@ import dash
 from dash import Input, Output, State, callback, html
 
 from container_status_webpage.controller.node import click_query
+from container_status_webpage.model import pages
 from container_status_webpage.model.cache import CONTAINERS_CACHE
 from container_status_webpage.view import layouts
 from container_status_webpage.view.grid import filter_rows
@@ -67,7 +69,7 @@ def page(**_query: str) -> html.Div:
     Returns:
         html.Div: The page (view.layouts.problems_page).
     """
-    return layouts.problems_page(CONTAINERS_CACHE.get())
+    return layouts.problems_page(pages.problems(CONTAINERS_CACHE.get()))
 
 
 @callback(

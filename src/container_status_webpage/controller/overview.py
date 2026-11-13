@@ -39,7 +39,8 @@ Controller of the Overview page (/): builds the page, draws the map again for th
 and opens the Node page of a clicked dot.
 
 Integrations:
-    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE.
+    1. model.cache.CONTAINERS_CACHE - loaded data of settings.DATA_SOURCE; model.pages - page
+       data built from it.
     2. view.layouts, view.nodemap - page layout and map figure.
 
 Sample code:
@@ -52,6 +53,7 @@ import dash
 from dash import Input, Output, callback, html
 
 from container_status_webpage.controller.node import node_query
+from container_status_webpage.model import pages
 from container_status_webpage.model.cache import CONTAINERS_CACHE
 from container_status_webpage.view import layouts
 from container_status_webpage.view.nodemap import node_map
@@ -80,7 +82,7 @@ def page(**_query: str) -> html.Div:
     Returns:
         html.Div: The page (view.layouts.overview).
     """
-    return layouts.overview(CONTAINERS_CACHE.get())
+    return layouts.overview(pages.overview(CONTAINERS_CACHE.get()))
 
 
 @callback(
@@ -98,7 +100,7 @@ def filter_map(statuses: Optional[List[str]]) -> Any:
     Returns:
         Any: The figure.
     """
-    return node_map(CONTAINERS_CACHE.get(), statuses or [])
+    return node_map(pages.map_nodes(CONTAINERS_CACHE.get(), statuses or []))
 
 
 @callback(

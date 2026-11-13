@@ -39,22 +39,22 @@ Views of the Node page (documentation/DESIGN.md section 7): header, timeline fig
 segment, threads and experiments tables, parameters of an experiment.
 
 Integrations:
-    1. model.snapshot.Snapshot - frames and summary.
-    2. model.timeline - rows and segments of the timeline.
+    1. model.pages.NodeData - node, networks, timeline rows and segments, threads, experiments.
 
 Sample code:
 ```python
 import pandas as pd
+from container_status_webpage.model import pages
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import node
 
-snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
-node.header(snapshot, 90001)
+data = pages.node(load("synthetic", pd.Timestamp("2026-11-06 12:00")), 90001, None)
+node.header(data.node_id, data.node, data.networks)
 ```
 """
 
 import json
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import dash_ag_grid as dag
 import pandas as pd
@@ -62,14 +62,6 @@ import plotly.graph_objects as go
 from dash import dcc, html
 
 from container_status_webpage.model import status
-from container_status_webpage.model.snapshot import Snapshot
-from container_status_webpage.model.timeline import (
-    DEFAULT_RANGE,
-    segments,
-    span,
-    thread_rows,
-    x_range,
-)
 from container_status_webpage.view import grid, palette
 from container_status_webpage.view.formatting import blank, duration, when
 
@@ -88,24 +80,19 @@ def chip(text: str, colour: str) -> html.Span:
     return html.Span(text, className="chip", style={"backgroundColor": colour})
 
 
-def header(snapshot: Snapshot, node_id: int) -> html.Div:
+def header(node_id: int, node: pd.Series, networks: pd.DataFrame) -> html.Div:
     """
     Header of a node: id, status, municipality, the counts of active interfaces and experiments,
     and the networks of its active experiments.
 
     Args:
-        snapshot (Snapshot): Loaded data.
         node_id (int): Node identifier of a reported node.
+        node (pd.Series): Its row of the nodes frame.
+        networks (pd.DataFrame): Networks of its active experiments (pages.NodeData.networks).
 
     Returns:
         html.Div: The header (id node-header).
     """
-    node = snapshot.nodes.set_index("node_id").loc[node_id]
-    experiments = snapshot.experiments
-    active = status.networks(
-        experiments[(experiments.node_id == node_id) & experiments.stop_time.isna()]
-    )
-    shown = active[active.network_id != 0].drop_duplicates("display_name")
     municipality = blank(node.municipality)
     return html.Div(
         [
@@ -113,10 +100,7 @@ def header(snapshot: Snapshot, node_id: int) -> html.Div:
             chip(node.status.capitalize(), palette.STATUS_COLOUR[node.status]),
             *([html.Span(municipality)] if municipality else []),
             html.Span(f"{node.interfaces} interfaces · {node.experiments} experiments"),
-            *[
-                chip(n.display_name, n.color)
-                for n in shown.sort_values("display_name").itertuples()
-            ],
+            *[chip(n.display_name, n.color) for n in networks.itertuples()],
         ],
         id="node-header",
         className="node-header",
@@ -137,25 +121,28 @@ def gap(value: Any) -> str:
 
 
 def timeline(
-    snapshot: Snapshot, node_id: int, container: Optional[str] = None
+    rows: List[Tuple[str, str, str]],
+    segments: pd.DataFrame,
+    shown: List[pd.Timestamp],
+    container: Optional[str] = None,
 ) -> dcc.Graph:
     """
-    Timeline of a node: one row per thread (thread_rows), bars of segments in the colours of the
-    grid, diamonds for version changes; DEFAULT_RANGE shown, the range buttons of the page set the
-    others (x_range). The rows of a container are highlighted (Grid cell click).
+    Timeline of a node: one row per thread, bars of segments in the colours of the grid, diamonds
+    for version changes; the x range shown first (DEFAULT_RANGE), the range buttons of the page set
+    the others (x_range). The rows of a container are highlighted (Grid cell click).
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
+        rows (List[Tuple[str, str, str]]): Timeline rows (container, thread, kind).
+        segments (pd.DataFrame): Segments of the rows (model.timeline.segments).
+        shown (List[pd.Timestamp]): X range shown first.
         container (Optional[str], optional): Container to highlight. Defaults to None.
 
     Returns:
         dcc.Graph: The chart (id node-timeline); customdata of every point feeds run_detail.
     """
-    # 1. Rows and segments; labels "<container> · <thread>"
-    rows = thread_rows(snapshot, node_id)
+    # 1. Labels "<container> · <thread>" of the rows and the segments
     labels = [f"{status.NAME[c]} · {t}" for c, t, _ in rows]
-    frame = segments(snapshot, node_id)
+    frame = segments
     frame = frame.assign(
         row=[f"{status.NAME[c]} · {t}" for c, t in zip(frame.container, frame.thread)],
         title=[
@@ -223,7 +210,6 @@ def timeline(
             else text
         )
         ticks.append(f"<b>{text}</b>" if c == container else text)
-    first, now = span(snapshot, node_id)
     figure.update_layout(
         height=120 + 26 * len(rows),
         margin={"l": 10, "r": 10, "t": 40, "b": 30},
@@ -239,7 +225,7 @@ def timeline(
         xaxis={
             "type": "date",
             "title": "UTC",
-            "range": x_range(first, now, DEFAULT_RANGE),
+            "range": shown,
             "showgrid": True,
             "gridcolor": "#eeeeee",
         },
@@ -276,22 +262,22 @@ def run_detail(custom: List[str]) -> html.Table:
     )
 
 
-def threads_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
+def threads_table(
+    threads: List[Tuple[str, str, str, Optional[status.ThreadState]]],
+) -> dag.AgGrid:
     """
     Threads of a node in the order of the timeline: latest run of every thread, the state on its
     colour.
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
+        threads (List[Tuple[str, str, str, Optional[status.ThreadState]]]): Container, thread,
+            kind and state of every timeline row (pages.NodeData.threads).
 
     Returns:
         dag.AgGrid: The table (id node-threads).
     """
-    states = snapshot.summary.states
     rows = []
-    for container, thread, kind in thread_rows(snapshot, node_id):
-        state = states.get((node_id, container, thread))
+    for container, thread, kind, state in threads:
         row = (
             grid.orphan_row(thread, state)
             if kind == "orphan"
@@ -333,24 +319,18 @@ def threads_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
     )
 
 
-def experiments_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
+def experiments_table(frame: pd.DataFrame) -> dag.AgGrid:
     """
     Measurement instances of a node, active first; the parameters JSON stays in the rows for
     parameters_view.
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
+        frame (pd.DataFrame): Experiments of the node with network names, active first
+            (pages.NodeData.experiments).
 
     Returns:
         dag.AgGrid: The table (id node-experiments, rows identified by the experiment id).
     """
-    frame = status.networks(
-        snapshot.experiments[snapshot.experiments.node_id == node_id]
-    )
-    frame = frame.assign(active=frame.stop_time.isna()).sort_values(
-        ["active", "id"], ascending=[False, True]
-    )
 
     def measurement(desc: int) -> str:
         name = status.NAME.get(status.CONFIGURED_BY.get(desc))

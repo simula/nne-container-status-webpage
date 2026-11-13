@@ -14,6 +14,7 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
+- Tab titles "Containers – <page>" (were "NorNet edge – <page>"); app title "NorNet Edge – Container Status".
 - Grid, Problems and Overview fill the window: the Grid and Problems tables below their toolbar, scrolling inside
   (were 70 % of the window high), the Overview map down to the footer (was 650 px); no empty band above the footer
   on tall windows.
@@ -34,7 +35,7 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
   the previous data stay.
 - Code structure by the model–view–controller pattern: `model/`, `view/`, `controller/` with one module per page; the
   loaded data (`model/snapshot.py`) apart from their cache (`model/cache.py`); thread states as a dataclass
-  (`status.ThreadState`); database statements as SQLAlchemy selects, no SQL as text.
+  (`status.ThreadState`); page data (`model/pages.py`), from which the views build; database statements as SQLAlchemy selects, no SQL as text.
 - Development: Docker image (gunicorn) and compose file with the nne-reader env file as a secret, `build-web.sh`,
   manual in DEVELOPMENT.md.
 - Safety net: `tests/test_layers.py` checks the layer rules and that no SQL is written as text;
