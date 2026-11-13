@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the container status rules (data/status.py): class boundaries, flapping, receiver
+Checks of the container status rules (model/status.py): class boundaries, flapping, receiver
 restarts, worst thread / partial / orphan, satellite nodes, grade, coverage of the synthetic data,
 problem list and overview.
 
@@ -47,8 +47,8 @@ pytest tests/test_status.py
 
 import pandas as pd
 
-from container_status_webpage.data import status
-from container_status_webpage.data.synthetic import SCENARIOS, synthetic
+from container_status_webpage.model import status
+from container_status_webpage.model.synthetic import SCENARIOS, synthetic
 
 NOW = pd.Timestamp("2026-11-06 12:00")
 

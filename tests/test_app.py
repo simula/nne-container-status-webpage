@@ -48,7 +48,7 @@ import dash
 import pytest
 
 from container_status_webpage.app import server
-from container_status_webpage.components.node import click_query
+from container_status_webpage.controller.node import click_query
 
 
 def test_pages_registered_in_order():

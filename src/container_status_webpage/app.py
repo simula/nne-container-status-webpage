@@ -53,7 +53,7 @@ from dash import Dash
 from flask import Flask
 
 from container_status_webpage import settings
-from container_status_webpage.components import frame
+from container_status_webpage.controller import frame
 
 # Dash app with the pages of pages/ and the assets of assets/
 app: Dash = Dash(
@@ -64,7 +64,7 @@ app: Dash = Dash(
 server: Flask = app.server
 
 # Page frame, built on every page load
-app.layout = frame.layout
+app.layout = frame.page
 
 
 def main() -> None:

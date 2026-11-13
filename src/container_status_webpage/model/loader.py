@@ -40,11 +40,11 @@ Read-only loader of the frames nodes, experiments and raw from the nne and repor
 
 Integrations:
     1. nnedbtools - credentials (identityprovider), engines (connection), queries, tables.
-    2. data.status - status groups of the reported nodes.
+    2. model.status - status groups of the reported nodes.
 
 Sample code:
 ```python
-from container_status_webpage.data.loader import load_database
+from container_status_webpage.model.loader import load_database
 
 nodes, experiments, raw = load_database(".db_env")
 ```
@@ -57,30 +57,84 @@ from nnedbtools import identityprovider
 from nnedbtools.connection import engines
 from nnedbtools.queries.address import select_from_nne_node_adreess_and_nne_addresss
 from nnedbtools.queries.augumentation import select_from_nne_measurement_instance
-from nnedbtools.tables import NneAddressType, NneNodeAddress, ReportContainerRawdata
-from sqlalchemy import select, text
+from nnedbtools.tables import (
+    NneAddressType,
+    NneMeasurementInstance,
+    NneNodeAddress,
+    NneNodeInfo,
+    NneNodeStatusTable,
+    NneStatus,
+    ReportContainerRawdata,
+)
+from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy.orm import aliased
 
-from container_status_webpage.data.status import SATELLITE_NODES, STATUS_ORDER
+from container_status_webpage.model.status import SATELLITE_NODES, STATUS_ORDER
 
 # Satellite nodes have no address: the map shows them next to the site of this node (SimulaMet)
 SATELLITE_SITE_NODE: int = 7056
 
-# Candidate nodes with their status and counts: an active experiment bound to a network and a
-# service, node_id >= 3100, or a satellite node; interfaces without service 7 (power switch SIM),
-# experiments + 1 for metadata
-NODES_SQL: str = f"""
-SELECT n.node_id,
-       s.value AS status,
-       (SELECT COUNT(*) FROM node_info i
-         WHERE i.node_id = n.node_id AND i.valid_to IS NULL AND i.service_id <> 7) AS interfaces,
-       (SELECT COUNT(*) FROM measurement_instance m
-         WHERE m.node_id = n.node_id AND m.stop_time IS NULL) + 1 AS experiments
-  FROM (SELECT DISTINCT node_id FROM measurement_instance
-         WHERE node_id IN ({", ".join(map(str, SATELLITE_NODES))})
-            OR (stop_time IS NULL AND network_id <> 0 AND service_id <> 0 AND node_id >= 3100)) n
-  LEFT JOIN node_status ns ON ns.node_id = n.node_id
-  LEFT JOIN status s ON s.id = ns.status_id
-"""
+
+def select_reported_node_candidates() -> Select:
+    """
+    Candidate nodes with their status and counts: nodes with an active experiment bound to a network
+    and a service and node_id >= 3100, and the satellite nodes; interfaces without service 7 (power
+    switch SIM), experiments + 1 for metadata. Nodes without a status record have status NULL.
+
+    Returns:
+        Select: Columns node_id, status, interfaces, experiments.
+    """
+    # 1. Candidate nodes
+    instance = NneMeasurementInstance
+    candidates = (
+        select(instance.node_id)
+        .distinct()
+        .where(
+            or_(
+                instance.node_id.in_(SATELLITE_NODES),
+                and_(
+                    instance.stop_time.is_(None),
+                    instance.network_id != 0,
+                    instance.service_id != 0,
+                    instance.node_id >= 3100,
+                ),
+            )
+        )
+        .subquery("candidates")
+    )
+    # 2. Active interfaces and active experiments of a candidate
+    interfaces = (
+        select(func.count())
+        .select_from(NneNodeInfo)
+        .where(
+            NneNodeInfo.node_id == candidates.c.node_id,
+            NneNodeInfo.valid_to.is_(None),
+            NneNodeInfo.service_id != 7,
+        )
+        .scalar_subquery()
+    )
+    counted = aliased(NneMeasurementInstance)
+    experiments = (
+        select(func.count())
+        .select_from(counted)
+        .where(counted.node_id == candidates.c.node_id, counted.stop_time.is_(None))
+        .scalar_subquery()
+    )
+    # 3. Status of the node (optional)
+    return (
+        select(
+            candidates.c.node_id,
+            NneStatus.value.label("status"),
+            interfaces.label("interfaces"),
+            (experiments + 1).label("experiments"),
+        )
+        .join(
+            NneNodeStatusTable,
+            NneNodeStatusTable.node_id == candidates.c.node_id,
+            isouter=True,
+        )
+        .join(NneStatus, NneStatus.id == NneNodeStatusTable.status_id, isouter=True)
+    )
 
 
 def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -99,7 +153,7 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     if engines.nne_engine is None:
         identityprovider.load_from_enviroment(env_file)
     # 2. Reported nodes: status DEPLOYED or TESTING with an active interface, or a satellite node
-    nodes = pd.read_sql(text(NODES_SQL), engines.nne_engine)
+    nodes = pd.read_sql(select_reported_node_candidates(), engines.nne_engine)
     satellite = nodes.node_id.isin(SATELLITE_NODES)
     nodes.loc[satellite, "status"] = "DEPLOYED"
     # Satellite nodes run no metadata container

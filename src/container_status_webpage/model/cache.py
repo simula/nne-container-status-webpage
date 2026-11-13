@@ -42,12 +42,12 @@ page load in between uses the same snapshot. All pages use CONTAINERS_CACHE
 
 Integrations:
     1. settings - DATA_SOURCE, CONTAINERS_CACHE_MINUTES.
-    2. data.synthetic - synthetic frames; data.loader - frames of the databases (imported only
+    2. model.synthetic - synthetic frames; model.loader - frames of the databases (imported only
        for DATA_SOURCE database, settings.DB_ENV_FILE).
 
 Sample code:
 ```python
-from container_status_webpage.data.cache import CONTAINERS_CACHE
+from container_status_webpage.model.cache import CONTAINERS_CACHE
 
 snapshot = CONTAINERS_CACHE.get()
 snapshot.summary.cells
@@ -62,8 +62,8 @@ from typing import Callable, List, Optional
 import pandas as pd
 
 from container_status_webpage import settings
-from container_status_webpage.data import status
-from container_status_webpage.data.synthetic import synthetic
+from container_status_webpage.model import status
+from container_status_webpage.model.synthetic import synthetic
 
 # Logger of the failed loads
 LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def load(source: str, now: pd.Timestamp) -> Snapshot:
         nodes, experiments, raw = synthetic(now)
     elif source == "database":
         # pylint: disable-next=import-outside-toplevel
-        from container_status_webpage.data.loader import load_database
+        from container_status_webpage.model.loader import load_database
 
         nodes, experiments, raw = load_database(settings.DB_ENV_FILE)
     else:

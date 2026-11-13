@@ -15,7 +15,7 @@
 #                    https://www.nntb.no
 # =================================================================
 #
-# Node page: header, timeline, threads, experiments
+# Views of the Node page: header, timeline, threads, experiments
 #
 # Copyright (C) 2026 by Simulamet CRNA research team
 #
@@ -35,85 +35,41 @@
 # Contact: crna-eng@simula.no
 
 """
-Node page (documentation/DESIGN.md section 7): URL query, header, timeline segments and
-figure, range of the timeline, segment detail, threads and experiments tables of the selected node.
+Views of the Node page (documentation/DESIGN.md section 7): header, timeline figure, detail of a
+segment, threads and experiments tables, parameters of an experiment.
 
 Integrations:
-    1. data.cache.Snapshot - frames and summary.
-    2. nnedbtools enum_mapper - network names and colours.
+    1. model.cache.Snapshot - frames and summary.
+    2. model.timeline - rows and segments of the timeline.
 
 Sample code:
 ```python
-from container_status_webpage.components import node
-from container_status_webpage.data.cache import CONTAINERS_CACHE
+from container_status_webpage.model.cache import CONTAINERS_CACHE
+from container_status_webpage.view import node
 
 node.header(CONTAINERS_CACHE.get(), 90001)
 ```
 """
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional
 
 import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 from dash import dcc, html
-from nnedbtools.enums import enum_mapper
 
-from container_status_webpage.components import grid, palette
-from container_status_webpage.components.formatting import blank, duration, when
-from container_status_webpage.data import status
-from container_status_webpage.data.cache import Snapshot
-
-# A gap longer than this between the last heartbeat of a run and the next start: the thread was down
-DOWN_AFTER: pd.Timedelta = pd.Timedelta(hours=1)
-
-# Columns of segments
-SEGMENT_COLUMNS: Tuple[str, ...] = (
-    "container",
-    "thread",
-    "kind",
-    "cls",
-    "start",
-    "end",
-    "version",
-    "previous",
-    "before",
-    "after",
+from container_status_webpage.model import status
+from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.timeline import (
+    DEFAULT_RANGE,
+    segments,
+    span,
+    thread_rows,
+    x_range,
 )
-
-# Ranges of the timeline (days back from the load time, "all" from the first start) and the default
-RANGES: Tuple[str, ...] = ("1", "3", "7", "14", "all")
-DEFAULT_RANGE: str = "7"
-
-
-def node_query(node_id: Any, container: Optional[str] = None) -> str:
-    """
-    URL of the Node page (pages/containers.py node_page builds the page from it).
-
-    Args:
-        node_id (Any): Node id.
-        container (Optional[str], optional): Container to highlight. Defaults to None.
-
-    Returns:
-        str: URL, e.g. "/node?node=90001&container=udpping".
-    """
-    return f"/node?node={node_id}" + (f"&container={container}" if container else "")
-
-
-def click_query(cell: Dict[str, Any]) -> str:
-    """
-    URL of a clicked grid or problem list cell: its node, and its container for a container
-    cell.
-
-    Args:
-        cell (Dict[str, Any]): cellClicked of the AG Grid (rowId is the node id).
-
-    Returns:
-        str: URL of the Node page.
-    """
-    column = cell["colId"]
-    return node_query(cell["rowId"], column if column in status.NAME else None)
+from container_status_webpage.view import grid, palette
+from container_status_webpage.view.formatting import blank, duration, when
 
 
 def chip(text: str, colour: str) -> html.Span:
@@ -130,28 +86,6 @@ def chip(text: str, colour: str) -> html.Span:
     return html.Span(text, className="chip", style={"backgroundColor": colour})
 
 
-def networks(experiments: pd.DataFrame) -> pd.DataFrame:
-    """
-    Experiments with the network name (display_name, as Telenor:5G) and colour (color) of the
-    nnedbtools enum_mapper; no name for network 0, the dummy network without an interface. A
-    missing service_id (nullable in nne) counts as 0, no service.
-
-    Args:
-        experiments (pd.DataFrame): Experiments with network_id and service_id.
-
-    Returns:
-        pd.DataFrame: A decorated copy.
-    """
-    frame = enum_mapper.map_network_service_to_plot_attributes_dataframe(
-        experiments.fillna({"service_id": 0}).astype(
-            {"network_id": int, "service_id": int}
-        )
-    )
-    return frame.assign(
-        display_name=frame.display_name.where(frame.network_id != 0, "")
-    )
-
-
 def header(snapshot: Snapshot, node_id: int) -> html.Div:
     """
     Header of a node: id, status, municipality, the counts of active interfaces and experiments,
@@ -166,7 +100,7 @@ def header(snapshot: Snapshot, node_id: int) -> html.Div:
     """
     node = snapshot.nodes.set_index("node_id").loc[node_id]
     experiments = snapshot.experiments
-    active = networks(
+    active = status.networks(
         experiments[(experiments.node_id == node_id) & experiments.stop_time.isna()]
     )
     shown = active[active.network_id != 0].drop_duplicates("display_name")
@@ -187,114 +121,6 @@ def header(snapshot: Snapshot, node_id: int) -> html.Div:
     )
 
 
-def thread_rows(snapshot: Snapshot, node_id: int) -> List[Tuple[str, str, str]]:
-    """
-    Rows of the timeline: the expected threads of every deployed container, then its orphans; main
-    containers first.
-
-    Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
-
-    Returns:
-        List[Tuple[str, str, str]]: Container, thread and kind ("expected", "never", "orphan").
-    """
-    rows = []
-    for container in status.MAIN + status.EXTRA:
-        cell = snapshot.summary.cells[node_id, container]
-        if cell.state == "none":
-            continue
-        rows += [
-            (container, name, "never" if state is None else "expected")
-            for name, state in cell.threads
-        ]
-        rows += [(container, name, "orphan") for name in cell.orphans]
-    return rows
-
-
-def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
-    """
-    Timeline segments of a node (container_rawdata holds one row per run):
-    run (start to last heartbeat, class of its length), down (next start more than DOWN_AFTER
-    after the last heartbeat), silent (last heartbeat to now, last seen class when not running) and
-    version (start of a run with another version than the run before).
-
-    Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
-
-    Returns:
-        pd.DataFrame: Columns of SEGMENT_COLUMNS; before / after are the gaps around a run.
-    """
-    now = snapshot.summary.now
-    raw = snapshot.raw[snapshot.raw.node_id == node_id]
-    out: List[Dict[str, Any]] = []
-    for container, thread, _ in thread_rows(snapshot, node_id):
-        runs = list(
-            raw[(raw.container == container) & (raw.process == thread)]
-            .sort_values("start_ts")
-            .itertuples()
-        )
-        for i, run in enumerate(runs):
-            base = {"container": container, "thread": thread, "version": run.version}
-            previous = runs[i - 1] if i else None
-            following = runs[i + 1] if i + 1 < len(runs) else None
-            # 1. Down period and version change before the run
-            if previous is not None and run.start_ts - previous.seen_ts > DOWN_AFTER:
-                out.append(
-                    {
-                        **base,
-                        "kind": "down",
-                        "cls": "down",
-                        "start": previous.seen_ts,
-                        "end": run.start_ts,
-                    }
-                )
-            if previous is not None and run.version != previous.version:
-                out.append(
-                    {
-                        **base,
-                        "kind": "version",
-                        "start": run.start_ts,
-                        "end": run.start_ts,
-                        "previous": previous.version,
-                    }
-                )
-            # 2. The run
-            hours = (run.seen_ts - run.start_ts).total_seconds() / 3600
-            out.append(
-                {
-                    **base,
-                    "kind": "run",
-                    "cls": status.uptime_class(hours),
-                    "start": run.start_ts,
-                    "end": run.seen_ts,
-                    "before": (
-                        None if previous is None else run.start_ts - previous.seen_ts
-                    ),
-                    "after": (
-                        None if following is None else following.start_ts - run.seen_ts
-                    ),
-                }
-            )
-        # 3. Silent since the last heartbeat
-        if runs:
-            seen = status.seen_class((now - runs[-1].seen_ts).total_seconds() / 3600)
-            if seen != "running":
-                out.append(
-                    {
-                        "container": container,
-                        "thread": thread,
-                        "version": runs[-1].version,
-                        "kind": "silent",
-                        "cls": seen,
-                        "start": runs[-1].seen_ts,
-                        "end": now,
-                    }
-                )
-    return pd.DataFrame(out, columns=list(SEGMENT_COLUMNS))
-
-
 def gap(value: Any) -> str:
     """
     Text of a gap around a run.
@@ -306,72 +132,6 @@ def gap(value: Any) -> str:
         str: Duration, "–" for none.
     """
     return "–" if pd.isna(value) else duration(value.total_seconds())
-
-
-def span(snapshot: Snapshot, node_id: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
-    """
-    Time span of the timeline of a node: first start of a shown thread, load time.
-
-    Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
-
-    Returns:
-        Tuple[pd.Timestamp, pd.Timestamp]: First start (DEFAULT_RANGE days back without runs) and
-            load time.
-    """
-    now = snapshot.summary.now
-    shown = {
-        (container, thread) for container, thread, _ in thread_rows(snapshot, node_id)
-    }
-    raw = snapshot.raw[snapshot.raw.node_id == node_id]
-    starts = [
-        start
-        for container, thread, start in zip(raw.container, raw.process, raw.start_ts)
-        if (container, thread) in shown
-    ]
-    return (min(starts) if starts else now - pd.Timedelta(days=int(DEFAULT_RANGE))), now
-
-
-def x_range(first: pd.Timestamp, now: pd.Timestamp, choice: str) -> List[pd.Timestamp]:
-    """
-    X range of the timeline for a range button.
-
-    Args:
-        first (pd.Timestamp): First start (span).
-        now (pd.Timestamp): Load time (span).
-        choice (str): Value of RANGES.
-
-    Returns:
-        List[pd.Timestamp]: Start and end.
-    """
-    return [first if choice == "all" else now - pd.Timedelta(days=int(choice)), now]
-
-
-def picker_range(
-    from_date: Optional[str], to_date: Optional[str], now: pd.Timestamp
-) -> Optional[List[pd.Timestamp]]:
-    """
-    X range of the timeline from the From / To date pickers (UTC days as the timeline): From at
-    00:00, To to the end of its day, at most the load time (the newest data).
-
-    Args:
-        from_date (Optional[str]): From date, YYYY-MM-DD.
-        to_date (Optional[str]): To date, YYYY-MM-DD.
-        now (pd.Timestamp): Load time (span).
-
-    Returns:
-        Optional[List[pd.Timestamp]]: Start and end; None for an empty or malformed date or an
-            end not after the start.
-    """
-    if not (from_date and to_date):
-        return None
-    try:
-        start, end = (pd.Timestamp(value).normalize() for value in (from_date, to_date))
-    except ValueError:
-        return None
-    end = min(end + pd.Timedelta(days=1), now)
-    return [start, end] if start < end else None
 
 
 def timeline(
@@ -583,7 +343,9 @@ def experiments_table(snapshot: Snapshot, node_id: int) -> dag.AgGrid:
     Returns:
         dag.AgGrid: The table (id node-experiments, rows identified by the experiment id).
     """
-    frame = networks(snapshot.experiments[snapshot.experiments.node_id == node_id])
+    frame = status.networks(
+        snapshot.experiments[snapshot.experiments.node_id == node_id]
+    )
     frame = frame.assign(active=frame.stop_time.isna()).sort_values(
         ["active", "id"], ascending=[False, True]
     )

@@ -36,31 +36,30 @@
 
 """
 Map of the reported nodes: one dot per node with a location, coloured by its grade (status.grade,
-the worst colour class of its containers), on OpenStreetMap tiles; zoomable, a click opens the node
-detail.
+the worst colour class of its containers), on OpenStreetMap tiles; zoomable. The click on a dot is
+handled by controller/overview.py.
 
 Integrations:
-    1. data.status - grades and issues of the nodes.
-    2. components.palette - colours of the classes.
+    1. model.status - grades and issues of the nodes.
+    2. view.palette - colours of the classes.
 
 Sample code:
 ```python
-from container_status_webpage.components.nodemap import node_map
+from container_status_webpage.view.nodemap import node_map
 
 figure = node_map(snapshot, ["Deployed", "Testing"])
 ```
 """
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import pandas as pd
 import plotly.graph_objects as go
 
-from container_status_webpage.components import palette
-from container_status_webpage.components.formatting import blank
-from container_status_webpage.components.node import node_query
-from container_status_webpage.data import status
-from container_status_webpage.data.cache import Snapshot
+from container_status_webpage.model import status
+from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.view import palette
+from container_status_webpage.view.formatting import blank
 
 # Initial view: the whole of Norway
 CENTRE: Dict[str, float] = {"lat": 65.0, "lon": 14.0}
@@ -79,13 +78,10 @@ def details(snapshot: Snapshot, node_id: int) -> List[str]:
         List[str]: The lines.
     """
     node = snapshot.nodes.set_index("node_id").loc[node_id]
-    cells = (
-        (c, snapshot.summary.cells[node_id, c]) for c in status.MAIN + status.EXTRA
-    )
     return [
         " · ".join(filter(None, [node.status.capitalize(), blank(node.municipality)])),
         f"Grade: {status.grade(snapshot.summary, node_id).capitalize()}",
-        *[line for line in (status.issue(c, cell) for c, cell in cells) if line],
+        *status.issues(snapshot.summary, node_id),
     ]
 
 
@@ -162,16 +158,3 @@ def node_map(snapshot: Snapshot, statuses: List[str]) -> go.Figure:
         hoverlabel={"bgcolor": "white"},
     )
     return figure
-
-
-def click_query(click: Dict[str, Any]) -> str:
-    """
-    URL of the Node page of a clicked dot.
-
-    Args:
-        click (Dict[str, Any]): clickData of the map (customdata is the node id).
-
-    Returns:
-        str: URL of the Node page.
-    """
-    return node_query(click["points"][0]["customdata"])

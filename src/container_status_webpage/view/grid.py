@@ -37,17 +37,17 @@
 """
 AG Grid tables of the container pages (documentation/DESIGN.md section 7): the overview counts, the
 colour grid of nodes and containers with its legend, the problem list. Cell styles come from
-components.palette: dash-ag-grid applies the first matching style condition only, so every cell gets
+view.palette: dash-ag-grid applies the first matching style condition only, so every cell gets
 the id of its complete style and every container column one condition per style id.
 
 Integrations:
-    1. data.cache.Snapshot - frames and summary.
+    1. model.cache.Snapshot - frames and summary.
     2. dash-ag-grid - tables; CSS in assets/style.css (class nne-grid).
 
 Sample code:
 ```python
-from container_status_webpage.components import grid
-from container_status_webpage.data.cache import CONTAINERS_CACHE
+from container_status_webpage.view import grid
+from container_status_webpage.model.cache import CONTAINERS_CACHE
 
 grid.status_grid(CONTAINERS_CACHE.get())
 ```
@@ -60,10 +60,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import dash_ag_grid as dag
 from dash import html
 
-from container_status_webpage.components import palette
-from container_status_webpage.components.formatting import blank, duration, when
-from container_status_webpage.data import status
-from container_status_webpage.data.cache import Snapshot
+from container_status_webpage.model import status
+from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.view import palette
+from container_status_webpage.view.formatting import blank, duration, when
 
 # Column options of every table: filtered by the toolbars (filter_rows), not by column filters
 DEFAULT_COLUMN: Dict[str, Any] = {"sortable": True, "filter": False, "resizable": True}
@@ -81,8 +81,7 @@ FIT_COLUMN: Dict[str, Any] = {
 GRID_OPTIONS: Dict[str, Any] = {"tooltipShowDelay": 300, "animateRows": False}
 
 # Node column of the grid and the problem list: a click on the row opens the Node page
-# (pages/containers.py open_from_grid, open_from_problems), rows are identified by the node id
-# (getRowId)
+# (controller/grid.py, controller/problems.py), rows are identified by the node id (getRowId)
 NODE_COLUMN: Dict[str, Any] = {
     "headerName": "Node",
     "field": "node_id",

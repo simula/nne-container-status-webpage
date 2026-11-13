@@ -42,7 +42,7 @@ the nnedbtools enum_mapper.
 
 Sample code:
 ```python
-from container_status_webpage.components import palette
+from container_status_webpage.view import palette
 
 palette.cell_style(cell, testing=False)
 ```
@@ -50,7 +50,7 @@ palette.cell_style(cell, testing=False)
 
 from typing import Dict, List, Tuple
 
-from container_status_webpage.data.status import Cell
+from container_status_webpage.model.status import Cell
 
 # Background and text colour per class: uptime classes of running cells, then the last seen classes
 COLOUR: Dict[str, Tuple[str, str]] = {

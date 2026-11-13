@@ -35,7 +35,7 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the tables of Overview, Grid and Problems (components/grid.py) on the synthetic data:
+Checks of the tables of Overview, Grid and Problems (view/grid.py) on the synthetic data:
 every cell of the colour grid has a style condition, every colour class is used, the tooltip rows,
 the toolbar filter, the problem list and the overview rows.
 
@@ -47,9 +47,9 @@ pytest tests/test_grid.py
 
 import pandas as pd
 
-from container_status_webpage.components import grid, palette
-from container_status_webpage.data import status
-from container_status_webpage.data.cache import load
+from container_status_webpage.model import status
+from container_status_webpage.model.cache import load
+from container_status_webpage.view import grid, palette
 
 # Properties of dash-ag-grid components (rowData, columnDefs) are created at run time
 # pylint: disable=no-member

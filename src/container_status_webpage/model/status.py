@@ -46,8 +46,8 @@ Sample code:
 ```python
 import pandas as pd
 
-from container_status_webpage.data import status
-from container_status_webpage.data.synthetic import synthetic
+from container_status_webpage.model import status
+from container_status_webpage.model.synthetic import synthetic
 
 now = pd.Timestamp("2026-11-06 12:00")
 nodes, experiments, raw = synthetic(now)
@@ -62,6 +62,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment, SupportedExperimentMapper
+from nnedbtools.enums import enum_mapper
 
 # Main and extra containers (DESIGN.md section 4); the group only orders the columns
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
@@ -280,6 +281,28 @@ def configured_containers(experiments: pd.DataFrame) -> Dict[int, Set[str]]:
         .groupby("node_id")
         .container.apply(set)
         .to_dict()
+    )
+
+
+def networks(experiments: pd.DataFrame) -> pd.DataFrame:
+    """
+    Experiments with the network name (display_name, as Telenor:5G) and colour (color) of the
+    nnedbtools enum_mapper; no name for network 0, the dummy network without an interface. A
+    missing service_id (nullable in nne) counts as 0, no service.
+
+    Args:
+        experiments (pd.DataFrame): Experiments with network_id and service_id.
+
+    Returns:
+        pd.DataFrame: A decorated copy.
+    """
+    frame = enum_mapper.map_network_service_to_plot_attributes_dataframe(
+        experiments.fillna({"service_id": 0}).astype(
+            {"network_id": int, "service_id": int}
+        )
+    )
+    return frame.assign(
+        display_name=frame.display_name.where(frame.network_id != 0, "")
     )
 
 
@@ -658,6 +681,21 @@ def issue(container: str, c: Cell) -> str:
     return " ".join(part for part in parts if part)
 
 
+def issues(summary: Summary, node_id: int) -> List[str]:
+    """
+    Issue texts of a node: one per container with an issue (issue), main containers first.
+
+    Args:
+        summary (Summary): Cells of the nodes.
+        node_id (int): Node identifier.
+
+    Returns:
+        List[str]: The texts, empty when the node is fine.
+    """
+    cells = ((c, summary.cells[node_id, c]) for c in MAIN + EXTRA)
+    return [text for text in (issue(c, cell) for c, cell in cells) if text]
+
+
 def problems(nodes: pd.DataFrame, summary: Summary, raw: pd.DataFrame) -> pd.DataFrame:
     """
     Nodes that are not fully OK, DEPLOYED first, then the longest silent.
@@ -676,12 +714,8 @@ def problems(nodes: pd.DataFrame, summary: Summary, raw: pd.DataFrame) -> pd.Dat
     # 2. Issues per node
     rows = []
     for node in nodes.itertuples():
-        issues = [
-            text
-            for text in (issue(c, summary.cells[node.node_id, c]) for c in MAIN + EXTRA)
-            if text
-        ]
-        if issues:
+        found = issues(summary, node.node_id)
+        if found:
             seen = last_seen.get(node.node_id, pd.NaT)
             silent_h = (
                 math.inf
@@ -693,7 +727,7 @@ def problems(nodes: pd.DataFrame, summary: Summary, raw: pd.DataFrame) -> pd.Dat
                     "node_id": node.node_id,
                     "status": node.status,
                     "municipality": node.municipality,
-                    "issues": "; ".join(issues),
+                    "issues": "; ".join(found),
                     "last_seen": seen,
                     "silent_h": silent_h,
                 }

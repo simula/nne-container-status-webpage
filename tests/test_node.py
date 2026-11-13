@@ -35,8 +35,8 @@
 # Contact: crna-eng@simula.no
 
 """
-Checks of the Node page (components/node.py) on the synthetic data: timeline segments of a
-mobile node and of a node with a release history, the timeline rows.
+Checks of the Node page (model/timeline.py, view/node.py) on the synthetic data: timeline segments
+of a mobile node and of a node with a release history, the timeline rows.
 
 Sample code:
 ```bash
@@ -46,8 +46,9 @@ pytest tests/test_node.py
 
 import pandas as pd
 
-from container_status_webpage.components import node
-from container_status_webpage.data.cache import load
+from container_status_webpage.model import status, timeline
+from container_status_webpage.model.cache import load
+from container_status_webpage.view import node
 
 # pylint: disable=no-member
 
@@ -63,7 +64,7 @@ def node_of(scenario: str) -> int:
 def test_mobile_segments():
     """Mobile node: 75 trips, a down segment between every two (5.6 h within a day, 131.6 h while
     parked), silent (late) since the last trip."""
-    frame = node.segments(SNAPSHOT, node_of("mobile"))
+    frame = timeline.segments(SNAPSHOT, node_of("mobile"))
     thread = frame[(frame.container == "mqtt") & (frame.thread == "mqtt")]
     down = thread[thread.kind == "down"]
     assert (thread.kind == "run").sum() == 75 and len(down) == 74
@@ -77,7 +78,7 @@ def test_mobile_segments():
 def test_release_history_segments():
     """Release history: every thread has three version changes (back to a dev build) and one
     down segment of 50 h; still running, so not silent."""
-    frame = node.segments(SNAPSHOT, node_of("release history"))
+    frame = timeline.segments(SNAPSHOT, node_of("release history"))
     kinds = (
         frame.groupby(["container", "thread"]).kind.value_counts().unstack(fill_value=0)
     )
@@ -94,10 +95,10 @@ def test_range_buttons():
     (the release history starts 720 h before the load time); the timeline opens on 7 days.
     """
     node_id = node_of("release history")
-    first, now = node.span(SNAPSHOT, node_id)
+    first, now = timeline.span(SNAPSHOT, node_id)
     assert (first, now) == (now - pd.Timedelta(hours=720), SNAPSHOT.summary.now)
-    assert node.x_range(first, now, "1") == [now - pd.Timedelta(days=1), now]
-    assert node.x_range(first, now, "all") == [first, now]
+    assert timeline.x_range(first, now, "1") == [now - pd.Timedelta(days=1), now]
+    assert timeline.x_range(first, now, "all") == [first, now]
     shown = node.timeline(SNAPSHOT, node_id).figure.layout.xaxis.range
     assert [pd.Timestamp(t) for t in shown] == [now - pd.Timedelta(days=7), now]
 
@@ -107,16 +108,16 @@ def test_range_pickers():
     ends at the newest data); a reversed range or an empty date gives None (the timeline stays).
     """
     now, day = pd.Timestamp("2026-11-11 06:00"), pd.Timestamp("2026-06-01")
-    assert node.picker_range("2026-06-01", "2026-06-01", now) == [
+    assert timeline.picker_range("2026-06-01", "2026-06-01", now) == [
         day,
         day + pd.Timedelta(days=1),
     ]
-    assert node.picker_range("2026-11-10", "2026-11-11", now) == [
+    assert timeline.picker_range("2026-11-10", "2026-11-11", now) == [
         now.normalize() - pd.Timedelta(days=1),
         now,
     ]
-    assert node.picker_range("2026-06-02", "2026-06-01", now) is None
-    assert node.picker_range(None, "2026-06-01", now) is None
+    assert timeline.picker_range("2026-06-02", "2026-06-01", now) is None
+    assert timeline.picker_range(None, "2026-06-01", now) is None
 
 
 def test_threads_and_experiments_tables():
@@ -125,7 +126,7 @@ def test_threads_and_experiments_tables():
     indented JSON."""
     node_id = node_of("inactive experiment")
     threads = node.threads_table(SNAPSHOT, node_id).rowData
-    assert len(threads) == len(node.thread_rows(SNAPSHOT, node_id))
+    assert len(threads) == len(timeline.thread_rows(SNAPSHOT, node_id))
     assert sum(row["state"].startswith("inactive experiment ") for row in threads) == 2
     experiments = node.experiments_table(SNAPSHOT, node_id).rowData
     assert [row["stop"] == "active" for row in experiments] == [True] * 4 + [False]
@@ -155,14 +156,14 @@ def test_networks_without_service():
     """A measurement instance without service_id (nullable in nne) counts as service 0 instead of
     breaking the Node page."""
     experiments = SNAPSHOT.experiments.head(1).assign(service_id=float("nan"))
-    assert node.networks(experiments).service_id.tolist() == [0]
+    assert status.networks(experiments).service_id.tolist() == [0]
 
 
 def test_timeline_rows():
     """One timeline row per thread of the deployed containers, orphans included; the highlighted
     container in bold."""
     node_id = node_of("inactive experiment")
-    rows = node.thread_rows(SNAPSHOT, node_id)
+    rows = timeline.thread_rows(SNAPSHOT, node_id)
     assert [kind for _, _, kind in rows].count("orphan") == 2
     ticks = node.timeline(SNAPSHOT, node_id, "udpping").figure.layout.yaxis.ticktext
     assert len(ticks) == len(rows)

@@ -47,7 +47,7 @@ Sample code:
 ```python
 from dash import Dash
 
-from container_status_webpage.components import frame
+from container_status_webpage.view import frame
 
 app = Dash(__name__, use_pages=True)
 app.layout = frame.layout
@@ -57,7 +57,7 @@ app.layout = frame.layout
 from typing import List
 
 import dash
-from dash import ALL, Input, Output, dcc, html
+from dash import dcc, html
 
 # Link of the NorNet logo
 NNTB_URL: str = "https://www.nntb.no/"
@@ -131,40 +131,3 @@ def layout() -> html.Div:
             ),
         ],
     )
-
-
-@dash.callback(
-    Output({"type": "navigation", "index": ALL}, "className"), Input("url", "pathname")
-)
-def select_navigation(pathname: str) -> List[str]:
-    """
-    Marks the navigation button of the shown page as selected.
-
-    Args:
-        pathname (str): Path of the shown page.
-
-    Returns:
-        List[str]: CSS classes of the navigation buttons, in page order.
-    """
-    return [
-        (
-            "header-button selected"
-            if page["relative_path"] == pathname
-            else "header-button"
-        )
-        for page in dash.page_registry.values()
-    ]
-
-
-# Clock in the browser as nne-viz Clock.tsx: no request to the server every second
-dash.clientside_callback(
-    """(tick) => {
-        const now = new Date(), zone = {timeZone: "UTC"};
-        const date = now.toLocaleDateString("en-GB", zone);
-        const time = now.toLocaleTimeString("en-GB", {...zone, hour12: false});
-        return [date, time];
-    }""",
-    Output("clock-date", "children"),
-    Output("clock-time", "children"),
-    Input("clock-tick", "n_intervals"),
-)
