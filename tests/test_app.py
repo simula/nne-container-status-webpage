@@ -36,7 +36,8 @@
 
 """
 Smoke tests of the webpage without a browser: pages registered from the installed package,
-Node page from its URL query, row clicks, pages, layout and nne-viz assets served.
+Node page from its URL query, row clicks, pages, layout and nne-viz assets served, every callback
+id in a layout.
 
 Sample code:
 ```bash
@@ -44,10 +45,14 @@ pytest
 ```
 """
 
+import json
+from typing import Any, Set
+
 import dash
 import pytest
 
 from container_status_webpage.app import server
+from container_status_webpage.controller import frame
 from container_status_webpage.controller.node import click_query
 
 
@@ -99,3 +104,44 @@ def test_click_opens_node_detail():
 def test_server_answers(path):
     """Pages, the page frame (layout) and the nne-viz assets are served."""
     assert server.test_client().get(path).status_code == 200
+
+
+def id_key(component_id: Any) -> str:
+    """Comparable form of a component id: the string, or the type of a pattern-matching id."""
+    if isinstance(component_id, str) and component_id.startswith("{"):
+        component_id = json.loads(component_id)
+    if isinstance(component_id, dict):
+        return f"type {component_id['type']}"
+    return component_id
+
+
+def layout_ids(component: Any) -> Set[str]:
+    """Ids of a layout and of all components below it."""
+    found, stack = set(), [component]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, (list, tuple)):
+            stack.extend(item)
+        elif hasattr(item, "to_plotly_json"):
+            if getattr(item, "id", None) is not None:
+                found.add(id_key(item.id))
+            stack.append(getattr(item, "children", None))
+    return found
+
+
+def test_callback_ids_in_layouts():
+    """Every component id a callback uses exists in the page frame or a page: Dash Pages
+    suppresses callback exceptions, so a misspelled id would fail without an error."""
+    pages = {page["path"]: page["layout"] for page in dash.page_registry.values()}
+    layouts = [frame.page(), *(layout() for layout in pages.values())]
+    layouts.append(pages["/node"](node="90001", container="udpping"))
+    defined = set().union(*(layout_ids(layout) for layout in layouts))
+    used = set()
+    for callback in server.test_client().get("/_dash-dependencies").get_json():
+        # Outputs "id.property", several as "..id.property...id.property.."
+        outputs = callback["output"].strip(".").split("...")
+        used |= {id_key(output.rsplit(".", 1)[0]) for output in outputs}
+        used |= {id_key(item["id"]) for item in callback["inputs"] + callback["state"]}
+    assert (
+        used <= defined
+    ), f"callback ids without a component: {sorted(used - defined)}"
