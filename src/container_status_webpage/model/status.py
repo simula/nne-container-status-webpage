@@ -70,6 +70,7 @@ from container_status_webpage.model.limits import (
     SEEN,
     UPTIME,
 )
+from container_status_webpage.model.orders import GRADE_ORDER, SEVERITY, STATUS_ORDER
 
 # Main and extra containers (DESIGN.md section 4); the group only orders the columns
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
@@ -101,20 +102,8 @@ THREADS: Dict[str, Tuple[str, ...]] = {
     **{container: ("container",) for container in ("speedtest", "udpping") + EXTRA},
 }
 
-# Reported node_status groups in display order
-STATUS_ORDER: Tuple[str, ...] = ("DEPLOYED", "TESTING")
-
 # measurement_desc_id of udpping
 UDPPING: int = SupportedExperiment.RTT_UDP_PING.value
-
-# Last seen classes from best to worst
-SEVERITY: Tuple[str, ...] = ("running", "late", "stale", "down", "long down", "never")
-
-# Colour classes from best to worst, the grade of a node on the map: uptime shades of running
-# cells, longest first, then the last seen classes
-GRADE_ORDER: Tuple[str, ...] = (
-    tuple(name for _, name in reversed(UPTIME)) + SEVERITY[1:]
-)
 
 # Satellite nodes (documentation/DESIGN.md section 3): reported as DEPLOYED without node, node_info
 # or node_status rows; they run neither metadata nor mqtt

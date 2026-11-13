@@ -18,7 +18,8 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Limits of the classes and warnings in `model/limits.py`; the legend and the timeline write them from there (young
   now "1–24 h"). The timeline starts no earlier than the first real deployment (2026-01-01), so node clock errors
   (2011) no longer stretch it. `/node?node=²` no longer answers 500; `marshmallow` declared; an empty
-  `CONTAINERS_CACHE_MINUTES` fails at the start; unused `assets/network_indicator.png` removed.
+  `CONTAINERS_CACHE_MINUTES` fails at the start; unused `assets/network_indicator.png` removed. The orders of the statuses and classes
+  in `model/orders.py`; every colour of the Python views in `view/palette.py`.
 - Grid, Problems and Overview fill the window: the Grid and Problems tables below their toolbar, scrolling inside
   (were 70 % of the window high), the Overview map down to the footer (was 650 px); no empty band above the footer
   on tall windows.

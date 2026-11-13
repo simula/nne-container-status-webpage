@@ -64,7 +64,7 @@ import dash_ag_grid as dag
 import pandas as pd
 from dash import html
 
-from container_status_webpage.model import limits, status
+from container_status_webpage.model import limits, orders, status
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank, duration, hours_span, when
 
@@ -93,7 +93,7 @@ NODE_COLUMN: Dict[str, Any] = {
 }
 
 # States and markers of the grid filter: a node matches when any of its cells has one
-STATES: Tuple[str, ...] = status.SEVERITY + (
+STATES: Tuple[str, ...] = orders.SEVERITY + (
     "partial",
     "orphan",
     "flapping",
@@ -114,7 +114,7 @@ def status_column(field: str = "status") -> Dict[str, Any]:
     conditions = [
         {
             "condition": f"params.value === '{name.capitalize()}'",
-            "style": {"backgroundColor": colour, "color": "#ffffff"},
+            "style": {"backgroundColor": colour, "color": palette.CHIP_TEXT},
         }
         for name, colour in palette.STATUS_COLOUR.items()
     ]
@@ -186,7 +186,7 @@ def orphan_row(name: str, state: Optional[status.ThreadState]) -> Dict[str, Any]
         **thread_row(name, state),
         "state": f"inactive experiment {status.experiment_id(name)}",
         "colour": palette.ORPHAN,
-        "text": "#ffffff",
+        "text": palette.CHIP_TEXT,
         "orphan": True,
     }
 
@@ -236,6 +236,69 @@ def hover(
     return {"title": title, "rows": rows}
 
 
+def colour_class(cell: status.Cell) -> str:
+    """
+    Colour class of a cell: the uptime shade when running, the state otherwise.
+
+    Args:
+        cell (status.Cell): The cell.
+
+    Returns:
+        str: Key of palette.COLOUR.
+    """
+    return cell.shade if cell.state == "running" else cell.state
+
+
+def cell_text(cell: status.Cell) -> str:
+    """
+    Text of a cell: symbol and label.
+
+    Args:
+        cell (status.Cell): The cell.
+
+    Returns:
+        str: E.g. "✓ S 2/2 R 2/2".
+    """
+    return " ".join(part for part in (palette.SYMBOL[cell.state], cell.label) if part)
+
+
+def cell_style(cell: status.Cell, testing: bool) -> Dict[str, str]:
+    """
+    Complete CSS style of a grid cell: colours, hatching, flapping and restart dots, inner
+    borders, TESTING border.
+
+    Args:
+        cell (status.Cell): The cell.
+        testing (bool): The node is TESTING.
+
+    Returns:
+        Dict[str, str]: CSS properties in camel case (React style).
+    """
+    # 1. Colours of the class
+    background, text = palette.COLOUR[colour_class(cell)]
+    style = {"backgroundColor": background, "color": text, "textAlign": "center"}
+    # 2. Flapping dot, receiver restart dot and hatching
+    images: List[str] = (
+        ([palette.FLAP_DOT] if cell.flapping else [])
+        + ([palette.RESTART_DOT] if cell.restart_warnings else [])
+        + ([palette.HATCH] if cell.state == "never" else [])
+    )
+    if images:
+        style["backgroundImage"] = ", ".join(images)
+    # 3. Inner borders: partial amber, orphans dark red (outside the amber one when both)
+    shadows: List[str] = [f"inset 0 0 0 3px {palette.PARTIAL}"] if cell.partial else []
+    if cell.orphans or cell.orphan_container:
+        shadows.append(f"inset 0 0 0 {6 if cell.partial else 3}px {palette.ORPHAN}")
+    if shadows:
+        style["boxShadow"] = ", ".join(shadows)
+    # 4. Cell border
+    if testing:
+        style["border"] = palette.TESTING_BORDER
+    elif cell.state == "none":
+        style["border"] = palette.NONE_BORDER
+    return style
+
+
 def status_grid(
     nodes: pd.DataFrame,
     cells: Dict[Tuple[int, str], status.Cell],
@@ -246,7 +309,7 @@ def status_grid(
 
     Args:
         nodes (pd.DataFrame): Nodes in the order of the grid (pages.GridData.nodes).
-        cells (Dict[Tuple[int, str], status.Cell]): Cell per (node_id, container).
+        cells (Dict[Tuple[int, str], status.Cell]): status.Cell per (node_id, container).
         thread_states (Dict[Tuple[int, str, str], status.ThreadState]): States for the tooltips.
 
     Returns:
@@ -277,9 +340,9 @@ def status_grid(
                 if flag
             }
             style = json.dumps(
-                palette.cell_style(cell, node.status == "TESTING"), sort_keys=True
+                cell_style(cell, node.status == "TESTING"), sort_keys=True
             )
-            row[container] = palette.cell_text(cell)
+            row[container] = cell_text(cell)
             row[f"{container}__style"] = styles.setdefault(style, len(styles))
             row[f"{container}__tip"] = hover(
                 node.node_id, node.status, container, cell, thread_states

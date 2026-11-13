@@ -60,7 +60,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from container_status_webpage.model import status, timeline
+from container_status_webpage.model import orders, status, timeline
 from container_status_webpage.model.snapshot import Snapshot
 
 
@@ -172,7 +172,7 @@ def overview(snapshot: Snapshot) -> OverviewData:
         node_count=len(nodes),
         loaded_at=snapshot.loaded_at,
         map_nodes=map_nodes(
-            snapshot, [name.capitalize() for name in status.STATUS_ORDER]
+            snapshot, [name.capitalize() for name in orders.STATUS_ORDER]
         ),
         without_location=int((nodes.loc_lat.isna() | nodes.loc_lon.isna()).sum()),
         counts=status.overview(nodes, snapshot.summary),

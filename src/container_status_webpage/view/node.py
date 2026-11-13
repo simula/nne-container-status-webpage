@@ -185,7 +185,7 @@ def timeline(
             name=names[kind].format(cls.capitalize()),
             marker={
                 "color": palette.COLOUR[cls][0],
-                "line": {"color": "#ffffff", "width": 1},
+                "line": {"color": palette.TIMELINE_BAR_LINE, "width": 1},
             },
             opacity=0.4 if kind == "down" else 1,
             customdata=part[custom].to_numpy(),
@@ -198,7 +198,7 @@ def timeline(
         y=versions.row,
         mode="markers",
         name="Version change",
-        marker={"symbol": "diamond", "size": 9, "color": "#333333"},
+        marker={"symbol": "diamond", "size": 9, "color": palette.VERSION_MARKER},
         customdata=versions[custom].to_numpy(),
         hovertemplate=hover,
     )
@@ -216,20 +216,15 @@ def timeline(
         height=120 + 26 * len(rows),
         margin={"l": 10, "r": 10, "t": 40, "b": 30},
         barmode="overlay",
-        plot_bgcolor="#ffffff",
-        # One look for every hover box instead of the colour of the bar
-        hoverlabel={
-            "bgcolor": "#ffffff",
-            "bordercolor": "#bbbbbb",
-            "font": {"color": "#222222"},
-        },
+        plot_bgcolor=palette.TIMELINE_BACKGROUND,
+        hoverlabel=palette.HOVER_BOX,
         legend={"orientation": "h", "y": 1.02, "yanchor": "bottom", "x": 0},
         xaxis={
             "type": "date",
             "title": "UTC",
             "range": shown,
             "showgrid": True,
-            "gridcolor": "#eeeeee",
+            "gridcolor": palette.TIMELINE_GRID,
         },
         yaxis={
             "categoryorder": "array",

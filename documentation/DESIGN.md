@@ -290,6 +290,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` |
 | `model/limits.py` | the limits of the classes and warnings: last seen, uptime, flapping, receiver restarts, down gap, first deployment |
+| `model/orders.py` | the orders of the statuses and classes: reported statuses, last seen classes from best to worst, grades |
 | `model/status.py` | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems, issue texts; network names of the experiments |
 | `model/timeline.py` | timeline of a node: rows, segments, time span, x ranges of the range buttons and the date pickers |
 | `model/pages.py` | what each page shows, prepared from the snapshot: one dataclass per page (`OverviewData`, `GridData`, `ProblemsData`, `NodeData`) and the function that builds it; `map_nodes` for the map filter |
@@ -300,7 +301,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `view/frame.py` | page frame |
 | `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
 | `view/formatting.py` | text of times, durations and missing values, shared by the tables and the timeline |
-| `view/palette.py` | the colours of section 6 as Python constants for the grid and the timeline; the colours of the page frame stay in `assets/style.css` |
+| `view/palette.py` | every colour of the Python views as constants: the colours of section 6, status chips, timeline and map; the colours of the page frame stay in `assets/style.css` |
 | `view/grid.py` | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
 | `view/node.py` | Node: header, timeline figure, segment detail, threads and experiments tables |
 | `view/nodemap.py` | Overview map: hover lines, located nodes with their grade, `Scattermap` figure |

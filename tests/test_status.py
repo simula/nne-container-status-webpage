@@ -49,7 +49,7 @@ import dataclasses
 
 import pandas as pd
 
-from container_status_webpage.model import limits, status
+from container_status_webpage.model import limits, orders, status
 from container_status_webpage.model.synthetic import SCENARIOS, synthetic
 
 NOW = pd.Timestamp("2026-11-06 12:00")
@@ -207,7 +207,7 @@ def test_synthetic_covers_every_class():
     """The synthetic data show every state, shade and marker for both status groups."""
     nodes, experiments, rawdata = synthetic(NOW)
     cells = list(status.summarise(nodes, experiments, rawdata, NOW).cells.values())
-    assert set(status.SEVERITY) | {"none"} <= {c.state for c in cells}
+    assert set(orders.SEVERITY) | {"none"} <= {c.state for c in cells}
     assert {name for _, name in limits.UPTIME} <= {c.shade for c in cells}
     assert any(c.partial and c.state == "running" for c in cells)
     assert any(c.partial and c.state != "running" for c in cells)
@@ -215,7 +215,7 @@ def test_synthetic_covers_every_class():
     assert any(c.orphans for c in cells)
     assert any(c.orphan_container for c in cells)
     assert any(c.restart_warnings for c in cells)
-    assert tuple(nodes.status.unique()) == status.STATUS_ORDER
+    assert tuple(nodes.status.unique()) == orders.STATUS_ORDER
 
 
 def test_problems_and_overview():
