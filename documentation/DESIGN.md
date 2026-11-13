@@ -306,7 +306,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `view/node.py` | Node: header, timeline figure, segment detail, threads and experiments tables |
 | `view/nodemap.py` | Overview map: hover lines, located nodes with their grade, `Scattermap` figure |
 | `assets/dashAgGridComponentFunctions.js` | `ThreadTable`, the tooltip table of a grid cell |
-| `controller/frame.py` | page frame on a page load, navigation highlight, clock |
+| `controller/frame.py` | navigation highlight and clock of the page frame (`app.layout` is `view/frame.py` `layout`) |
 | `controller/overview.py` | Overview: page load, map status filter, map click |
 | `controller/grid.py` | Grid: page load, toolbar filter, row click |
 | `controller/problems.py` | Problems: page load, toolbar filter, row click |
@@ -408,6 +408,12 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
   decided with nginx (phase 5).
 - The open points of the code itself are steps of the refactoring plan (section 14).
+- Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
+  not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
+  database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the
+  Docker image is for development only and is not hardened (no digest pin, no healthcheck, GitHub host key by
+  `ssh-keyscan`). Planned: a loading of `report.container_rawdata` that stays fast over years of growth, and no
+  request waiting for the refresh load (part C of the review).
 
 ## 13. Code conventions
 

@@ -368,6 +368,8 @@ def problems_page(data: ProblemsData) -> html.Div:
                     dcc.Input(
                         id="problems-text",
                         type="text",
+                        # One filter request after typing, not one per keystroke
+                        debounce=0.5,
                         placeholder="Text in the issues",
                         className="toolbar-text",
                     ),

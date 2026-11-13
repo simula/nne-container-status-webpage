@@ -45,9 +45,17 @@ pytest tests/test_node.py
 """
 
 import dataclasses
+from types import SimpleNamespace
+from unittest import mock
 
+import dash
 import pandas as pd
 
+from container_status_webpage.controller.node import (
+    set_range,
+    show_parameters,
+    show_run,
+)
 from container_status_webpage.model import limits, pages, status, timeline
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import node
@@ -193,3 +201,53 @@ def test_span_ignores_clock_errors():
     )
     first, _ = timeline.span(dataclasses.replace(SNAPSHOT, raw=raw), node_id)
     assert first == limits.FIRST_DEPLOYMENT
+
+
+def patched(figure) -> dict:
+    """Assigned values of a dash.Patch by their location."""
+    operations = figure.to_plotly_json()["operations"]
+    return {tuple(op["location"]): op["params"]["value"] for op in operations}
+
+
+def test_click_callbacks():
+    """A click on a timeline bar shows its detail; a click on an experiment its parameters."""
+    custom = [
+        "UDP Ping · receiver-1",
+        "Run (stable)",
+        "2026-11-01 10:00",
+        "2026-11-02 10:00",
+    ]
+    custom += ["1d 0h", "v1", "–", "–"]
+    detail = show_run({"points": [{"customdata": custom}]})
+    assert [row.children[1].children for row in detail.children] == custom
+    rows = [{"id": 12, "parameters": '{"a": 1}'}, {"id": 13, "parameters": '{"b": 2}'}]
+    view = show_parameters({"rowId": "13"}, rows)
+    assert view.children[0].children == "Parameters of experiment 13"
+    assert '"b": 2' in view.children[1].children
+
+
+def test_range_callback():
+    """A range button sets its exact range and fills the pickers with its days; a picker sets whole
+    days and clears the button; a reversed picker range changes nothing."""
+    first_now = ["2026-10-01 08:00:00", "2026-11-06 12:00:00"]
+    with mock.patch("dash.ctx", SimpleNamespace(triggered_id="node-range")):
+        button, start, end, figure = set_range("3", None, None, first_now)
+    assert (button, start, end) == (dash.no_update, "2026-11-03", "2026-11-06")
+    assert patched(figure)[("layout", "xaxis", "range")] == [
+        "2026-11-03 12:00:00",
+        "2026-11-06 12:00:00",
+    ]
+    with mock.patch("dash.ctx", SimpleNamespace(triggered_id="node-from")):
+        button, start, end, figure = set_range(
+            "3", "2026-11-01", "2026-11-02", first_now
+        )
+    assert (button, start, end) == (None, dash.no_update, dash.no_update)
+    assert patched(figure)[("layout", "xaxis", "range")] == [
+        "2026-11-01 00:00:00",
+        "2026-11-03 00:00:00",
+    ]
+    with mock.patch("dash.ctx", SimpleNamespace(triggered_id="node-to")):
+        assert (
+            set_range("3", "2026-11-05", "2026-11-01", first_now)
+            == (dash.no_update,) * 4
+        )
