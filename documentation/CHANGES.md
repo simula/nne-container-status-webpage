@@ -24,7 +24,8 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
   parameters JSON.
 - Read-only database loader (`DATA_SOURCE=database`, `model/loader.py`): reported nodes with their municipality and
   location, measurement instances, `report.container_rawdata`; satellite nodes 4071–4074 reported as DEPLOYED without
-  Metadata and MQTT, on the map next to the site of node 7056.
+  Metadata and MQTT, on the map next to the site of node 7056. `load_database` only reads; `reported` builds the
+  frames without database access (tested on hand-made frames).
 - Synthetic data (`DATA_SOURCE=synthetic`, the default): 44 nodes in 22 scenarios covering every class and marker.
 - Cache per process, loaded again after each importer run (`CONTAINERS_CACHE_MINUTES`); a failed load is logged and
   the previous data stay.

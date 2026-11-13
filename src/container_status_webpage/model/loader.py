@@ -137,23 +137,25 @@ def select_reported_node_candidates() -> Select:
     )
 
 
-def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def reported(
+    candidates: pd.DataFrame, site: pd.DataFrame, experiments: pd.DataFrame
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Frames of the reported nodes from the databases.
+    Reported nodes with their site and their experiments, built from the frames read from the
+    databases (no database access).
 
     Args:
-        env_file (str): nnedbtools env file of the nne-reader account; loaded once per process.
+        candidates (pd.DataFrame): Rows of select_reported_node_candidates.
+        site (pd.DataFrame): Current site addresses of the candidates and of SATELLITE_SITE_NODE
+            (node_id, municipality, loc_lat, loc_lon; coordinates as text).
+        experiments (pd.DataFrame): measurement_instance rows of the candidates.
 
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: nodes (node_id, status, interfaces,
-        experiments, municipality, loc_lat, loc_lon), experiments (measurement_instance rows of
-        the nodes, active and stopped), raw (report.container_rawdata).
+        Tuple[pd.DataFrame, pd.DataFrame]: nodes (node_id, status, interfaces, experiments,
+        municipality, loc_lat, loc_lon) and the experiments of these nodes.
     """
-    # 1. Credentials and engines, once per process
-    if engines.nne_engine is None:
-        identityprovider.load_from_enviroment(env_file)
-    # 2. Reported nodes: status DEPLOYED or TESTING with an active interface, or a satellite node
-    nodes = pd.read_sql(select_reported_node_candidates(), engines.nne_engine)
+    # 1. Reported nodes: status DEPLOYED or TESTING with an active interface, or a satellite node
+    nodes = candidates.copy()
     satellite = nodes.node_id.isin(SATELLITE_NODES)
     nodes.loc[satellite, "status"] = "DEPLOYED"
     # Satellite nodes run no metadata container
@@ -161,18 +163,8 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     nodes = nodes[
         satellite | (nodes.status.isin(STATUS_ORDER) & (nodes.interfaces > 0))
     ]
-    node_ids = nodes.node_id.tolist()
-    # 3. Municipality and location of the current site address (optional); coordinates rounded to
+    # 2. Municipality and location of the current site address (optional); coordinates rounded to
     #    2 decimals (about 1 km), the map does not pinpoint the sites
-    site = pd.read_sql(
-        select_from_nne_node_adreess_and_nne_addresss(
-            node_ids + [SATELLITE_SITE_NODE]
-        ).where(
-            NneNodeAddress.address_type == NneAddressType.site,
-            NneNodeAddress.valid_to.is_(None),
-        ),
-        engines.nne_engine,
-    )
     site = site[["node_id", "municipality", "loc_lat", "loc_lon"]]
     site[["loc_lat", "loc_lon"]] = (
         site[["loc_lat", "loc_lon"]].apply(pd.to_numeric, errors="coerce").round(2)
@@ -189,9 +181,44 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
         ]
     ).drop_duplicates("node_id")
     nodes = nodes.merge(site, on="node_id", how="left")
-    # 4. Experiments of the reported nodes and the container runs
+    # 3. Experiments of the reported nodes
+    experiments = experiments[experiments.node_id.isin(nodes.node_id)]
+    return nodes.reset_index(drop=True), experiments.reset_index(drop=True)
+
+
+def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Frames of the reported nodes from the databases: reads the candidate nodes with their site
+    addresses and experiments and the container runs; reported builds the frames of the pages.
+
+    Args:
+        env_file (str): nnedbtools env file of the nne-reader account; loaded once per process.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: nodes (node_id, status, interfaces,
+        experiments, municipality, loc_lat, loc_lon), experiments (measurement_instance rows of
+        the nodes, active and stopped), raw (report.container_rawdata).
+    """
+    # 1. Credentials and engines, once per process
+    if engines.nne_engine is None:
+        identityprovider.load_from_enviroment(env_file)
+    # 2. Candidate nodes, the site addresses of them and of SATELLITE_SITE_NODE, their experiments
+    #    and the container runs
+    candidates = pd.read_sql(select_reported_node_candidates(), engines.nne_engine)
+    node_ids = candidates.node_id.tolist()
+    site = pd.read_sql(
+        select_from_nne_node_adreess_and_nne_addresss(
+            node_ids + [SATELLITE_SITE_NODE]
+        ).where(
+            NneNodeAddress.address_type == NneAddressType.site,
+            NneNodeAddress.valid_to.is_(None),
+        ),
+        engines.nne_engine,
+    )
     experiments = pd.read_sql(
         select_from_nne_measurement_instance(node_ids), engines.nne_engine
     )
     raw = pd.read_sql(select(ReportContainerRawdata), engines.report_engine)
-    return nodes.reset_index(drop=True), experiments, raw
+    # 3. Reported nodes with their site and experiments
+    nodes, experiments = reported(candidates, site, experiments)
+    return nodes, experiments, raw
