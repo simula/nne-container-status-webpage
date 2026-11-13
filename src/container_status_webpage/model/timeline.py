@@ -40,14 +40,16 @@ thread (runs, down periods, silence to now, version changes), the time span and 
 range buttons and the date pickers. Pandas only, no Dash.
 
 Integrations:
-    1. model.cache.Snapshot - frames and summary.
+    1. model.snapshot.Snapshot - frames and summary.
 
 Sample code:
 ```python
+import pandas as pd
 from container_status_webpage.model import timeline
-from container_status_webpage.model.cache import CONTAINERS_CACHE
+from container_status_webpage.model.snapshot import load
 
-timeline.segments(CONTAINERS_CACHE.get(), 90001)
+snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+timeline.segments(snapshot, 90001)
 ```
 """
 
@@ -56,7 +58,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.snapshot import Snapshot
 
 # A gap longer than this between the last heartbeat of a run and the next start: the thread was down
 DOWN_AFTER: pd.Timedelta = pd.Timedelta(hours=1)

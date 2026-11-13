@@ -137,7 +137,7 @@ pytest                                        # without a browser and a database
 As nnedbtools, see [DESIGN.md section 13](DESIGN.md#13-code-conventions). Before a commit:
 
 ```bash
-isort . && black . && pylint --rcfile .pylintrc src tests
+isort . && black . && pylint --rcfile .pylintrc src tests tools
 ```
 
 Branches `feat/{feature}` and `fix/{fix}`, pull requests on https://github.com/simula/nne-container-status-webpage.

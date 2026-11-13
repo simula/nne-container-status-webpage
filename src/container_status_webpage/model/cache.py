@@ -42,8 +42,7 @@ page load in between uses the same snapshot. All pages use CONTAINERS_CACHE
 
 Integrations:
     1. settings - DATA_SOURCE, CONTAINERS_CACHE_MINUTES.
-    2. model.synthetic - synthetic frames; model.loader - frames of the databases (imported only
-       for DATA_SOURCE database, settings.DB_ENV_FILE).
+    2. model.snapshot - frames of the selected source with their summary.
 
 Sample code:
 ```python
@@ -56,33 +55,15 @@ snapshot.summary.cells
 
 import logging
 import threading
-from dataclasses import dataclass
 from typing import Callable, List, Optional
 
 import pandas as pd
 
 from container_status_webpage import settings
-from container_status_webpage.model import status
-from container_status_webpage.model.synthetic import synthetic
+from container_status_webpage.model.snapshot import Snapshot, load
 
 # Logger of the failed loads
 LOGGER: logging.Logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class Snapshot:
-    """Input frames with their summary at the load time."""
-
-    # Nodes frame
-    nodes: pd.DataFrame
-    # Experiments frame
-    experiments: pd.DataFrame
-    # report.container_rawdata rows
-    raw: pd.DataFrame
-    # Thread states and cells
-    summary: status.Summary
-    # Load time (UTC, naive)
-    loaded_at: pd.Timestamp
 
 
 def utc_now() -> pd.Timestamp:
@@ -93,37 +74,6 @@ def utc_now() -> pd.Timestamp:
         pd.Timestamp: UTC, naive, whole seconds.
     """
     return pd.Timestamp.now("UTC").tz_localize(None).floor("s")
-
-
-def load(source: str, now: pd.Timestamp) -> Snapshot:
-    """
-    Frames of a source with their summary.
-
-    Args:
-        source (str): Data source of settings.DATA_SOURCE.
-        now (pd.Timestamp): Load time (UTC, naive).
-
-    Returns:
-        Snapshot: Frames, summary and load time.
-
-    Raises:
-        ValueError: Unknown source.
-    """
-    # 1. Frames of the source; the loader only for the database, so synthetic data need no
-    #    credentials
-    if source == "synthetic":
-        nodes, experiments, raw = synthetic(now)
-    elif source == "database":
-        # pylint: disable-next=import-outside-toplevel
-        from container_status_webpage.model.loader import load_database
-
-        nodes, experiments, raw = load_database(settings.DB_ENV_FILE)
-    else:
-        raise ValueError(f"Data source {source} is not available")
-    # 2. Summary at the load time
-    return Snapshot(
-        nodes, experiments, raw, status.summarise(nodes, experiments, raw, now), now
-    )
 
 
 def last_refresh(now: pd.Timestamp, minutes: List[int]) -> pd.Timestamp:

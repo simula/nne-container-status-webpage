@@ -57,7 +57,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank
 
