@@ -14,6 +14,9 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
+- Only one year of container runs is loaded (`HISTORY`, `model/limits.py`): the load stays near one second as
+  `report.container_rawdata` grows; the timeline (All, From picker, the start of a longer run) reaches back one year
+  at most; a container silent for more than a year shows as never seen and stays in Problems.
 - Code review: the Overview map filter draws the map rows of the open page (after a cache refresh it showed newer
   data than the tables); the Problems search filters 0.5 s after typing; `CONTAINERS_CACHE_MINUTES` only 0–59; tests of the
   Node callbacks; the restart rules on `ThreadState` and the colour class on `Cell` (one place each); the page frame

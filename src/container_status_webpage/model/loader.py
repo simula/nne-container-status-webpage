@@ -44,9 +44,11 @@ Integrations:
 
 Sample code:
 ```python
+import pandas as pd
 from container_status_webpage.model.loader import load_database
 
-nodes, experiments, raw = load_database(".db_env")
+now = pd.Timestamp.now("UTC").tz_localize(None)
+nodes, experiments, raw = load_database(".db_env", now)
 ```
 """
 
@@ -69,6 +71,7 @@ from nnedbtools.tables import (
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import aliased
 
+from container_status_webpage.model.limits import HISTORY
 from container_status_webpage.model.orders import STATUS_ORDER
 from container_status_webpage.model.status import SATELLITE_NODES
 
@@ -187,13 +190,33 @@ def reported(
     return nodes.reset_index(drop=True), experiments.reset_index(drop=True)
 
 
-def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def select_rawdata(now: pd.Timestamp) -> Select:
+    """
+    Container runs of the last HISTORY: the rows with a heartbeat since now - HISTORY. Filtered on
+    seen_ts, not start_ts, so a run that started earlier and is still alive stays.
+
+    Args:
+        now (pd.Timestamp): Load time (UTC, naive).
+
+    Returns:
+        Select: All columns of report.container_rawdata.
+    """
+    return select(ReportContainerRawdata).where(
+        ReportContainerRawdata.seen_ts >= now - HISTORY
+    )
+
+
+def load_database(
+    env_file: str, now: pd.Timestamp
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Frames of the reported nodes from the databases: reads the candidate nodes with their site
-    addresses and experiments and the container runs; reported builds the frames of the pages.
+    addresses and experiments and the container runs of the last HISTORY; reported builds the
+    frames of the pages.
 
     Args:
         env_file (str): nnedbtools env file of the nne-reader account; loaded once per process.
+        now (pd.Timestamp): Load time (UTC, naive), the end of HISTORY.
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: nodes (node_id, status, interfaces,
@@ -219,7 +242,7 @@ def load_database(env_file: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     experiments = pd.read_sql(
         select_from_nne_measurement_instance(node_ids), engines.nne_engine
     )
-    raw = pd.read_sql(select(ReportContainerRawdata), engines.report_engine)
+    raw = pd.read_sql(select_rawdata(now), engines.report_engine)
     # 3. Reported nodes with their site and experiments
     nodes, experiments = reported(candidates, site, experiments)
     return nodes, experiments, raw

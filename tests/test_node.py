@@ -251,3 +251,40 @@ def test_range_callback():
             set_range("3", "2026-11-05", "2026-11-01", first_now)
             == (dash.no_update,) * 4
         )
+
+
+def test_span_one_year_back():
+    """A year after the first runs, the timeline starts HISTORY before the load time: "All" and the
+    From picker reach back one year at most, also for a run that started earlier."""
+    node_id = node_of("release history")
+    later = pd.Timestamp("2027-06-01 12:00")
+    raw = SNAPSHOT.raw.copy()
+    raw.loc[raw.index[raw.node_id == node_id][0], "start_ts"] = pd.Timestamp(
+        "2026-02-01"
+    )
+    summary = dataclasses.replace(SNAPSHOT.summary, now=later)
+    snapshot = dataclasses.replace(SNAPSHOT, raw=raw, summary=summary)
+    assert timeline.span(snapshot, node_id) == (later - limits.HISTORY, later)
+
+
+def test_run_cut_at_the_window():
+    """A run older than HISTORY and still alive starts at the window on the timeline (bar and
+    hover); its class stays that of the whole run."""
+    node_id = node_of("release history")
+    later = pd.Timestamp("2027-06-01 12:00")
+    raw = SNAPSHOT.raw.copy()
+    row = raw.index[raw.node_id == node_id][0]
+    raw.loc[row, "start_ts"] = pd.Timestamp("2026-02-01")
+    raw.loc[row, "seen_ts"] = later - pd.Timedelta(hours=1)
+    summary = dataclasses.replace(SNAPSHOT.summary, now=later)
+    frame = timeline.segments(
+        dataclasses.replace(SNAPSHOT, raw=raw, summary=summary), node_id
+    )
+    run = frame[
+        (frame.container == raw.container[row])
+        & (frame.thread == raw.process[row])
+        & (frame.kind == "run")
+        & (frame.end == later - pd.Timedelta(hours=1))
+    ]
+    assert run.start.tolist() == [later - limits.HISTORY]
+    assert run.cls.tolist() == ["long-run"]

@@ -45,10 +45,13 @@ pytest tests/test_loader.py
 ```
 """
 
+import operator
+
 import pandas as pd
 import pytest
 
-from container_status_webpage.model.loader import reported
+from container_status_webpage.model import limits
+from container_status_webpage.model.loader import reported, select_rawdata
 
 # Candidates as select_reported_node_candidates returns them; 4071 and 4072 are satellite nodes
 CANDIDATES: pd.DataFrame = pd.DataFrame(
@@ -130,3 +133,13 @@ def test_experiments_of_reported_nodes():
     _, experiments = reported(CANDIDATES, SITE, EXPERIMENTS)
     assert experiments.id.tolist() == [1, 3, 5]
     assert experiments.index.tolist() == [0, 1, 2]
+
+
+def test_rawdata_of_the_last_year():
+    """Only container runs with a heartbeat within HISTORY are read: filtered on seen_ts, so a run
+    that started earlier and is still alive stays."""
+    now = pd.Timestamp("2027-06-01 12:00")
+    condition = select_rawdata(now).whereclause
+    assert condition.left.name == "seen_ts"
+    assert condition.operator is operator.ge
+    assert condition.right.value == now - limits.HISTORY
