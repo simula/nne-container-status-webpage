@@ -69,7 +69,8 @@ from nnedbtools.tables import (
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import aliased
 
-from container_status_webpage.model.status import SATELLITE_NODES, STATUS_ORDER
+from container_status_webpage.model.orders import STATUS_ORDER
+from container_status_webpage.model.status import SATELLITE_NODES
 
 # Satellite nodes have no address: the map shows them next to the site of this node (SimulaMet)
 SATELLITE_SITE_NODE: int = 7056

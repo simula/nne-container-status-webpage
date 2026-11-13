@@ -56,10 +56,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment
 
+from container_status_webpage.model.orders import STATUS_ORDER
 from container_status_webpage.model.status import (
     EXTRA,
     MAIN,
-    STATUS_ORDER,
     UDPPING,
     expected_threads,
 )

@@ -60,7 +60,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import plotly.graph_objects as go
 
-from container_status_webpage.model import status
+from container_status_webpage.model import orders
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank
 
@@ -118,7 +118,7 @@ def node_map(nodes: pd.DataFrame) -> go.Figure:
                 hovertemplate="%{text}<extra></extra>",
             )
             for grade, rows in (
-                (g, frame[frame.grade == g]) for g in ("none",) + status.GRADE_ORDER
+                (g, frame[frame.grade == g]) for g in ("none",) + orders.GRADE_ORDER
             )
             if len(rows)
         ]
@@ -131,8 +131,8 @@ def node_map(nodes: pd.DataFrame) -> go.Figure:
             "title": {"text": "Grade"},
             "x": 0.01,
             "y": 0.99,
-            "bgcolor": "rgba(255,255,255,0.85)",
+            "bgcolor": palette.MAP_LEGEND_BACKGROUND,
         },
-        hoverlabel={"bgcolor": "white"},
+        hoverlabel={"bgcolor": palette.MAP_HOVER_BACKGROUND},
     )
     return figure

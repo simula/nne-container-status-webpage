@@ -50,6 +50,7 @@ import pandas as pd
 from container_status_webpage.model import pages, status
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import grid, palette
+from container_status_webpage.view.formatting import hours_span
 
 # Properties of dash-ag-grid components (rowData, columnDefs) are created at run time
 # pylint: disable=no-member
@@ -159,3 +160,21 @@ def test_overview_rows():
     assert [row["container"] for row in by_container.rowData] == [
         status.NAME[c] for c in status.MAIN + status.EXTRA
     ]
+
+
+def test_legend_from_limits():
+    """The legend writes the class limits of model/limits.py: hours up to 24 h, days from 24 h on,
+    one receiver restart rule."""
+    texts = [part.children[1] for part in grid.legend().children]
+    assert texts[:8] == [
+        "✓ Running, uptime < 1 h",
+        "✓ Running, uptime 1–24 h",
+        "✓ Running, uptime 1–7 d",
+        "✓ Running, uptime > 7 d",
+        "! Late: last seen 2–6 h",
+        "! Stale: last seen 6–24 h",
+        "× Down: last seen 1–7 d",
+        "× Long down: last seen > 7 d",
+    ]
+    assert "↻ Receiver restarts: > 60 per hour" in texts
+    assert hours_span(12, 48) == "12 h – 2 d"

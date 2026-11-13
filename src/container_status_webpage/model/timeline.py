@@ -58,11 +58,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from container_status_webpage.model import status
+from container_status_webpage.model.limits import DOWN_AFTER, FIRST_DEPLOYMENT
 from container_status_webpage.model.snapshot import Snapshot
-
-# A gap longer than this between the last heartbeat of a run and the next start: the thread was down
-DOWN_AFTER: pd.Timedelta = pd.Timedelta(hours=1)
-
 
 # Columns of segments
 SEGMENT_COLUMNS: Tuple[str, ...] = (
@@ -196,7 +193,8 @@ def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
 
 def span(snapshot: Snapshot, node_id: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
     """
-    Time span of the timeline of a node: first start of a shown thread, load time.
+    Time span of the timeline of a node: first start of a shown thread, not before FIRST_DEPLOYMENT
+    (node clock errors), and load time.
 
     Args:
         snapshot (Snapshot): Loaded data.
@@ -216,7 +214,8 @@ def span(snapshot: Snapshot, node_id: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
         for container, thread, start in zip(raw.container, raw.process, raw.start_ts)
         if (container, thread) in shown
     ]
-    return (min(starts) if starts else now - pd.Timedelta(days=int(DEFAULT_RANGE))), now
+    first = min(starts) if starts else now - pd.Timedelta(days=int(DEFAULT_RANGE))
+    return max(first, FIRST_DEPLOYMENT), now
 
 
 def x_range(first: pd.Timestamp, now: pd.Timestamp, choice: str) -> List[pd.Timestamp]:

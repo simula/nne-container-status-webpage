@@ -60,7 +60,7 @@ import pandas as pd
 from dash import dcc, html
 
 from container_status_webpage import settings
-from container_status_webpage.model import status
+from container_status_webpage.model import orders
 from container_status_webpage.model.pages import (
     GridData,
     NodeData,
@@ -104,7 +104,7 @@ def toolbar(prefix: str, rows: List[Dict[str, Any]], own: html.Div) -> html.Div:
     Returns:
         html.Div: The controls (ids <prefix>-status, <prefix>-node, <prefix>-municipality).
     """
-    statuses = [name.capitalize() for name in status.STATUS_ORDER]
+    statuses = [name.capitalize() for name in orders.STATUS_ORDER]
     municipalities = sorted({row["municipality"] for row in rows} - {""})
     return html.Div(
         [
@@ -170,7 +170,7 @@ def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
     Returns:
         html.Div: Toolbar and map (ids map-status, node-map).
     """
-    statuses = [name.capitalize() for name in status.STATUS_ORDER]
+    statuses = [name.capitalize() for name in orders.STATUS_ORDER]
     return html.Div(
         [
             html.Div(

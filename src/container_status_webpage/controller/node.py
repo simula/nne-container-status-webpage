@@ -110,7 +110,7 @@ def page(
     snapshot = CONTAINERS_CACHE.get()
     node_id = (
         int(node)
-        if node and node.isdigit() and int(node) in set(snapshot.nodes.node_id)
+        if node and node.isdecimal() and int(node) in set(snapshot.nodes.node_id)
         else None
     )
     return layouts.node_page(

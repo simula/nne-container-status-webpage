@@ -54,6 +54,7 @@ node.header(data.node_id, data.node, data.networks)
 """
 
 import json
+import math
 from typing import Any, List, Optional, Tuple
 
 import dash_ag_grid as dag
@@ -61,9 +62,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import dcc, html
 
-from container_status_webpage.model import status
+from container_status_webpage.model import limits, status
 from container_status_webpage.view import grid, palette
-from container_status_webpage.view.formatting import blank, duration, when
+from container_status_webpage.view.formatting import blank, duration, hours_span, when
 
 
 def chip(text: str, colour: str) -> html.Span:
@@ -171,7 +172,8 @@ def timeline(
     )
     # 2. Bars: one trace per kind and class
     figure = go.Figure()
-    names = {"run": "{}", "down": "Down (gap > 1 h)", "silent": "Silent: {}"}
+    down_gap = hours_span(limits.DOWN_AFTER / pd.Timedelta(hours=1), math.inf)
+    names = {"run": "{}", "down": f"Down (gap {down_gap})", "silent": "Silent: {}"}
     for (kind, cls), part in frame[frame.kind != "version"].groupby(
         ["kind", "cls"], sort=False
     ):
@@ -183,7 +185,7 @@ def timeline(
             name=names[kind].format(cls.capitalize()),
             marker={
                 "color": palette.COLOUR[cls][0],
-                "line": {"color": "#ffffff", "width": 1},
+                "line": {"color": palette.TIMELINE_BAR_LINE, "width": 1},
             },
             opacity=0.4 if kind == "down" else 1,
             customdata=part[custom].to_numpy(),
@@ -196,7 +198,7 @@ def timeline(
         y=versions.row,
         mode="markers",
         name="Version change",
-        marker={"symbol": "diamond", "size": 9, "color": "#333333"},
+        marker={"symbol": "diamond", "size": 9, "color": palette.VERSION_MARKER},
         customdata=versions[custom].to_numpy(),
         hovertemplate=hover,
     )
@@ -214,20 +216,15 @@ def timeline(
         height=120 + 26 * len(rows),
         margin={"l": 10, "r": 10, "t": 40, "b": 30},
         barmode="overlay",
-        plot_bgcolor="#ffffff",
-        # One look for every hover box instead of the colour of the bar
-        hoverlabel={
-            "bgcolor": "#ffffff",
-            "bordercolor": "#bbbbbb",
-            "font": {"color": "#222222"},
-        },
+        plot_bgcolor=palette.TIMELINE_BACKGROUND,
+        hoverlabel=palette.HOVER_BOX,
         legend={"orientation": "h", "y": 1.02, "yanchor": "bottom", "x": 0},
         xaxis={
             "type": "date",
             "title": "UTC",
             "range": shown,
             "showgrid": True,
-            "gridcolor": "#eeeeee",
+            "gridcolor": palette.TIMELINE_GRID,
         },
         yaxis={
             "categoryorder": "array",

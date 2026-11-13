@@ -36,7 +36,8 @@
 
 """
 Colours and symbols of the container status rules (documentation/DESIGN.md section 6), the single
-source for the grid and the timeline; the colours of the page frame stay in assets/style.css.
+source of every colour of the grid, the timeline and the map; the colours of the page frame stay
+in assets/style.css.
 Aligned with nne-viz web/src/constants/colors.tsx (Status, UpRate); the network colours come from
 the nnedbtools enum_mapper.
 
@@ -44,13 +45,11 @@ Sample code:
 ```python
 from container_status_webpage.view import palette
 
-palette.cell_style(cell, testing=False)
+palette.COLOUR["stale"]   # ("#e16437", "#ffffff")
 ```
 """
 
-from typing import Dict, List, Tuple
-
-from container_status_webpage.model.status import Cell
+from typing import Any, Dict, Tuple
 
 # Background and text colour per class: uptime classes of running cells, then the last seen classes
 COLOUR: Dict[str, Tuple[str, str]] = {
@@ -105,65 +104,22 @@ NONE_BORDER: str = "1px solid #e6e6e6"
 # Status chips
 STATUS_COLOUR: Dict[str, str] = {"DEPLOYED": "#1f3a93", "TESTING": "#7b3fb5"}
 
+# Text on the status colours and on the orphan rows
+CHIP_TEXT: str = "#ffffff"
 
-def colour_class(cell: Cell) -> str:
-    """
-    Colour class of a cell: the uptime shade when running, the state otherwise.
+# Timeline of the Node page: plot background, bar outline, version change marker, x grid lines
+TIMELINE_BACKGROUND: str = "#ffffff"
+TIMELINE_BAR_LINE: str = "#ffffff"
+VERSION_MARKER: str = "#333333"
+TIMELINE_GRID: str = "#eeeeee"
 
-    Args:
-        cell (Cell): The cell.
+# Hover box of the timeline: one look for every hover box instead of the colour of the bar
+HOVER_BOX: Dict[str, Any] = {
+    "bgcolor": "#ffffff",
+    "bordercolor": "#bbbbbb",
+    "font": {"color": "#222222"},
+}
 
-    Returns:
-        str: Key of COLOUR.
-    """
-    return cell.shade if cell.state == "running" else cell.state
-
-
-def cell_text(cell: Cell) -> str:
-    """
-    Text of a cell: symbol and label.
-
-    Args:
-        cell (Cell): The cell.
-
-    Returns:
-        str: E.g. "✓ S 2/2 R 2/2".
-    """
-    return " ".join(part for part in (SYMBOL[cell.state], cell.label) if part)
-
-
-def cell_style(cell: Cell, testing: bool) -> Dict[str, str]:
-    """
-    Complete CSS style of a grid cell: colours, hatching, flapping and restart dots, inner
-    borders, TESTING border.
-
-    Args:
-        cell (Cell): The cell.
-        testing (bool): The node is TESTING.
-
-    Returns:
-        Dict[str, str]: CSS properties in camel case (React style).
-    """
-    # 1. Colours of the class
-    background, text = COLOUR[colour_class(cell)]
-    style = {"backgroundColor": background, "color": text, "textAlign": "center"}
-    # 2. Flapping dot, receiver restart dot and hatching
-    images: List[str] = (
-        ([FLAP_DOT] if cell.flapping else [])
-        + ([RESTART_DOT] if cell.restart_warnings else [])
-        + ([HATCH] if cell.state == "never" else [])
-    )
-    if images:
-        style["backgroundImage"] = ", ".join(images)
-    # 3. Inner borders: partial amber, orphans dark red (outside the amber one when both)
-    shadows: List[str] = [f"inset 0 0 0 3px {PARTIAL}"] if cell.partial else []
-    if cell.orphans or cell.orphan_container:
-        shadows.append(f"inset 0 0 0 {6 if cell.partial else 3}px {ORPHAN}")
-    if shadows:
-        style["boxShadow"] = ", ".join(shadows)
-    # 4. Cell border
-    if testing:
-        style["border"] = TESTING_BORDER
-    elif cell.state == "none":
-        style["border"] = NONE_BORDER
-    return style
+# Overview map: legend background (white, slightly transparent) and hover background
+MAP_LEGEND_BACKGROUND: str = "rgba(255,255,255,0.85)"
+MAP_HOVER_BACKGROUND: str = "white"
