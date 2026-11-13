@@ -207,6 +207,16 @@ class ThreadState:
     seen: str
     up: str
 
+    @property
+    def rate(self) -> Optional[float]:
+        """Receiver restarts per hour of the run (restart_rate)."""
+        return restart_rate(self)
+
+    @property
+    def warning(self) -> bool:
+        """The receiver restarts too often (restart_warning)."""
+        return restart_warning(self)
+
 
 def restart_rate(state: ThreadState) -> Optional[float]:
     """

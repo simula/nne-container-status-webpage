@@ -40,28 +40,34 @@ parts they share: labelled toolbar items, the filter toolbar of the tables, the 
 title: the header button names the view.
 
 Integrations:
-    1. model.snapshot.Snapshot - frames and summary.
+    1. model.pages - page data built by the controllers.
     2. view.grid, view.node, view.nodemap - tables, Node views and map.
 
 Sample code:
 ```python
 import pandas as pd
+from container_status_webpage.model import pages
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import layouts
 
-snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
-layouts.overview(snapshot)
+layouts.overview(pages.overview(load("synthetic", pd.Timestamp("2026-11-06 12:00"))))
 ```
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
+import pandas as pd
 from dash import dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.model import status
-from container_status_webpage.model.snapshot import Snapshot
-from container_status_webpage.model.timeline import DEFAULT_RANGE, RANGES, span, x_range
+from container_status_webpage.model.pages import (
+    GridData,
+    NodeData,
+    OverviewData,
+    ProblemsData,
+)
+from container_status_webpage.model.timeline import DEFAULT_RANGE, RANGES
 from container_status_webpage.view import grid
 from container_status_webpage.view.formatting import when
 from container_status_webpage.view.node import experiments_table
@@ -134,37 +140,37 @@ def toolbar(prefix: str, rows: List[Dict[str, Any]], own: html.Div) -> html.Div:
     )
 
 
-def data_line(snapshot: Snapshot) -> html.P:
+def data_line(node_count: int, loaded_at: pd.Timestamp) -> html.P:
     """
     Data line on top of every page: data source, number of nodes and load time.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        node_count (int): Number of reported nodes.
+        loaded_at (pd.Timestamp): Load time (UTC, naive).
 
     Returns:
         html.P: The line.
     """
     return html.P(
-        f"Data: {settings.DATA_SOURCE} · {len(snapshot.nodes)} nodes · "
-        f"loaded {when(snapshot.loaded_at)} UTC",
+        f"Data: {settings.DATA_SOURCE} · {node_count} nodes · "
+        f"loaded {when(loaded_at)} UTC",
         className="data-info",
     )
 
 
-def map_view(snapshot: Snapshot) -> html.Div:
+def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
     """
     Map half of the Overview: status filter, the number of nodes without location, the zoomable
     map; a click on a dot opens the Node page.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        nodes (pd.DataFrame): Nodes of the map, every status (pages.map_nodes).
+        without_location (int): Number of nodes without location.
 
     Returns:
         html.Div: Toolbar and map (ids map-status, node-map).
     """
     statuses = [name.capitalize() for name in status.STATUS_ORDER]
-    nodes = snapshot.nodes
-    missing = int((nodes.loc_lat.isna() | nodes.loc_lon.isna()).sum())
     return html.Div(
         [
             html.Div(
@@ -178,13 +184,13 @@ def map_view(snapshot: Snapshot) -> html.Div:
                             inline=True,
                         ),
                     ),
-                    html.Span(f"{missing} nodes without location"),
+                    html.Span(f"{without_location} nodes without location"),
                 ],
                 className="toolbar",
             ),
             dcc.Graph(
                 id="node-map",
-                figure=node_map(snapshot, statuses),
+                figure=node_map(nodes),
                 config={"scrollZoom": True},
                 responsive=True,
                 style={"flex": 1, "minHeight": "400px"},
@@ -194,17 +200,13 @@ def map_view(snapshot: Snapshot) -> html.Div:
     )
 
 
-def node_view(
-    snapshot: Snapshot, node_id: Optional[int], container: Optional[str]
-) -> html.Div:
+def node_view(data: NodeData) -> html.Div:
     """
     Node: node selector and the detail of the selected node: header, timeline, detail
     of the clicked segment.
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (Optional[int]): Selected node, None for none.
-        container (Optional[str]): Container highlighted in the timeline, None for none.
+        data (NodeData): Page data.
 
     Returns:
         html.Div: Selector (id node-select) and detail.
@@ -213,13 +215,13 @@ def node_view(
         "Node",
         dcc.Dropdown(
             id="node-select",
-            options=status.ordered(snapshot.nodes).node_id.tolist(),
-            value=node_id,
+            options=data.options,
+            value=data.node_id,
             placeholder="Select a node",
             className="toolbar-nodes",
         ),
     )
-    if node_id is None:
+    if data.node_id is None:
         return html.Div(
             [
                 html.Div(selector, className="toolbar"),
@@ -238,16 +240,15 @@ def node_view(
             inline=True,
         ),
     )
-    first, now = span(snapshot, node_id)
-    dates = [str(t.date()) for t in x_range(first, now, DEFAULT_RANGE)]
+    dates = [str(t.date()) for t in data.shown]
     pickers = [
         item(
             label,
             dcc.DatePickerSingle(
                 id=f"node-{label.lower()}",
                 date=date,
-                min_date_allowed=str(first.date()),
-                max_date_allowed=str(now.date()),
+                min_date_allowed=str(data.first.date()),
+                max_date_allowed=str(data.now.date()),
                 display_format="YYYY-MM-DD",
             ),
         )
@@ -256,17 +257,17 @@ def node_view(
     return html.Div(
         [
             html.Div([selector, ranges, *pickers], className="toolbar"),
-            node_header(snapshot, node_id),
-            timeline(snapshot, node_id, container),
-            dcc.Store(id="node-span", data=[str(first), str(now)]),
+            node_header(data.node_id, data.node, data.networks),
+            timeline(data.rows, data.segments, data.shown, data.container),
+            dcc.Store(id="node-span", data=[str(data.first), str(data.now)]),
             html.Div(
                 html.P("Click a bar for its detail.", className="data-info"),
                 id="node-run",
             ),
             html.H3("Threads"),
-            threads_table(snapshot, node_id),
+            threads_table(data.threads),
             html.H3("Experiments"),
-            experiments_table(snapshot, node_id),
+            experiments_table(data.experiments),
             html.Div(
                 html.P(
                     "Click an experiment for its parameters.", className="data-info"
@@ -277,21 +278,24 @@ def node_view(
     )
 
 
-def overview(snapshot: Snapshot) -> html.Div:
+def overview(data: OverviewData) -> html.Div:
     """
     Overview page (/).
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        data (OverviewData): Page data.
 
     Returns:
         html.Div: Data line, map and count tables.
     """
     return html.Div(
         [
-            data_line(snapshot),
+            data_line(data.node_count, data.loaded_at),
             html.Div(
-                [map_view(snapshot), grid.overview(snapshot)],
+                [
+                    map_view(data.map_nodes, data.without_location),
+                    grid.overview(data.counts, data.running),
+                ],
                 className="overview-split",
             ),
         ],
@@ -299,22 +303,22 @@ def overview(snapshot: Snapshot) -> html.Div:
     )
 
 
-def grid_page(snapshot: Snapshot) -> html.Div:
+def grid_page(data: GridData) -> html.Div:
     """
     Grid page (/grid); all rows kept in a store for filter_grid.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        data (GridData): Page data.
 
     Returns:
         html.Div: Data line, toolbar, legend and grid.
     """
-    table = grid.status_grid(snapshot)
+    table = grid.status_grid(data.nodes, data.cells, data.states)
     # pylint: disable-next=no-member
     rows = table.rowData
     return html.Div(
         [
-            data_line(snapshot),
+            data_line(data.node_count, data.loaded_at),
             toolbar(
                 "grid",
                 rows,
@@ -340,22 +344,22 @@ def grid_page(snapshot: Snapshot) -> html.Div:
     )
 
 
-def problems_page(snapshot: Snapshot) -> html.Div:
+def problems_page(data: ProblemsData) -> html.Div:
     """
     Problems page (/problems); all rows kept in a store for filter_problems.
 
     Args:
-        snapshot (Snapshot): Loaded data.
+        data (ProblemsData): Page data.
 
     Returns:
         html.Div: Data line, toolbar and problem list.
     """
-    problems = grid.problems_grid(snapshot)
+    problems = grid.problems_grid(data.problems)
     # pylint: disable-next=no-member
     rows = problems.rowData
     return html.Div(
         [
-            data_line(snapshot),
+            data_line(data.node_count, data.loaded_at),
             toolbar(
                 "problems",
                 rows,
@@ -376,18 +380,14 @@ def problems_page(snapshot: Snapshot) -> html.Div:
     )
 
 
-def node_page(
-    snapshot: Snapshot, node_id: Optional[int], container: Optional[str]
-) -> html.Div:
+def node_page(data: NodeData) -> html.Div:
     """
     Node page (/node).
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (Optional[int]): Selected node, None for none.
-        container (Optional[str]): Container highlighted in the timeline, None for none.
+        data (NodeData): Page data.
 
     Returns:
         html.Div: Data line and the node view.
     """
-    return html.Div([data_line(snapshot), node_view(snapshot, node_id, container)])
+    return html.Div([data_line(data.node_count, data.loaded_at), node_view(data)])

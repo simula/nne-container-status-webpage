@@ -47,7 +47,7 @@ pytest tests/test_grid.py
 
 import pandas as pd
 
-from container_status_webpage.model import status
+from container_status_webpage.model import pages, status
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import grid, palette
 
@@ -60,7 +60,8 @@ SNAPSHOT = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
 def test_status_grid_styles_every_cell():
     """One row per node; every container cell has the condition of its style id; every colour
     class appears."""
-    table = grid.status_grid(SNAPSHOT)
+    data = pages.grid(SNAPSHOT)
+    table = grid.status_grid(data.nodes, data.cells, data.states)
     assert len(table.rowData) == len(SNAPSHOT.nodes)
     groups = {
         group["headerName"]: group for group in table.columnDefs if "children" in group
@@ -117,7 +118,8 @@ def test_tooltip_table_rows():
 def test_filter_rows():
     """Grid toolbar: status, any cell in a chosen state, node ids, municipalities; an empty control
     does not filter."""
-    rows = grid.status_grid(SNAPSHOT).rowData
+    data = pages.grid(SNAPSHOT)
+    rows = grid.status_grid(data.nodes, data.cells, data.states).rowData
     assert grid.filter_rows(rows, [], [], [], []) == rows
     testing = grid.filter_rows(rows, ["Testing"], [], [], [])
     assert testing and {row["status"] for row in testing} == {"Testing"}
@@ -136,7 +138,7 @@ def test_filter_rows():
 def test_problems_grid_rows():
     """The problem list shows every node that is not fully OK; a node without heartbeat first, with
     no sort key (sorts first); the issues text filter is case-insensitive."""
-    table = grid.problems_grid(SNAPSHOT)
+    table = grid.problems_grid(pages.problems(SNAPSHOT).problems)
     assert len(table.rowData) == 32
     assert table.rowData[0]["last_heartbeat"] == "Never"
     assert table.rowData[0]["last_seen"] is None
@@ -147,7 +149,8 @@ def test_problems_grid_rows():
 
 def test_overview_rows():
     """Overview: Deployed, Testing and All; one row per container with its display name."""
-    _, by_status, _, by_container = grid.overview(SNAPSHOT).children
+    data = pages.overview(SNAPSHOT)
+    _, by_status, _, by_container = grid.overview(data.counts, data.running).children
     assert [row["status"] for row in by_status.rowData] == [
         "Deployed",
         "Testing",

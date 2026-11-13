@@ -40,24 +40,27 @@ the worst colour class of its containers), on OpenStreetMap tiles; zoomable. The
 handled by controller/overview.py.
 
 Integrations:
-    1. model.status - grades and issues of the nodes.
+    1. model.pages.map_nodes - nodes with location, grade and issues.
     2. view.palette - colours of the classes.
 
 Sample code:
 ```python
+import pandas as pd
+from container_status_webpage.model import pages
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view.nodemap import node_map
 
-figure = node_map(snapshot, ["Deployed", "Testing"])
+snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+figure = node_map(pages.map_nodes(snapshot, ["Deployed", "Testing"]))
 ```
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pandas as pd
 import plotly.graph_objects as go
 
 from container_status_webpage.model import status
-from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank
 
@@ -66,64 +69,40 @@ CENTRE: Dict[str, float] = {"lat": 65.0, "lon": 14.0}
 ZOOM: float = 3.6
 
 
-def details(snapshot: Snapshot, node_id: int) -> List[str]:
+def details(node: Any) -> List[str]:
     """
     Lines about a node for the hover: status and municipality, grade, issues.
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        node_id (int): Node identifier.
+        node (Any): Row of pages.map_nodes.
 
     Returns:
         List[str]: The lines.
     """
-    node = snapshot.nodes.set_index("node_id").loc[node_id]
     return [
         " · ".join(filter(None, [node.status.capitalize(), blank(node.municipality)])),
-        f"Grade: {status.grade(snapshot.summary, node_id).capitalize()}",
-        *status.issues(snapshot.summary, node_id),
+        f"Grade: {node.grade.capitalize()}",
+        *node.issues,
     ]
 
 
-def located(snapshot: Snapshot, statuses: List[str]) -> pd.DataFrame:
-    """
-    Nodes with a location and a checked status, with their grade and hover text.
-
-    Args:
-        snapshot (Snapshot): Loaded data.
-        statuses (List[str]): Checked statuses ("Deployed", "Testing").
-
-    Returns:
-        pd.DataFrame: node_id, loc_lat, loc_lon, grade, text.
-    """
-    nodes = snapshot.nodes
-    nodes = nodes[
-        nodes.status.str.capitalize().isin(statuses)
-        & nodes.loc_lat.notna()
-        & nodes.loc_lon.notna()
-    ]
-    return nodes[["node_id", "loc_lat", "loc_lon"]].assign(
-        grade=[status.grade(snapshot.summary, n) for n in nodes.node_id],
-        text=[
-            "<br>".join([f"<b>Node {n}</b>", *details(snapshot, n)])
-            for n in nodes.node_id
-        ],
-    )
-
-
-def node_map(snapshot: Snapshot, statuses: List[str]) -> go.Figure:
+def node_map(nodes: pd.DataFrame) -> go.Figure:
     """
     Map of the nodes: one trace per grade from best to worst, so the worst dots lie on top and the
     legend counts and hides the grades; the zoom stays when the filter changes (uirevision).
 
     Args:
-        snapshot (Snapshot): Loaded data.
-        statuses (List[str]): Checked statuses ("Deployed", "Testing").
+        nodes (pd.DataFrame): Nodes of the map (pages.map_nodes).
 
     Returns:
         go.Figure: The map; customdata of a dot is its node id.
     """
-    frame = located(snapshot, statuses)
+    frame = nodes.assign(
+        text=[
+            "<br>".join([f"<b>Node {node.node_id}</b>", *details(node)])
+            for node in nodes.itertuples()
+        ]
+    )
     figure = go.Figure(
         [
             go.Scattermap(
