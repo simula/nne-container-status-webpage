@@ -479,7 +479,7 @@ callbacks, built on the synthetic data at a fixed time, are compared before and 
 | 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | done |
 | 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | done |
 | 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | done |
-| 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | identical layouts | open |
+| 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | the id test fails on a misspelled id | done |
 
 Layout comparison: `python tools/layout_snapshot.py <file>` with `DATA_SOURCE` unset, on the base branch and on the
 step branch, then `cmp` the two files; no output means the same layouts and callbacks.
@@ -499,3 +499,9 @@ deployment (`FIRST_DEPLOYMENT`, 2026-01-01); the failed load keeps its retry on 
 - Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
   is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
   `assets/network_indicator.png` is not used.
+
+Step 5, decided on 2026-11-13: the component ids stay strings, as Dash writes them; `tests/test_app.py` checks that
+every id a callback uses exists in the page frame or a page (Dash Pages suppresses callback exceptions, so a
+misspelled id would fail without an error). `model/status.py` and `view/grid.py` are not split: each holds one topic
+in the order of this document (the rules of sections 4–6; the AG Grid tables with their cell styles and legend),
+the functions are short, and a split would only move code and imports.
