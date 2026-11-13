@@ -30,7 +30,8 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Cache per process, loaded again after each importer run (`CONTAINERS_CACHE_MINUTES`); a failed load is logged and
   the previous data stay.
 - Code structure by the model–view–controller pattern: `model/`, `view/`, `controller/` with one module per page; the
-  loaded data (`model/snapshot.py`) apart from their cache (`model/cache.py`); database statements as SQLAlchemy selects, no SQL as text.
+  loaded data (`model/snapshot.py`) apart from their cache (`model/cache.py`); thread states as a dataclass
+  (`status.ThreadState`); database statements as SQLAlchemy selects, no SQL as text.
 - Development: Docker image (gunicorn) and compose file with the nne-reader env file as a secret, `build-web.sh`,
   manual in DEVELOPMENT.md.
 - Safety net: `tests/test_layers.py` checks the layer rules and that no SQL is written as text;
