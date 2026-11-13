@@ -141,7 +141,7 @@ def test_problems_grid_rows():
     no sort key (sorts first); the issues text filter is case-insensitive."""
     table = grid.problems_grid(pages.problems(SNAPSHOT).problems)
     assert len(table.rowData) == 32
-    assert table.rowData[0]["last_heartbeat"] == "Never"
+    assert table.rowData[0]["last_heartbeat"] == "Not seen in 365 days"
     assert table.rowData[0]["last_seen"] is None
     found = grid.filter_rows(table.rowData, [], [], [], [], text="udp ping")
     assert found and all("UDP Ping" in row["issues"] for row in found)

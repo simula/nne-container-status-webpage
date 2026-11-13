@@ -83,3 +83,8 @@ DOWN_AFTER: pd.Timedelta = pd.Timedelta(hours=1)
 # First real deployment: earlier start_ts values are node clock errors (2011) and do not stretch
 # the timeline
 FIRST_DEPLOYMENT: pd.Timestamp = pd.Timestamp("2026-01-01")
+
+# Container runs loaded: the rows with a heartbeat within this period. A container silent for
+# longer has no row, shows as never seen and stays in Problems; the timeline reaches back at most
+# this far
+HISTORY: pd.Timedelta = pd.Timedelta(days=365)

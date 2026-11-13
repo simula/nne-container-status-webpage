@@ -60,7 +60,7 @@ import pandas as pd
 from dash import dcc, html
 
 from container_status_webpage import settings
-from container_status_webpage.model import orders
+from container_status_webpage.model import orders, status
 from container_status_webpage.model.pages import (
     GridData,
     NodeData,
@@ -168,7 +168,8 @@ def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
         without_location (int): Number of nodes without location.
 
     Returns:
-        html.Div: Toolbar and map (ids map-status, node-map).
+        html.Div: Toolbar, map and the map rows of the status filter (ids map-status, node-map,
+            map-nodes).
     """
     statuses = [name.capitalize() for name in orders.STATUS_ORDER]
     return html.Div(
@@ -195,6 +196,7 @@ def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
                 responsive=True,
                 style={"flex": 1, "minHeight": "400px"},
             ),
+            dcc.Store(id="map-nodes", data=nodes.to_dict("records")),
         ],
         className="map-view",
     )
@@ -327,7 +329,10 @@ def grid_page(data: GridData) -> html.Div:
                     dcc.Dropdown(
                         id="grid-state",
                         options=[
-                            {"label": name.capitalize(), "value": name}
+                            {
+                                "label": status.state_text(name).capitalize(),
+                                "value": name,
+                            }
                             for name in grid.STATES
                         ],
                         multi=True,
@@ -368,6 +373,8 @@ def problems_page(data: ProblemsData) -> html.Div:
                     dcc.Input(
                         id="problems-text",
                         type="text",
+                        # One filter request after typing, not one per keystroke
+                        debounce=0.5,
                         placeholder="Text in the issues",
                         className="toolbar-text",
                     ),

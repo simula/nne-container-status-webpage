@@ -50,6 +50,7 @@ Sample code:
 """
 
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs
 
 import dash
 import pandas as pd
@@ -121,19 +122,26 @@ def page(
 @callback(
     Output("_pages_location", "href", allow_duplicate=True),
     Input("node-select", "value"),
+    State("_pages_location", "search"),
     prevent_initial_call=True,
 )
-def open_selected(node_id: Optional[int]) -> str:
+def open_selected(node_id: Optional[int], search: Optional[str]) -> str:
     """
-    Opens the Node page of the selected node.
+    Opens the Node page of the selected node. Dash Pages also fires this callback when the page
+    inserts the selector with the node of the URL: that node is shown already, so nothing opens,
+    the URL keeps its container and the page is not built again.
 
     Args:
         node_id (Optional[int]): Selected node.
+        search (Optional[str]): Query of the current URL, e.g. "?node=7056&container=udpping".
 
     Returns:
-        str: URL of the Node page.
+        str: URL of the Node page; no_update for none or for the node already shown.
     """
-    return dash.no_update if node_id is None else node_query(node_id)
+    shown = parse_qs((search or "").lstrip("?")).get("node")
+    if node_id is None or shown == [str(node_id)]:
+        return dash.no_update
+    return node_query(node_id)
 
 
 @callback(

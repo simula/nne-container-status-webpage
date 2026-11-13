@@ -120,9 +120,7 @@ def test_receiver_restart_warning():
     ]
 
     def warned(restarts, run_h):
-        return status.restart_warning(
-            dataclasses.replace(receiver, restarts=restarts, run_h=run_h)
-        )
+        return dataclasses.replace(receiver, restarts=restarts, run_h=run_h).warning
 
     assert not warned(float("nan"), 10)
     assert (warned(600, 10), warned(601, 10)) == (False, True)
@@ -249,3 +247,11 @@ def test_experiment_id():
     assert status.experiment_id("receiver-12") == 12
     assert status.experiment_id("container") is None
     assert status.experiment_id("receiver-²") is None
+
+
+def test_state_text():
+    """The class never is shown as "not seen in <HISTORY> days" (no loaded row within HISTORY);
+    every other state as its name."""
+    assert status.state_text("never") == f"not seen in {limits.HISTORY.days} days"
+    assert status.state_text("never") == "not seen in 365 days"
+    assert status.state_text("long down") == "long down"

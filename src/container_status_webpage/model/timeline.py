@@ -58,7 +58,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from container_status_webpage.model import status
-from container_status_webpage.model.limits import DOWN_AFTER, FIRST_DEPLOYMENT
+from container_status_webpage.model.limits import DOWN_AFTER, FIRST_DEPLOYMENT, HISTORY
 from container_status_webpage.model.snapshot import Snapshot
 
 # Columns of segments
@@ -111,7 +111,8 @@ def thread_rows(snapshot: Snapshot, node_id: int) -> List[Tuple[str, str, str]]:
 def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
     """
     Timeline segments of a node (container_rawdata holds one row per run):
-    run (start to last heartbeat, class of its length), down (next start more than DOWN_AFTER
+    run (start to last heartbeat, class of its length; shown from the window start at the
+    earliest), down (next start more than DOWN_AFTER
     after the last heartbeat), silent (last heartbeat to now, last seen class when not running) and
     version (start of a run with another version than the run before).
 
@@ -123,6 +124,8 @@ def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
         pd.DataFrame: Columns of SEGMENT_COLUMNS; before / after are the gaps around a run.
     """
     now = snapshot.summary.now
+    # Window of the timeline: neither clock errors nor runs older than HISTORY stretch it
+    window = max(FIRST_DEPLOYMENT, now - HISTORY)
     raw = snapshot.raw[snapshot.raw.node_id == node_id]
     out: List[Dict[str, Any]] = []
     for container, thread, _ in thread_rows(snapshot, node_id):
@@ -156,14 +159,15 @@ def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
                         "previous": previous.version,
                     }
                 )
-            # 2. The run
+            # 2. The run, shown from the window start at the earliest; its class from its whole
+            #    length
             hours = (run.seen_ts - run.start_ts).total_seconds() / 3600
             out.append(
                 {
                     **base,
                     "kind": "run",
                     "cls": status.uptime_class(hours),
-                    "start": run.start_ts,
+                    "start": max(run.start_ts, window),
                     "end": run.seen_ts,
                     "before": (
                         None if previous is None else run.start_ts - previous.seen_ts
@@ -194,7 +198,7 @@ def segments(snapshot: Snapshot, node_id: int) -> pd.DataFrame:
 def span(snapshot: Snapshot, node_id: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
     """
     Time span of the timeline of a node: first start of a shown thread, not before FIRST_DEPLOYMENT
-    (node clock errors), and load time.
+    (node clock errors) nor HISTORY before the load time (the loaded runs), and load time.
 
     Args:
         snapshot (Snapshot): Loaded data.
@@ -215,7 +219,7 @@ def span(snapshot: Snapshot, node_id: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
         if (container, thread) in shown
     ]
     first = min(starts) if starts else now - pd.Timedelta(days=int(DEFAULT_RANGE))
-    return max(first, FIRST_DEPLOYMENT), now
+    return max(first, FIRST_DEPLOYMENT, now - HISTORY), now
 
 
 def x_range(first: pd.Timestamp, now: pd.Timestamp, choice: str) -> List[pd.Timestamp]:

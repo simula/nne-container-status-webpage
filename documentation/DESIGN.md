@@ -125,7 +125,7 @@ Reference time is the generation time (UTC). Each thread is classified by its la
 | stale | 6–24 h |
 | down | 1–7 d |
 | long down | > 7 d |
-| never | no row |
+| never, shown as "not seen in 365 days" | no row within `HISTORY` (section 10) |
 
 | Uptime class (running threads) | Uptime |
 |---|---|
@@ -145,6 +145,9 @@ A grid cell is one node and one container:
 - **state**: worst last seen class among the expected threads that have rows
   (running < late < stale < down < long down);
 - **never** when the node expects the container (section 4) and no expected thread has a row, main or extra alike;
+  a container silent for more than a year has no loaded row (`HISTORY`, section 10) and shows as never: it stays an
+  issue in Problems. The pages write the class as "not seen in 365 days" (`status.state_text`, from `HISTORY`), the
+  internal name stays never;
   **not configured** (empty cell) for a container the node does not expect;
 - **shade**: uptime class of the freshest running thread;
 - **partial**: some, but not all, expected threads running; label `k/n`, for udpping `S a/n R b/n`;
@@ -185,7 +188,7 @@ depend on colour alone.
 | stale | `#e16437` | ! |
 | down | `#e13737` | × |
 | long down | `#a50f15` | × |
-| never (expected, no rows) | `#dddddd`, hatched | – |
+| never (expected, no row within `HISTORY`; "not seen in 365 days") | `#dddddd`, hatched | – |
 | not configured | white | |
 
 | Marker | Look |
@@ -233,7 +236,7 @@ Testing; headers in sentence case. The data keep the database values.
   instances + 1 for metadata, which is always configured). No "status since": `nne.node_status.valid_from` is not
   reliable.
 - Timeline (Plotly): one row per expected thread of every deployed container (main first), then the orphans (dark red,
-  ⚠) and the never-seen threads ("(never)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
+  ⚠) and the threads not seen within `HISTORY` ("(not seen in 365 days)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
   length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
   heartbeat, the silence from the last heartbeat to now in its last seen colour; a diamond at the start of a run with
   another version than the run before (hover: old → new). Hover boxes are white. Click on a bar: thread, segment,
@@ -254,7 +257,7 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Header button | the page (Dash Pages) |
 | Grid / Problems toolbar | the rows filtered in a callback from a store of all rows |
 | Grid / Problems row click (`cellClicked`) | the URL query of the node (and of a container cell): the page is built again on Node |
-| Map toolbar (Status) | the map drawn again in a callback; zoom and pan stay (`uirevision`) |
+| Map toolbar (Status) | the map drawn again in a callback from the map rows of the open page (store `map-nodes`, not the cache, so the map keeps the data of the tables after a refresh); zoom and pan stay (`uirevision`) |
 | Map dot click (`clickData`) | the URL query of the node: the page is built again on Node |
 | Node selector | the URL query of the node: the page is built again |
 | Range button | the exact x range of the timeline (`x_range`) set in a callback; fills the From / To pickers with its days |
@@ -289,7 +292,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` |
-| `model/limits.py` | the limits of the classes and warnings: last seen, uptime, flapping, receiver restarts, down gap, first deployment |
+| `model/limits.py` | the limits of the classes and warnings: last seen, uptime, flapping, receiver restarts, down gap, first deployment, history (one year of runs) |
 | `model/orders.py` | the orders of the statuses and classes: reported statuses, last seen classes from best to worst, grades |
 | `model/status.py` | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems, issue texts; network names of the experiments |
 | `model/timeline.py` | timeline of a node: rows, segments, time span, x ranges of the range buttons and the date pickers |
@@ -306,7 +309,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `view/node.py` | Node: header, timeline figure, segment detail, threads and experiments tables |
 | `view/nodemap.py` | Overview map: hover lines, located nodes with their grade, `Scattermap` figure |
 | `assets/dashAgGridComponentFunctions.js` | `ThreadTable`, the tooltip table of a grid cell |
-| `controller/frame.py` | page frame on a page load, navigation highlight, clock |
+| `controller/frame.py` | navigation highlight and clock of the page frame (`app.layout` is `view/frame.py` `layout`) |
 | `controller/overview.py` | Overview: page load, map status filter, map click |
 | `controller/grid.py` | Grid: page load, toolbar filter, row click |
 | `controller/problems.py` | Problems: page load, toolbar filter, row click |
@@ -346,10 +349,14 @@ import a page module (Dash Pages loads it as `pages.<name>`; a second import reg
   `address_type` SITE with `valid_to IS NULL`, the coordinates rounded to 2 decimals;
 - `experiments`: all `measurement_instance` rows of those nodes, active and stopped
   (`queries.augumentation.select_from_nne_measurement_instance(node_ids)`), with `network_id` and `service_id`;
-- `raw`: `select(tables.ReportContainerRawdata)` on the report engine, all rows.
+- `raw`: the rows of `tables.ReportContainerRawdata` with a heartbeat within `HISTORY` (365 days, `model/limits.py`),
+  `seen_ts >= now − HISTORY` (filtered on `seen_ts`, not `start_ts`: a run that started earlier and is still alive
+  stays). Measured on 2026-11-13: 128 runs per day, about 47,000 rows a year at today's node count, so the load
+  stays near one second however long the table grows; `seen_ts` has no index, MariaDB scans the table (0.15 s
+  today) and sends back one year.
 
 `load_database` only reads: the candidate nodes, the site addresses and experiments of all candidates, the
-container runs. `reported` builds `nodes` and `experiments` from these frames without database access (the
+container runs of the last year. `reported` builds `nodes` and `experiments` from these frames without database access (the
 satellite nodes, the filter of section 3, the coordinates, the site merge, the experiments of the reported nodes);
 `tests/test_loader.py` checks it on hand-made frames. Reading for all candidates costs little: 134 candidates for 119
 reported nodes, 92 more `measurement_instance` rows (2026-11-13).
@@ -408,6 +415,13 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
   decided with nginx (phase 5).
 - The open points of the code itself are steps of the refactoring plan (section 14).
+- Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
+  not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
+  database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the
+  Docker image is for development only and is not hardened (no digest pin, no healthcheck, GitHub host key by
+  `ssh-keyscan`). Growth of `report.container_rawdata`: only one year of runs is loaded (`HISTORY`, section 10), the
+  timeline (All, From picker, run starts) reaches back one year at most; no background refresh, a refresh takes
+  about one second. An SQL aggregation of the runs was considered and rejected as more code than the problem.
 
 ## 13. Code conventions
 

@@ -101,7 +101,7 @@ def load(source: str, now: pd.Timestamp) -> Snapshot:
         # pylint: disable-next=import-outside-toplevel
         from container_status_webpage.model.loader import load_database
 
-        nodes, experiments, raw = load_database(settings.DB_ENV_FILE)
+        nodes, experiments, raw = load_database(settings.DB_ENV_FILE, now)
     else:
         raise ValueError(f"Data source {source} is not available")
     # 2. Summary at the load time

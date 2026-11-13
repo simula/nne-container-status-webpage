@@ -50,11 +50,13 @@ import json
 import pandas as pd
 
 from container_status_webpage.controller import overview
-from container_status_webpage.model import orders, pages
+from container_status_webpage.model import orders, pages, status
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import nodemap
 
 SNAPSHOT = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+# Map rows of the Overview page
+ROWS = pages.map_nodes(SNAPSHOT).to_dict("records")
 
 
 def node_ids(figure) -> list:
@@ -67,16 +69,34 @@ def test_dots_filter_and_click():
     filter keeps its nodes; grades from best to worst, so the worst lie on top; a click opens the
     Node page of the dot."""
     nodes = SNAPSHOT.nodes.set_index("node_id")
-    figure = nodemap.node_map(pages.map_nodes(SNAPSHOT, ["Deployed", "Testing"]))
+    figure = nodemap.node_map(pages.checked_map_nodes(ROWS, ["Deployed", "Testing"]))
     assert sorted(node_ids(figure)) == sorted(nodes.index[nodes.loc_lat.notna()])
     assert nodes.municipality[nodes.loc_lat.isna()].isna().all()
-    testing = nodemap.node_map(pages.map_nodes(SNAPSHOT, ["Testing"]))
+    testing = nodemap.node_map(pages.checked_map_nodes(ROWS, ["Testing"]))
     assert set(nodes.status[node_ids(testing)]) == {"TESTING"}
     grades = [trace.name.split(" (")[0].lower() for trace in figure.data]
-    assert grades == sorted(grades, key=orders.GRADE_ORDER.index)
+    shown = [status.state_text(grade) for grade in orders.GRADE_ORDER]
+    assert grades == sorted(grades, key=shown.index)
     node_id = node_ids(figure)[0]
     click = {"points": [{"customdata": node_id}]}
     assert overview.click_query(click) == f"/node?node={node_id}"
     # customdata as plain JSON lists, so that dcc.Graph passes it with the click
     traces = json.loads(figure.to_json())["data"]
     assert all(isinstance(trace["customdata"], list) for trace in traces)
+
+
+def test_filter_uses_the_page_rows():
+    """The status filter draws the map rows of the open page, not the cache: one hand-made node
+    gives exactly its dot; no rows, no dot."""
+    row = {
+        "node_id": 1,
+        "loc_lat": 59.9,
+        "loc_lon": 10.7,
+        "status": "DEPLOYED",
+        "municipality": "Oslo",
+        "grade": "long-run",
+        "issues": [],
+    }
+    assert node_ids(overview.filter_map(["Deployed"], [row])) == [1]
+    assert node_ids(overview.filter_map(["Testing"], [row])) == []
+    assert node_ids(overview.filter_map(["Deployed"], [])) == []

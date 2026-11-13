@@ -35,37 +35,20 @@
 # Contact: crna-eng@simula.no
 
 """
-Controller of the page frame: builds the frame on every page load, marks the navigation button of
-the shown page and runs the clock in the browser.
+Controller of the page frame (view.frame.layout, built on every page load): marks the navigation
+button of the shown page and runs the clock in the browser.
 
 Integrations:
-    1. view.frame - layout of the page frame.
-    2. dash.page_registry - navigation buttons in page order.
+    1. dash.page_registry - navigation buttons in page order.
 
 Sample code:
-```python
-from container_status_webpage.controller import frame
-
-app.layout = frame.page
-```
+    Imported by app.py; the callbacks register on import.
 """
 
 from typing import List
 
 import dash
-from dash import ALL, Input, Output, html
-
-from container_status_webpage.view import frame
-
-
-def page() -> html.Div:
-    """
-    Page frame, built on every page load.
-
-    Returns:
-        html.Div: Header, view with the page and footer (view.frame.layout).
-    """
-    return frame.layout()
+from dash import ALL, Input, Output
 
 
 @dash.callback(

@@ -40,8 +40,8 @@ on the synthetic data at a fixed time, as one JSON file. A refactoring changes n
 file is the same before and after it (documentation/DESIGN.md section 14).
 
 Integrations:
-    1. container_status_webpage.app - Dash Pages registry, /_dash-dependencies; controller.frame -
-       page frame.
+    1. container_status_webpage.app - Dash Pages registry, /_dash-dependencies; view.frame - page
+       frame.
     2. model.cache - utc_now fixed, so every run loads the same synthetic snapshot.
 
 Sample code:
@@ -63,8 +63,8 @@ from plotly.io.json import to_json_plotly
 
 from container_status_webpage import settings
 from container_status_webpage.app import server
-from container_status_webpage.controller import frame
 from container_status_webpage.model import cache
+from container_status_webpage.view.frame import layout as frame_layout
 
 # Load time of the synthetic data (UTC, naive)
 NOW: pd.Timestamp = pd.Timestamp("2026-11-06 12:00")
@@ -85,7 +85,7 @@ def snapshot_layouts(path: str) -> None:
         pages: Dict[str, Any] = {
             page["path"]: page["layout"] for page in dash.page_registry.values()
         }
-        built: Dict[str, Any] = {"frame": frame.page()}
+        built: Dict[str, Any] = {"frame": frame_layout()}
         built.update({page_path: layout() for page_path, layout in pages.items()})
         built["/node?node=1"] = pages["/node"](node="1")
         for node_id in cache.CONTAINERS_CACHE.get().nodes["node_id"]:

@@ -52,8 +52,8 @@ import dash
 import pytest
 
 from container_status_webpage.app import server
-from container_status_webpage.controller import frame
-from container_status_webpage.controller.node import click_query
+from container_status_webpage.controller.node import click_query, open_selected
+from container_status_webpage.view.frame import layout as frame_layout
 
 
 def test_pages_registered_in_order():
@@ -133,7 +133,7 @@ def test_callback_ids_in_layouts():
     """Every component id a callback uses exists in the page frame or a page: Dash Pages
     suppresses callback exceptions, so a misspelled id would fail without an error."""
     pages = {page["path"]: page["layout"] for page in dash.page_registry.values()}
-    layouts = [frame.page(), *(layout() for layout in pages.values())]
+    layouts = [frame_layout(), *(layout() for layout in pages.values())]
     layouts.append(pages["/node"](node="90001", container="udpping"))
     defined = set().union(*(layout_ids(layout) for layout in layouts))
     used = set()
@@ -145,3 +145,13 @@ def test_callback_ids_in_layouts():
     assert (
         used <= defined
     ), f"callback ids without a component: {sorted(used - defined)}"
+
+
+def test_node_selector_keeps_the_page():
+    """The node selector opens a node; the node the URL already shows (the page load inserts the
+    selector with it) opens nothing, so the URL keeps its container and the page is built once.
+    """
+    assert open_selected(7056, "?node=7056&container=udpping") is dash.no_update
+    assert open_selected(None, "?node=7056") is dash.no_update
+    assert open_selected(4120, "?node=7056") == "/node?node=4120"
+    assert open_selected(7056, "") == "/node?node=7056"

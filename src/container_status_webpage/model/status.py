@@ -66,6 +66,7 @@ from nnedbtools.enums import enum_mapper
 
 from container_status_webpage.model.limits import (
     FLAPPING,
+    HISTORY,
     RESTARTS_PER_HOUR,
     SEEN,
     UPTIME,
@@ -180,45 +181,41 @@ class ThreadState:
 
     @property
     def rate(self) -> Optional[float]:
-        """Receiver restarts per hour of the run (restart_rate)."""
-        return restart_rate(self)
+        """
+        Receiver restarts per hour of the run; the run counts as at least 1 h (heartbeats arrive
+        hourly).
+
+        Returns:
+            Optional[float]: Restarts per hour, None without a counter.
+        """
+        if pd.isna(self.restarts):
+            return None
+        return self.restarts / max(self.run_h, 1)
 
     @property
     def warning(self) -> bool:
-        """The receiver restarts too often (restart_warning)."""
-        return restart_warning(self)
+        """
+        The receiver restarts too often: above RESTARTS_PER_HOUR.
+
+        Returns:
+            bool: Warning.
+        """
+        rate = self.rate
+        return rate is not None and rate > RESTARTS_PER_HOUR
 
 
-def restart_rate(state: ThreadState) -> Optional[float]:
+def state_text(state: str) -> str:
     """
-    Receiver restarts per hour of the latest run; the run counts as at least 1 h (heartbeats
-    arrive hourly).
+    Text of a state, class or marker on the pages: the class never (no loaded row within HISTORY)
+    as "not seen in 365 days", every other one as its name.
 
     Args:
-        state (ThreadState): Thread state of thread_states (restarts, run_h).
+        state (str): Name of the state, class or marker.
 
     Returns:
-        Optional[float]: Restarts per hour, None without a counter.
+        str: The text.
     """
-    if pd.isna(state.restarts):
-        return None
-    return state.restarts / max(state.run_h, 1)
-
-
-def restart_warning(state: ThreadState) -> bool:
-    """
-    The receiver restarts too often: above RESTARTS_PER_HOUR.
-
-    Args:
-        state (ThreadState): Thread state of thread_states.
-
-    Returns:
-        bool: Warning.
-    """
-    rate = restart_rate(state)
-    if rate is None:
-        return False
-    return rate > RESTARTS_PER_HOUR
+    return f"not seen in {HISTORY.days} days" if state == "never" else state
 
 
 def rate_text(rate: float) -> str:
@@ -366,13 +363,18 @@ class Cell:
     orphans: List[str] = field(default_factory=list)
     # The container is alive although no active instance of the node configures it
     orphan_container: bool = False
-    # Expected threads (receivers) that restart too often (restart_warning)
+    # Expected threads (receivers) that restart too often (ThreadState.warning)
     restart_warnings: List[str] = field(default_factory=list)
 
     @property
     def running(self) -> bool:
         """At least one expected thread is running."""
         return self.state == "running" or self.partial
+
+    @property
+    def colour(self) -> str:
+        """Colour class: the uptime shade when running, the state otherwise."""
+        return self.shade if self.state == "running" else self.state
 
 
 def cell(
@@ -442,7 +444,7 @@ def cell(
         label += f" ⚠+{len(orphans)}"
     if not expected:
         label += " ⚠"
-    warnings = [name for name, state in threads if state and restart_warning(state)]
+    warnings = [name for name, state in threads if state and state.warning]
     if warnings:
         label += " ↻"
     # 5. Worst class, shade of the freshest running thread, flapping, restart warnings
@@ -524,11 +526,7 @@ def grade(summary: Summary, node_id: int) -> str:
     """
     cells = [summary.cells[node_id, container] for container in MAIN + EXTRA]
     return max(
-        (
-            c.shade if c.state == "running" else c.state
-            for c in cells
-            if c.state != "none"
-        ),
+        (c.colour for c in cells if c.state != "none"),
         key=GRADE_ORDER.index,
         default="none",
     )
@@ -673,12 +671,12 @@ def issue(container: str, c: Cell) -> str:
     parts = (
         f"{NAME[container]}:",
         "running without a configured instance" if c.orphan_container else "",
-        c.state if bad else "",
+        state_text(c.state) if bad else "",
         f"partial {c.label}" if c.partial else "",
         "flapping" if c.flapping else "",
         f"running for inactive experiment {', '.join(c.orphans)}" if c.orphans else "",
         ", ".join(
-            f"{name} restarts {rate_text(restart_rate(states[name]))}"
+            f"{name} restarts {rate_text(states[name].rate)}"
             for name in c.restart_warnings
         ),
     )
