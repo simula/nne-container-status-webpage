@@ -14,7 +14,8 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
-- Code review: the Problems search filters 0.5 s after typing; `CONTAINERS_CACHE_MINUTES` only 0–59; tests of the
+- Code review: the Overview map filter draws the map rows of the open page (after a cache refresh it showed newer
+  data than the tables); the Problems search filters 0.5 s after typing; `CONTAINERS_CACHE_MINUTES` only 0–59; tests of the
   Node callbacks; the restart rules on `ThreadState` and the colour class on `Cell` (one place each); the page frame
   straight from `view/frame.py`.
 - Node page opened with a container (Grid cell click) keeps the container highlighted: the node selector no longer

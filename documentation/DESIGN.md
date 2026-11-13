@@ -254,7 +254,7 @@ and the Grid tooltip (`ThreadTable` in `assets/dashAgGridComponentFunctions.js`,
 | Header button | the page (Dash Pages) |
 | Grid / Problems toolbar | the rows filtered in a callback from a store of all rows |
 | Grid / Problems row click (`cellClicked`) | the URL query of the node (and of a container cell): the page is built again on Node |
-| Map toolbar (Status) | the map drawn again in a callback; zoom and pan stay (`uirevision`) |
+| Map toolbar (Status) | the map drawn again in a callback from the map rows of the open page (store `map-nodes`, not the cache, so the map keeps the data of the tables after a refresh); zoom and pan stay (`uirevision`) |
 | Map dot click (`clickData`) | the URL query of the node: the page is built again on Node |
 | Node selector | the URL query of the node: the page is built again |
 | Range button | the exact x range of the timeline (`x_range`) set in a callback; fills the From / To pickers with its days |

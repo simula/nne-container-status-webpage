@@ -168,7 +168,8 @@ def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
         without_location (int): Number of nodes without location.
 
     Returns:
-        html.Div: Toolbar and map (ids map-status, node-map).
+        html.Div: Toolbar, map and the map rows of the status filter (ids map-status, node-map,
+            map-nodes).
     """
     statuses = [name.capitalize() for name in orders.STATUS_ORDER]
     return html.Div(
@@ -195,6 +196,7 @@ def map_view(nodes: pd.DataFrame, without_location: int) -> html.Div:
                 responsive=True,
                 style={"flex": 1, "minHeight": "400px"},
             ),
+            dcc.Store(id="map-nodes", data=nodes.to_dict("records")),
         ],
         className="map-view",
     )

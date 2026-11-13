@@ -56,12 +56,23 @@ pages.node(snapshot, 90001, None).threads
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from container_status_webpage.model import orders, status, timeline
+from container_status_webpage.model import status, timeline
 from container_status_webpage.model.snapshot import Snapshot
+
+# Columns of the map rows (map_nodes), also when there are none
+MAP_COLUMNS: Tuple[str, ...] = (
+    "node_id",
+    "loc_lat",
+    "loc_lon",
+    "status",
+    "municipality",
+    "grade",
+    "issues",
+)
 
 
 @dataclass(frozen=True)
@@ -71,7 +82,7 @@ class OverviewData:
     # Number of reported nodes and load time (UTC, naive) of the data line
     node_count: int
     loaded_at: pd.Timestamp
-    # Map dots of every status (map_nodes) and the number of nodes without location
+    # Map rows: every node with a location (map_nodes); the number of nodes without location
     map_nodes: pd.DataFrame
     without_location: int
     # Node counts per status group (status.overview), running containers (status.container_counts)
@@ -134,27 +145,39 @@ class NodeData:  # pylint: disable=too-many-instance-attributes
     experiments: Optional[pd.DataFrame] = None
 
 
-def map_nodes(snapshot: Snapshot, statuses: List[str]) -> pd.DataFrame:
+def map_nodes(snapshot: Snapshot) -> pd.DataFrame:
     """
-    Nodes with a location and a checked status, with what their map dot shows.
+    Reported nodes with a location, with what their map dot shows; the page keeps them as its map
+    rows for the status filter (checked_map_nodes).
 
     Args:
         snapshot (Snapshot): Loaded data.
-        statuses (List[str]): Checked statuses ("Deployed", "Testing").
 
     Returns:
-        pd.DataFrame: node_id, loc_lat, loc_lon, status, municipality, grade, issues (list).
+        pd.DataFrame: Columns of MAP_COLUMNS; issues as a list.
     """
     nodes = snapshot.nodes
-    nodes = nodes[
-        nodes.status.str.capitalize().isin(statuses)
-        & nodes.loc_lat.notna()
-        & nodes.loc_lon.notna()
-    ]
+    nodes = nodes[nodes.loc_lat.notna() & nodes.loc_lon.notna()]
     return nodes[["node_id", "loc_lat", "loc_lon", "status", "municipality"]].assign(
         grade=[status.grade(snapshot.summary, n) for n in nodes.node_id],
         issues=[status.issues(snapshot.summary, n) for n in nodes.node_id],
     )
+
+
+def checked_map_nodes(rows: List[Dict[str, Any]], statuses: List[str]) -> pd.DataFrame:
+    """
+    Map rows of the open page (map_nodes as records) with a checked status: the map filter draws
+    the data of the page, also after the cache has loaded newer data.
+
+    Args:
+        rows (List[Dict[str, Any]]): Map rows of the page.
+        statuses (List[str]): Checked statuses ("Deployed", "Testing").
+
+    Returns:
+        pd.DataFrame: Columns of MAP_COLUMNS.
+    """
+    nodes = pd.DataFrame(rows, columns=list(MAP_COLUMNS))
+    return nodes[nodes.status.str.capitalize().isin(statuses)]
 
 
 def overview(snapshot: Snapshot) -> OverviewData:
@@ -171,9 +194,7 @@ def overview(snapshot: Snapshot) -> OverviewData:
     return OverviewData(
         node_count=len(nodes),
         loaded_at=snapshot.loaded_at,
-        map_nodes=map_nodes(
-            snapshot, [name.capitalize() for name in orders.STATUS_ORDER]
-        ),
+        map_nodes=map_nodes(snapshot),
         without_location=int((nodes.loc_lat.isna() | nodes.loc_lon.isna()).sum()),
         counts=status.overview(nodes, snapshot.summary),
         running=status.container_counts(nodes, snapshot.summary),

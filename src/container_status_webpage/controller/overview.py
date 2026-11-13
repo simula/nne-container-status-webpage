@@ -50,7 +50,7 @@ Sample code:
 from typing import Any, Dict, List, Optional
 
 import dash
-from dash import Input, Output, callback, html
+from dash import Input, Output, State, callback, html
 
 from container_status_webpage.controller.node import node_query
 from container_status_webpage.model import pages
@@ -88,19 +88,22 @@ def page(**_query: str) -> html.Div:
 @callback(
     Output("node-map", "figure"),
     Input("map-status", "value"),
+    State("map-nodes", "data"),
     prevent_initial_call=True,
 )
-def filter_map(statuses: Optional[List[str]]) -> Any:
+def filter_map(statuses: Optional[List[str]], rows: List[Dict[str, Any]]) -> Any:
     """
-    Map of the nodes with a checked status.
+    Map of the page's nodes with a checked status: drawn from the map rows of the open page, not
+    from the cache, so the map keeps the data of the tables after a refresh.
 
     Args:
         statuses (Optional[List[str]]): Checked statuses.
+        rows (List[Dict[str, Any]]): Map rows of the page (map-nodes).
 
     Returns:
         Any: The figure.
     """
-    return node_map(pages.map_nodes(CONTAINERS_CACHE.get(), statuses or []))
+    return node_map(pages.checked_map_nodes(rows, statuses or []))
 
 
 @callback(
