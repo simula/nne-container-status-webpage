@@ -236,19 +236,6 @@ def hover(
     return {"title": title, "rows": rows}
 
 
-def colour_class(cell: status.Cell) -> str:
-    """
-    Colour class of a cell: the uptime shade when running, the state otherwise.
-
-    Args:
-        cell (status.Cell): The cell.
-
-    Returns:
-        str: Key of palette.COLOUR.
-    """
-    return cell.shade if cell.state == "running" else cell.state
-
-
 def cell_text(cell: status.Cell) -> str:
     """
     Text of a cell: symbol and label.
@@ -275,7 +262,7 @@ def cell_style(cell: status.Cell, testing: bool) -> Dict[str, str]:
         Dict[str, str]: CSS properties in camel case (React style).
     """
     # 1. Colours of the class
-    background, text = palette.COLOUR[colour_class(cell)]
+    background, text = palette.COLOUR[cell.colour]
     style = {"backgroundColor": background, "color": text, "textAlign": "center"}
     # 2. Flapping dot, receiver restart dot and hatching
     images: List[str] = (

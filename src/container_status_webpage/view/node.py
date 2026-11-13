@@ -143,26 +143,28 @@ def timeline(
     """
     # 1. Labels "<container> · <thread>" of the rows and the segments
     labels = [f"{status.NAME[c]} · {t}" for c, t, _ in rows]
-    frame = segments
-    frame = frame.assign(
-        row=[f"{status.NAME[c]} · {t}" for c, t in zip(frame.container, frame.thread)],
+    frame = segments.assign(
+        row=[
+            f"{status.NAME[c]} · {t}"
+            for c, t in zip(segments.container, segments.thread)
+        ],
         title=[
             {"run": f"Run ({cls})", "down": "Down", "silent": f"Silent ({cls})"}.get(
                 kind, "Version change"
             )
-            for kind, cls in zip(frame.kind, frame.cls)
+            for kind, cls in zip(segments.kind, segments.cls)
         ],
-        start_text=frame.start.map(when),
-        end_text=frame.end.map(when),
-        length=(frame.end - frame.start).map(gap),
+        start_text=segments.start.map(when),
+        end_text=segments.end.map(when),
+        length=(segments.end - segments.start).map(gap),
         version_text=[
             version if kind != "version" else f"{previous} → {version}"
             for kind, version, previous in zip(
-                frame.kind, frame.version, frame.previous
+                segments.kind, segments.version, segments.previous
             )
         ],
-        before_text=frame.before.map(gap),
-        after_text=frame.after.map(gap),
+        before_text=segments.before.map(gap),
+        after_text=segments.after.map(gap),
     )
     custom = ["row", "title", "start_text", "end_text", "length", "version_text"]
     custom += ["before_text", "after_text"]

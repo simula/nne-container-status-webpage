@@ -52,8 +52,8 @@ import dash
 import pytest
 
 from container_status_webpage.app import server
-from container_status_webpage.controller import frame
 from container_status_webpage.controller.node import click_query, open_selected
+from container_status_webpage.view.frame import layout as frame_layout
 
 
 def test_pages_registered_in_order():
@@ -133,7 +133,7 @@ def test_callback_ids_in_layouts():
     """Every component id a callback uses exists in the page frame or a page: Dash Pages
     suppresses callback exceptions, so a misspelled id would fail without an error."""
     pages = {page["path"]: page["layout"] for page in dash.page_registry.values()}
-    layouts = [frame.page(), *(layout() for layout in pages.values())]
+    layouts = [frame_layout(), *(layout() for layout in pages.values())]
     layouts.append(pages["/node"](node="90001", container="udpping"))
     defined = set().union(*(layout_ids(layout) for layout in layouts))
     used = set()

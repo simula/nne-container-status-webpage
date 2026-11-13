@@ -120,9 +120,7 @@ def test_receiver_restart_warning():
     ]
 
     def warned(restarts, run_h):
-        return status.restart_warning(
-            dataclasses.replace(receiver, restarts=restarts, run_h=run_h)
-        )
+        return dataclasses.replace(receiver, restarts=restarts, run_h=run_h).warning
 
     assert not warned(float("nan"), 10)
     assert (warned(600, 10), warned(601, 10)) == (False, True)

@@ -53,7 +53,10 @@ from dash import Dash
 from flask import Flask
 
 from container_status_webpage import settings
-from container_status_webpage.controller import frame
+
+# The callbacks of the page frame (navigation, clock) register on import
+from container_status_webpage.controller import frame  # pylint: disable=unused-import
+from container_status_webpage.view.frame import layout as frame_layout
 
 # Dash app with the pages of pages/ and the assets of assets/
 app: Dash = Dash(
@@ -64,7 +67,7 @@ app: Dash = Dash(
 server: Flask = app.server
 
 # Page frame, built on every page load
-app.layout = frame.page
+app.layout = frame_layout
 
 
 def main() -> None:
