@@ -292,7 +292,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `model/synthetic.py` | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
 | `model/snapshot.py` | `Snapshot`: the three frames of a source with their summary and load time; `load` reads them from a source |
 | `model/cache.py` | the snapshot of the selected source, kept per process until the next refresh point |
-| `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects (section 10) |
+| `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects: `load_database` reads, `reported` builds the frames without database access (section 10) |
 | `view/frame.py` | page frame |
 | `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
 | `view/formatting.py` | text of times, durations and missing values, shared by the tables and the timeline |
@@ -342,6 +342,12 @@ import a page module (Dash Pages loads it as `pages.<name>`; a second import reg
 - `experiments`: all `measurement_instance` rows of those nodes, active and stopped
   (`queries.augumentation.select_from_nne_measurement_instance(node_ids)`), with `network_id` and `service_id`;
 - `raw`: `select(tables.ReportContainerRawdata)` on the report engine, all rows.
+
+`load_database` only reads: the candidate nodes, the site addresses and experiments of all candidates, the
+container runs. `reported` builds `nodes` and `experiments` from these frames without database access (the
+satellite nodes, the filter of section 3, the coordinates, the site merge, the experiments of the reported nodes);
+`tests/test_loader.py` checks it on hand-made frames. Reading for all candidates costs little: 134 candidates for 119
+reported nodes, 92 more `measurement_instance` rows (2026-11-13).
 
 No lookup tables are read: the container of a `measurement_desc_id`, network and service names and colours come from
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
@@ -463,7 +469,7 @@ callbacks, built on the synthetic data at a fixed time, are compared before and 
 | Step | Content | Proven by | State |
 |---|---|---|---|
 | 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; no CI (internal page of a small team): the checks run locally as in DEVELOPMENT.md | the test fails on a deliberate violation, then passes | done |
-| 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | open |
+| 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | done |
 | 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | open |
 | 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | open |
 | 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | open |
