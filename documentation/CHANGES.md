@@ -33,5 +33,4 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Development: Docker image (gunicorn) and compose file with the nne-reader env file as a secret, `build-web.sh`,
   manual in DEVELOPMENT.md.
 - Safety net: `tests/test_layers.py` checks the layer rules and that no SQL is written as text;
-  `tools/layout_snapshot.py` compares the pages before and after a refactoring; CI runs isort, black, pylint and
-  pytest on every pull request.
+  `tools/layout_snapshot.py` compares the pages before and after a refactoring.
