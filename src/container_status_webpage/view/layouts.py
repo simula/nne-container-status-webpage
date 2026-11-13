@@ -40,15 +40,17 @@ parts they share: labelled toolbar items, the filter toolbar of the tables, the 
 title: the header button names the view.
 
 Integrations:
-    1. model.cache.Snapshot - frames and summary.
+    1. model.snapshot.Snapshot - frames and summary.
     2. view.grid, view.node, view.nodemap - tables, Node views and map.
 
 Sample code:
 ```python
-from container_status_webpage.model.cache import CONTAINERS_CACHE
+import pandas as pd
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import layouts
 
-layouts.overview(CONTAINERS_CACHE.get())
+snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+layouts.overview(snapshot)
 ```
 """
 
@@ -58,7 +60,7 @@ from dash import dcc, html
 
 from container_status_webpage import settings
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.model.timeline import DEFAULT_RANGE, RANGES, span, x_range
 from container_status_webpage.view import grid
 from container_status_webpage.view.formatting import when

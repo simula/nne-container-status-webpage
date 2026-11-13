@@ -281,6 +281,8 @@ Package `src/container_status_webpage`, split by the model–view–controller p
   reads the cached data and hands them to the views) and the callbacks of the page. The only place with callbacks
   and the only place that reads the cache.
 
+`tests/test_layers.py` checks these rules on every module, and that no module writes SQL as text.
+
 | Module | Content |
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
@@ -288,7 +290,8 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `model/status.py` | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems, issue texts; network names of the experiments |
 | `model/timeline.py` | timeline of a node: rows, segments, time span, x ranges of the range buttons and the date pickers |
 | `model/synthetic.py` | synthetic data: 22 scenarios covering every class and marker, including a mobile node, a release history, an orphan container and receiver restarts |
-| `model/cache.py` | the frames of the selected source with their load time, kept per process until the next refresh point |
+| `model/snapshot.py` | `Snapshot`: the three frames of a source with their summary and load time; `load` reads them from a source |
+| `model/cache.py` | the snapshot of the selected source, kept per process until the next refresh point |
 | `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects (section 10) |
 | `view/frame.py` | page frame |
 | `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
@@ -446,8 +449,9 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   the module that calls it.
 - **Logging** with `logging`, no `print` in the application.
 - **JavaScript** only where Dash needs it (client-side callbacks), short and commented the same way.
-- **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc src tests` with a copy of the
-  nnedbtools `.pylintrc` (maximum line length 100).
+- **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc src tests tools` with a copy of the
+  nnedbtools `.pylintrc` (maximum line length 100); `.github/workflows/checks.yml` runs them and `pytest` on every
+  pull request.
 - **Branches** `feat/{feature}` and `fix/{fix}`, merged through pull requests on
   https://github.com/simula/nne-container-status-webpage.
 
@@ -459,12 +463,16 @@ callbacks, built on the synthetic data at a fixed time, are compared before and 
 
 | Step | Content | Proven by | State |
 |---|---|---|---|
-| 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; CI running isort, black, pylint and pytest on every pull request (needs a deploy key for nnedbtools as a repository secret) | the test fails on a deliberate violation, then passes | open |
+| 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; CI running isort, black, pylint and pytest on every pull request (needs a deploy key for nnedbtools as a repository secret) | the test fails on a deliberate violation, then passes | done |
 | 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | open |
 | 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | open |
 | 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | open |
 | 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | open |
 | 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | identical layouts | open |
+
+Layout comparison: `python tools/layout_snapshot.py <file>` with `DATA_SOURCE` unset, on the base branch and on the
+step branch, then `cmp` the two files; no output means the same layouts and callbacks. CI needs the repository
+secret `NNEDBTOOLS_DEPLOY_KEY`, the private key of a read-only deploy key of nnedbtools.
 
 Rule points of step 4:
 

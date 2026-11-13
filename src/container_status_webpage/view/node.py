@@ -39,15 +39,17 @@ Views of the Node page (documentation/DESIGN.md section 7): header, timeline fig
 segment, threads and experiments tables, parameters of an experiment.
 
 Integrations:
-    1. model.cache.Snapshot - frames and summary.
+    1. model.snapshot.Snapshot - frames and summary.
     2. model.timeline - rows and segments of the timeline.
 
 Sample code:
 ```python
-from container_status_webpage.model.cache import CONTAINERS_CACHE
+import pandas as pd
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import node
 
-node.header(CONTAINERS_CACHE.get(), 90001)
+snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+node.header(snapshot, 90001)
 ```
 """
 
@@ -60,7 +62,7 @@ import plotly.graph_objects as go
 from dash import dcc, html
 
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.model.timeline import (
     DEFAULT_RANGE,
     segments,

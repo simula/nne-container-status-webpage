@@ -51,7 +51,7 @@ import pandas as pd
 
 from container_status_webpage.controller import overview
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import load
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import nodemap
 
 SNAPSHOT = load("synthetic", pd.Timestamp("2026-11-06 12:00"))

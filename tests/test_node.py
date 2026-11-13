@@ -47,7 +47,7 @@ pytest tests/test_node.py
 import pandas as pd
 
 from container_status_webpage.model import status, timeline
-from container_status_webpage.model.cache import load
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import node
 
 # pylint: disable=no-member

@@ -41,15 +41,17 @@ view.palette: dash-ag-grid applies the first matching style condition only, so e
 the id of its complete style and every container column one condition per style id.
 
 Integrations:
-    1. model.cache.Snapshot - frames and summary.
+    1. model.snapshot.Snapshot - frames and summary.
     2. dash-ag-grid - tables; CSS in assets/style.css (class nne-grid).
 
 Sample code:
 ```python
+import pandas as pd
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import grid
-from container_status_webpage.model.cache import CONTAINERS_CACHE
 
-grid.status_grid(CONTAINERS_CACHE.get())
+snapshot = load("synthetic", pd.Timestamp("2026-11-06 12:00"))
+grid.status_grid(snapshot)
 ```
 """
 
@@ -61,7 +63,7 @@ import dash_ag_grid as dag
 from dash import html
 
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import Snapshot
+from container_status_webpage.model.snapshot import Snapshot
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank, duration, when
 

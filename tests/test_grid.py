@@ -48,7 +48,7 @@ pytest tests/test_grid.py
 import pandas as pd
 
 from container_status_webpage.model import status
-from container_status_webpage.model.cache import load
+from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import grid, palette
 
 # Properties of dash-ag-grid components (rowData, columnDefs) are created at run time

@@ -1,0 +1,28 @@
+# Checks of every pull request: isort, black, pylint and pytest (documentation/DESIGN.md section 13).
+# nnedbtools comes from its private repository over SSH: the repository secret NNEDBTOOLS_DEPLOY_KEY
+# holds the private key of a read-only deploy key of simula/nnedbtools.
+name: checks
+
+on: pull_request
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install with the test and development tools
+        env:
+          NNEDBTOOLS_DEPLOY_KEY: ${{ secrets.NNEDBTOOLS_DEPLOY_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "$NNEDBTOOLS_DEPLOY_KEY"
+          mkdir -p -m 0700 ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          pip install -e ".[test,dev]"
+      - run: isort --check-only --diff .
+      - run: black --check .
+      - run: pylint --rcfile .pylintrc src tests tools
+      - run: pytest
