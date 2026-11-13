@@ -64,6 +64,13 @@ import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment, SupportedExperimentMapper
 from nnedbtools.enums import enum_mapper
 
+from container_status_webpage.model.limits import (
+    FLAPPING,
+    RESTARTS_PER_HOUR,
+    SEEN,
+    UPTIME,
+)
+
 # Main and extra containers (DESIGN.md section 4); the group only orders the columns
 MAIN: Tuple[str, ...] = ("metadata", "mqtt", "speedtest", "udpping")
 EXTRA: Tuple[str, ...] = ("traceroute", "netperfmeter")
@@ -100,41 +107,14 @@ STATUS_ORDER: Tuple[str, ...] = ("DEPLOYED", "TESTING")
 # measurement_desc_id of udpping
 UDPPING: int = SupportedExperiment.RTT_UDP_PING.value
 
-# Last seen classes: hours since the last heartbeat, upper limit inclusive (heartbeats arrive
-# hourly)
-SEEN: Tuple[Tuple[float, str], ...] = (
-    (2, "running"),
-    (6, "late"),
-    (24, "stale"),
-    (168, "down"),
-    (math.inf, "long down"),
-)
-
 # Last seen classes from best to worst
 SEVERITY: Tuple[str, ...] = ("running", "late", "stale", "down", "long down", "never")
-
-# Uptime classes of running threads: hours, upper limit exclusive
-UPTIME: Tuple[Tuple[float, str], ...] = (
-    (1, "fresh"),
-    (24, "young"),
-    (168, "stable"),
-    (math.inf, "long-run"),
-)
 
 # Colour classes from best to worst, the grade of a node on the map: uptime shades of running
 # cells, longest first, then the last seen classes
 GRADE_ORDER: Tuple[str, ...] = (
     tuple(name for _, name in reversed(UPTIME)) + SEVERITY[1:]
 )
-
-# Starts within 24 h from which a thread is flapping
-FLAPPING: int = 3
-
-# Receiver restarts (extra of a receiver-<N> row, reset when the container restarts): warning above
-# RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY when the run lasted RESTARTS_LONG_RUN_H or longer
-RESTARTS_PER_HOUR: float = 60
-RESTARTS_PER_DAY: float = 1440
-RESTARTS_LONG_RUN_H: float = 168
 
 # Satellite nodes (documentation/DESIGN.md section 3): reported as DEPLOYED without node, node_info
 # or node_status rows; they run neither metadata nor mqtt
@@ -179,7 +159,9 @@ def experiment_id(process: str) -> Optional[int]:
         Optional[int]: The id, None for other threads.
     """
     kind, _, number = process.partition("-")
-    return int(number) if kind in ("sender", "receiver") and number.isdigit() else None
+    return (
+        int(number) if kind in ("sender", "receiver") and number.isdecimal() else None
+    )
 
 
 @dataclass(frozen=True)
@@ -236,8 +218,7 @@ def restart_rate(state: ThreadState) -> Optional[float]:
 
 def restart_warning(state: ThreadState) -> bool:
     """
-    The receiver restarts too often: above RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY after
-    RESTARTS_LONG_RUN_H.
+    The receiver restarts too often: above RESTARTS_PER_HOUR.
 
     Args:
         state (ThreadState): Thread state of thread_states.
@@ -248,8 +229,7 @@ def restart_warning(state: ThreadState) -> bool:
     rate = restart_rate(state)
     if rate is None:
         return False
-    long_run = state.run_h >= RESTARTS_LONG_RUN_H
-    return rate > RESTARTS_PER_HOUR or (long_run and rate * 24 > RESTARTS_PER_DAY)
+    return rate > RESTARTS_PER_HOUR
 
 
 def rate_text(rate: float) -> str:

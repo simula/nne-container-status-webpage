@@ -10,11 +10,15 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Rules of the container status (`model/status.py`): last seen and uptime classes per thread; the cell of a node and
   container (worst thread, partial, flapping); expected containers from the node configuration map of nnedbtools
   (metadata always; "never" when configured without rows, empty when not configured); orphan threads and orphan
-  containers; UDP Ping receiver restart warning (above 60 per hour, or 1440 per day after 7 days).
+  containers; UDP Ping receiver restart warning (above 60 per hour).
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
 - Tab titles "Containers – <page>" (were "NorNet edge – <page>"); app title "NorNet Edge – Container Status".
+- Limits of the classes and warnings in `model/limits.py`; the legend and the timeline write them from there (young
+  now "1–24 h"). The timeline starts no earlier than the first real deployment (2026-01-01), so node clock errors
+  (2011) no longer stretch it. `/node?node=²` no longer answers 500; `marshmallow` declared; an empty
+  `CONTAINERS_CACHE_MINUTES` fails at the start; unused `assets/network_indicator.png` removed.
 - Grid, Problems and Overview fill the window: the Grid and Problems tables below their toolbar, scrolling inside
   (were 70 % of the window high), the Overview map down to the footer (was 650 px); no empty band above the footer
   on tall windows.

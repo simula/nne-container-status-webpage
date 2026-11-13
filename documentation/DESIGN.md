@@ -130,7 +130,7 @@ Reference time is the generation time (UTC). Each thread is classified by its la
 | Uptime class (running threads) | Uptime |
 |---|---|
 | fresh | < 1 h |
-| young | 1 h – 1 d |
+| young | 1–24 h |
 | stable | 1–7 d |
 | long-run | > 7 d |
 
@@ -154,8 +154,8 @@ A grid cell is one node and one container:
   without a configured instance";
 - **receiver restarts** (warning): `extra` of a `receiver-*` row counts the internal restarts of the udpping receiver
   after an error during the container run (reset when the container restarts). Rate = `extra / (seen_ts −
-  start_ts)`, the run counted as at least 1 h. Warning above 60 restarts per hour, or above 1440 per day (the same
-  rate) when the run has lasted 7 days or longer. Chosen on 2026-11-09 from the rates of 233 receivers of 115 nodes:
+  start_ts)`, the run counted as at least 1 h. Warning above 60 restarts per hour (a second rule, 1440 per day after
+  7 days, was the same rate and was dropped). Chosen on 2026-11-09 from the rates of 233 receivers of 115 nodes:
   median 0.2 per hour, 90th percentile 53, 95th 289; 60 per hour flagged 12 nodes, 1 / 1 had flagged 89 of 119 nodes,
   10 / 10 still 50. The cell state stays; label `↻`; issue "UDP Ping: receiver-<N> restarts <rate>".
   On 2026-11-09: 7056 about 480 per hour, 4120 `receiver-10376` 8 per day over 743 h, the mobile nodes 26–108 in the
@@ -289,6 +289,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 |---|---|
 | `app.py` | Dash app, `server` for gunicorn, development server |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` |
+| `model/limits.py` | the limits of the classes and warnings: last seen, uptime, flapping, receiver restarts, down gap, first deployment |
 | `model/status.py` | the rules of sections 4–6: thread states, cells, crosscheck, overview, problems, issue texts; network names of the experiments |
 | `model/timeline.py` | timeline of a node: rows, segments, time span, x ranges of the range buttons and the date pickers |
 | `model/pages.py` | what each page shows, prepared from the snapshot: one dataclass per page (`OverviewData`, `GridData`, `ProblemsData`, `NodeData`) and the function that builds it; `map_nodes` for the map filter |
@@ -395,8 +396,9 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools (none on 2026-11-09).
 - The map tiles come from `tile.openstreetmap.org`: fine for light use under the OpenStreetMap tile usage policy;
   heavier use on specula needs another tile provider.
-- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour / 1440 per day) are constants
-  to calibrate after real use.
+- Thresholds (2 h, 6 h, 24 h, 7 d; 1 h, 1 d, 7 d; 3 starts; receiver restarts 60 per hour; down gap 1 h; first
+  deployment 2026-01-01) are constants in `model/limits.py` to calibrate after real use; the legend and the timeline
+  write them from there.
 - Cache per gunicorn worker: with 2 workers the data are loaded twice per refresh point; a shared cache only if the
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
@@ -475,13 +477,16 @@ callbacks, built on the synthetic data at a fixed time, are compared before and 
 | 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | done |
 | 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | done |
 | 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | done |
-| 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | open |
+| 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | done |
 | 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | identical layouts | open |
 
 Layout comparison: `python tools/layout_snapshot.py <file>` with `DATA_SOURCE` unset, on the base branch and on the
 step branch, then `cmp` the two files; no output means the same layouts and callbacks.
 
-Rule points of step 4:
+Rule points of step 4, decided and done on 2026-11-13: one restart rule (60 per hour); the limits in `model/limits.py`,
+legend and timeline texts written from them (young now "1–24 h"); the timeline starts no earlier than the first real
+deployment (`FIRST_DEPLOYMENT`, 2026-01-01); the failed load keeps its retry on every request (`ponytail` note in
+`model/cache.py`); the small points fixed (`isdecimal` also in `status.experiment_id`). The points as found:
 
 - Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
   decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.

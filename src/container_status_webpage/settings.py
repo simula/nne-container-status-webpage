@@ -58,7 +58,7 @@ if settings.DEBUG:
 from typing import List
 
 from environs import Env
-from marshmallow.validate import OneOf
+from marshmallow.validate import Length, OneOf
 
 # Reader of the environment variables
 _env: Env = Env()
@@ -75,7 +75,7 @@ DATA_SOURCE: str = _env.str(
 )
 
 # Minutes of the hour after which the pages load their data again (the importer writes at
-# minute 10 and 40 and gets 5 minutes to finish)
+# minute 10 and 40 and gets 5 minutes to finish); at least one, an empty value fails at the start
 CONTAINERS_CACHE_MINUTES: List[int] = _env.list(
-    "CONTAINERS_CACHE_MINUTES", [15, 45], subcast=int
+    "CONTAINERS_CACHE_MINUTES", [15, 45], subcast=int, validate=Length(min=1)
 )

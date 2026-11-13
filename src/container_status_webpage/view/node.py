@@ -54,6 +54,7 @@ node.header(data.node_id, data.node, data.networks)
 """
 
 import json
+import math
 from typing import Any, List, Optional, Tuple
 
 import dash_ag_grid as dag
@@ -61,9 +62,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import dcc, html
 
-from container_status_webpage.model import status
+from container_status_webpage.model import limits, status
 from container_status_webpage.view import grid, palette
-from container_status_webpage.view.formatting import blank, duration, when
+from container_status_webpage.view.formatting import blank, duration, hours_span, when
 
 
 def chip(text: str, colour: str) -> html.Span:
@@ -171,7 +172,8 @@ def timeline(
     )
     # 2. Bars: one trace per kind and class
     figure = go.Figure()
-    names = {"run": "{}", "down": "Down (gap > 1 h)", "silent": "Silent: {}"}
+    down_gap = hours_span(limits.DOWN_AFTER / pd.Timedelta(hours=1), math.inf)
+    names = {"run": "{}", "down": f"Down (gap {down_gap})", "silent": "Silent: {}"}
     for (kind, cls), part in frame[frame.kind != "version"].groupby(
         ["kind", "cls"], sort=False
     ):

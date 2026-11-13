@@ -44,9 +44,11 @@ pytest tests/test_node.py
 ```
 """
 
+import dataclasses
+
 import pandas as pd
 
-from container_status_webpage.model import pages, status, timeline
+from container_status_webpage.model import limits, pages, status, timeline
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import node
 
@@ -179,3 +181,15 @@ def test_timeline_rows():
         text.startswith("<b>") == (container == "udpping")
         for (container, _, _), text in zip(rows, ticks)
     )
+
+
+def test_span_ignores_clock_errors():
+    """A start before the first real deployment (node clock error, 2011) does not stretch the
+    timeline: its first start is FIRST_DEPLOYMENT."""
+    node_id = node_of("release history")
+    raw = SNAPSHOT.raw.copy()
+    raw.loc[raw.index[raw.node_id == node_id][0], "start_ts"] = pd.Timestamp(
+        "2011-11-11"
+    )
+    first, _ = timeline.span(dataclasses.replace(SNAPSHOT, raw=raw), node_id)
+    assert first == limits.FIRST_DEPLOYMENT

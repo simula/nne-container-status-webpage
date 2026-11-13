@@ -70,6 +70,7 @@ def test_node_detail_from_query():
     texts = [part.children for part in built["node-header"].children]
     assert {"Node 90001", "Deployed", "Bergen"} <= set(texts)
     assert page["layout"](node="1")["node-select"].value is None
+    assert page["layout"](node="²")["node-select"].value is None
 
 
 def test_click_opens_node_detail():

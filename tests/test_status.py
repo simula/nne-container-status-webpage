@@ -49,7 +49,7 @@ import dataclasses
 
 import pandas as pd
 
-from container_status_webpage.model import status
+from container_status_webpage.model import limits, status
 from container_status_webpage.model.synthetic import SCENARIOS, synthetic
 
 NOW = pd.Timestamp("2026-11-06 12:00")
@@ -112,8 +112,8 @@ def test_flapping():
 
 
 def test_receiver_restart_warning():
-    """Receiver restarts: warning above 60 per hour, or above 1440 per day once the run lasted 7
-    days (the same rate); the run counts as at least 1 h; no counter, no warning."""
+    """Receiver restarts: warning above 60 per hour; the run counts as at least 1 h; no counter, no
+    warning."""
 
     receiver = status.thread_states(raw(("udpping", "receiver-10", 1, 0)), NOW)[
         (1, "udpping", "receiver-10")
@@ -127,7 +127,6 @@ def test_receiver_restart_warning():
     assert not warned(float("nan"), 10)
     assert (warned(600, 10), warned(601, 10)) == (False, True)
     assert (warned(60, 0), warned(61, 0)) == (False, True)
-    assert (warned(10080, 168), warned(10081, 168)) == (False, True)
     assert status.rate_text(480) == "480/h" and status.rate_text(8 / 24) == "8.0/d"
 
 
@@ -209,7 +208,7 @@ def test_synthetic_covers_every_class():
     nodes, experiments, rawdata = synthetic(NOW)
     cells = list(status.summarise(nodes, experiments, rawdata, NOW).cells.values())
     assert set(status.SEVERITY) | {"none"} <= {c.state for c in cells}
-    assert {name for _, name in status.UPTIME} <= {c.shade for c in cells}
+    assert {name for _, name in limits.UPTIME} <= {c.shade for c in cells}
     assert any(c.partial and c.state == "running" for c in cells)
     assert any(c.partial and c.state != "running" for c in cells)
     assert any(c.flapping for c in cells)
@@ -242,3 +241,11 @@ def test_problems_and_overview():
         counts.all_main_ok + counts.some_issue + counts.nothing_running == counts.nodes
     ).all()
     assert counts.set_index("status").loc["all", "nodes"] == len(nodes)
+
+
+def test_experiment_id():
+    """The experiment of a sender / receiver thread; other threads and non-decimal digits have
+    none."""
+    assert status.experiment_id("receiver-12") == 12
+    assert status.experiment_id("container") is None
+    assert status.experiment_id("receiver-²") is None

@@ -35,7 +35,8 @@
 # Contact: crna-eng@simula.no
 
 """
-Text formatting shared by the tables and the timeline: times, durations, missing values.
+Text formatting shared by the tables and the timeline: times, durations, missing values, class
+limit ranges.
 
 Sample code:
 ```python
@@ -45,6 +46,7 @@ duration(93784)   # "1d 2h"
 ```
 """
 
+import math
 from typing import Any
 
 import pandas as pd
@@ -91,3 +93,30 @@ def duration(seconds: float) -> str:
     if days:
         return f"{days}d {hours}h"
     return f"{hours}h {minutes}m" if hours else f"{minutes}m"
+
+
+def hours_span(low_h: float, high_h: float) -> str:
+    """
+    Text of a class limit range in hours: hours up to 24 h, days from 24 h on; an open end as
+    "< x" or "> x".
+
+    Args:
+        low_h (float): Lower limit in hours, 0 for none.
+        high_h (float): Upper limit in hours, math.inf for none.
+
+    Returns:
+        str: E.g. "< 1 h", "2–6 h", "1–7 d", "> 7 d", "12 h – 2 d".
+    """
+
+    def text(hours: float) -> str:
+        return f"{hours:g} h" if hours < 24 else f"{hours / 24:g} d"
+
+    if low_h == 0:
+        return f"< {text(high_h)}"
+    if math.isinf(high_h):
+        return f"> {text(low_h)}"
+    if high_h <= 24:
+        return f"{low_h:g}–{high_h:g} h"
+    if low_h >= 24:
+        return f"{low_h / 24:g}–{high_h / 24:g} d"
+    return f"{text(low_h)} – {text(high_h)}"
