@@ -14,6 +14,7 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
+- Tab titles "Containers – <page>" (were "NorNet edge – <page>"); app title "NorNet Edge – Container Status".
 - Grid, Problems and Overview fill the window: the Grid and Problems tables below their toolbar, scrolling inside
   (were 70 % of the window high), the Overview map down to the footer (was 650 px); no empty band above the footer
   on tall windows.

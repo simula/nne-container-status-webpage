@@ -55,7 +55,7 @@ dash.register_page(
     "overview",
     path="/",
     name="Overview",
-    title="NorNet edge – Overview",
+    title="Containers – Overview",
     order=0,
     layout=overview.page,
 )
@@ -65,7 +65,7 @@ dash.register_page(
     "grid",
     path="/grid",
     name="Grid",
-    title="NorNet edge – Grid",
+    title="Containers – Grid",
     order=1,
     layout=grid.page,
 )
@@ -75,7 +75,7 @@ dash.register_page(
     "problems",
     path="/problems",
     name="Problems",
-    title="NorNet edge – Problems",
+    title="Containers – Problems",
     order=2,
     layout=problems.page,
 )
@@ -85,7 +85,7 @@ dash.register_page(
     "node",
     path="/node",
     name="Node",
-    title="NorNet edge – Node",
+    title="Containers – Node",
     order=3,
     layout=node.page,
 )
