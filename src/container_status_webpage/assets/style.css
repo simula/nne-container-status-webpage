@@ -63,10 +63,10 @@ code {
   border: 1px solid var(--medium-gray);
   border-radius: 10px;
   display: block;
-  height: 2em;
+  height: 3em;
   margin: 0 1em 0 0;
   object-fit: contain;
-  padding: 0.5em;
+  padding: 0.25em;
 }
 
 .logo:hover {
@@ -155,7 +155,7 @@ code {
 
 /* Phone landscape (config.tsx MAX_WIDTH_PHONE_LANDSCAPE 950, FONT_SIZE_PHONE 0.6) */
 @media (max-width: 950px) and (min-width: 601px) {
-  .logo { height: 0.8em; }
+  .logo { height: 1.2em; }
   .header-text, .clock { font-size: 0.6em; }
   .header-button { font-size: 0.6em; padding: 0 2em; }
   .clock { padding-left: 1em; }
@@ -163,7 +163,7 @@ code {
 
 /* Phone portrait (MAX_WIDTH_PHONE_PORTRAIT 600) */
 @media (max-width: 600px) {
-  .logo { height: 0.5em; }
+  .logo { height: 0.75em; }
   .header-text, .clock { font-size: 0.6em; }
   .header-button { font-size: 0.6em; padding: 0 0.25em; }
 }

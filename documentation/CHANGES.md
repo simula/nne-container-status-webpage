@@ -35,3 +35,5 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
   manual in DEVELOPMENT.md.
 - Safety net: `tests/test_layers.py` checks the layer rules and that no SQL is written as text;
   `tools/layout_snapshot.py` compares the pages before and after a refactoring.
+- Header logo: the NorNet globe signal logo (`assets/nornet.png`, 378×128, 256 colours, 14 KB instead of 168 KB), shown
+  3em high.
