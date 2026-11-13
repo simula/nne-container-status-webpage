@@ -125,13 +125,14 @@ def status_column(field: str = "status") -> Dict[str, Any]:
     }
 
 
-def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
+def thread_row(name: str, state: Optional[status.ThreadState]) -> Dict[str, str]:
     """
     Row of the tooltip table and the threads table of the Node page: the latest run of a thread.
 
     Args:
         name (str): Thread name.
-        state (Optional[Dict[str, Any]]): Thread state (status.thread_states), None when never seen.
+        state (Optional[status.ThreadState]): Thread state (status.thread_states), None when
+            never seen.
 
     Returns:
         Dict[str, str]: thread, state, colour and text colour of the state, version, up, seen,
@@ -146,36 +147,36 @@ def thread_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, str]:
             **dict.fromkeys(("version", "up", "seen", "ago", "starts"), "–"),
             "restarts": "",
         }
-    running = state["seen"] == "running"
-    colour, text = palette.COLOUR[state["up"] if running else state["seen"]]
+    running = state.seen == "running"
+    colour, text = palette.COLOUR[state.up if running else state.seen]
     rate = status.restart_rate(state)
     restarts = (
         ""
         if rate is None
-        else f"{state['restarts']:,.0f} ({status.rate_text(rate)})"
+        else f"{state.restarts:,.0f} ({status.rate_text(rate)})"
         + (" ↻" if status.restart_warning(state) else "")
     )
     return {
         "restarts": restarts,
         "thread": name,
-        "state": state["seen"],
+        "state": state.seen,
         "colour": colour,
         "text": text,
-        "version": state["version"],
-        "up": duration(state["uptime"]),
-        "seen": when(state["seen_ts"]),
-        "ago": duration(state["age_h"] * 3600),
-        "starts": f"{state['starts_24h']} / {state['starts_7d']}",
+        "version": state.version,
+        "up": duration(state.uptime),
+        "seen": when(state.seen_ts),
+        "ago": duration(state.age_h * 3600),
+        "starts": f"{state.starts_24h} / {state.starts_7d}",
     }
 
 
-def orphan_row(name: str, state: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def orphan_row(name: str, state: Optional[status.ThreadState]) -> Dict[str, Any]:
     """
     Row of a thread running for an inactive experiment: the inactive experiment as state.
 
     Args:
         name (str): Thread name (sender-<id> / receiver-<id>).
-        state (Optional[Dict[str, Any]]): Thread state (status.thread_states).
+        state (Optional[status.ThreadState]): Thread state (status.thread_states).
 
     Returns:
         Dict[str, Any]: thread_row with the state replaced and orphan True.
@@ -194,7 +195,7 @@ def hover(
     node_status: str,
     container: str,
     cell: status.Cell,
-    states: Dict[Tuple[int, str, str], Dict[str, Any]],
+    states: Dict[Tuple[int, str, str], status.ThreadState],
 ) -> Dict[str, Any]:
     """
     Tooltip of a grid cell, drawn as a table by ThreadTable
@@ -206,7 +207,7 @@ def hover(
         node_status (str): Status of the node.
         container (str): Container name.
         cell (status.Cell): The cell.
-        states (Dict[Tuple[int, str, str], Dict[str, Any]]): Thread states of the summary.
+        states (Dict[Tuple[int, str, str], status.ThreadState]): Thread states of the summary.
 
     Returns:
         Dict[str, Any]: title (str) and rows (thread_row, orphans with orphan True).
@@ -321,7 +322,6 @@ def status_grid(snapshot: Snapshot) -> dag.AgGrid:
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
-        style={"height": "70vh"},
     )
 
 
@@ -481,7 +481,6 @@ def problems_grid(snapshot: Snapshot) -> dag.AgGrid:
         defaultColDef=DEFAULT_COLUMN,
         dashGridOptions=GRID_OPTIONS,
         className="nne-grid",
-        style={"height": "70vh"},
     )
 
 

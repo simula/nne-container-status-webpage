@@ -186,8 +186,11 @@ def map_view(snapshot: Snapshot) -> html.Div:
                 id="node-map",
                 figure=node_map(snapshot, statuses),
                 config={"scrollZoom": True},
+                responsive=True,
+                style={"flex": 1, "minHeight": "400px"},
             ),
-        ]
+        ],
+        className="map-view",
     )
 
 
@@ -291,7 +294,8 @@ def overview(snapshot: Snapshot) -> html.Div:
                 [map_view(snapshot), grid.overview(snapshot)],
                 className="overview-split",
             ),
-        ]
+        ],
+        className="fill",
     )
 
 
@@ -331,7 +335,8 @@ def grid_page(snapshot: Snapshot) -> html.Div:
             grid.legend(),
             table,
             dcc.Store(id="grid-rows", data=rows),
-        ]
+        ],
+        className="fill",
     )
 
 
@@ -366,7 +371,8 @@ def problems_page(snapshot: Snapshot) -> html.Div:
             ),
             problems,
             dcc.Store(id="problems-rows", data=rows),
-        ]
+        ],
+        className="fill",
     )
 
 

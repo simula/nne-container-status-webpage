@@ -147,7 +147,6 @@ def node_map(snapshot: Snapshot, statuses: List[str]) -> go.Figure:
     figure.update_layout(
         map={"style": "open-street-map", "center": CENTRE, "zoom": ZOOM},
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
-        height=650,
         uirevision="node-map",
         legend={
             "title": {"text": "Grade"},

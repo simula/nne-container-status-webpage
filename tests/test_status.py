@@ -45,6 +45,8 @@ pytest tests/test_status.py
 ```
 """
 
+import dataclasses
+
 import pandas as pd
 
 from container_status_webpage.model import status
@@ -113,8 +115,14 @@ def test_receiver_restart_warning():
     """Receiver restarts: warning above 60 per hour, or above 1440 per day once the run lasted 7
     days (the same rate); the run counts as at least 1 h; no counter, no warning."""
 
+    receiver = status.thread_states(raw(("udpping", "receiver-10", 1, 0)), NOW)[
+        (1, "udpping", "receiver-10")
+    ]
+
     def warned(restarts, run_h):
-        return status.restart_warning({"restarts": restarts, "run_h": run_h})
+        return status.restart_warning(
+            dataclasses.replace(receiver, restarts=restarts, run_h=run_h)
+        )
 
     assert not warned(float("nan"), 10)
     assert (warned(600, 10), warned(601, 10)) == (False, True)

@@ -58,7 +58,7 @@ status.problems(nodes, summary, raw)
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from nnedbtools.batch.node_config import SupportedExperiment, SupportedExperimentMapper
@@ -182,29 +182,55 @@ def experiment_id(process: str) -> Optional[int]:
     return int(number) if kind in ("sender", "receiver") and number.isdigit() else None
 
 
-def restart_rate(state: Dict[str, Any]) -> Optional[float]:
+@dataclass(frozen=True)
+class ThreadState:
+    """Latest run of one thread of a node and container at the reference time (thread_states)."""
+
+    # Start of the run (UTC, naive)
+    start_ts: pd.Timestamp
+    # Latest heartbeat of the run (UTC, naive)
+    seen_ts: pd.Timestamp
+    # Uptime of the run in seconds
+    uptime: float
+    # Container version of the run
+    version: str
+    # Receiver restarts of the run (extra as a number), NaN without a counter
+    restarts: float
+    # Length of the run in hours (seen_ts - start_ts)
+    run_h: float
+    # Hours since the latest heartbeat
+    age_h: float
+    # Starts of the thread within 24 h and within 7 days
+    starts_24h: int
+    starts_7d: int
+    # Last seen class (seen_class) and uptime class (uptime_class)
+    seen: str
+    up: str
+
+
+def restart_rate(state: ThreadState) -> Optional[float]:
     """
     Receiver restarts per hour of the latest run; the run counts as at least 1 h (heartbeats
     arrive hourly).
 
     Args:
-        state (Dict[str, Any]): Thread state of thread_states (restarts, run_h).
+        state (ThreadState): Thread state of thread_states (restarts, run_h).
 
     Returns:
         Optional[float]: Restarts per hour, None without a counter.
     """
-    if pd.isna(state.get("restarts")):
+    if pd.isna(state.restarts):
         return None
-    return state["restarts"] / max(state["run_h"], 1)
+    return state.restarts / max(state.run_h, 1)
 
 
-def restart_warning(state: Dict[str, Any]) -> bool:
+def restart_warning(state: ThreadState) -> bool:
     """
     The receiver restarts too often: above RESTARTS_PER_HOUR, or above RESTARTS_PER_DAY after
     RESTARTS_LONG_RUN_H.
 
     Args:
-        state (Dict[str, Any]): Thread state of thread_states.
+        state (ThreadState): Thread state of thread_states.
 
     Returns:
         bool: Warning.
@@ -212,7 +238,7 @@ def restart_warning(state: Dict[str, Any]) -> bool:
     rate = restart_rate(state)
     if rate is None:
         return False
-    long_run = state["run_h"] >= RESTARTS_LONG_RUN_H
+    long_run = state.run_h >= RESTARTS_LONG_RUN_H
     return rate > RESTARTS_PER_HOUR or (long_run and rate * 24 > RESTARTS_PER_DAY)
 
 
@@ -308,7 +334,7 @@ def networks(experiments: pd.DataFrame) -> pd.DataFrame:
 
 def thread_states(
     raw: pd.DataFrame, now: pd.Timestamp
-) -> Dict[Tuple[int, str, str], Dict[str, Any]]:
+) -> Dict[Tuple[int, str, str], ThreadState]:
     """
     Latest run of every thread with its classes and starts.
 
@@ -317,9 +343,8 @@ def thread_states(
         now (pd.Timestamp): Reference time (UTC, naive).
 
     Returns:
-        Dict[Tuple[int, str, str], Dict[str, Any]]: Per (node_id, container, process): start_ts,
-            seen_ts, uptime and version of the latest run, restarts (extra as a number) and run_h
-            (seen_ts - start_ts), age_h, seen and up classes, starts_24h, starts_7d.
+        Dict[Tuple[int, str, str], ThreadState]: Per (node_id, container, process) the state of
+            its latest run.
     """
     # 1. Latest run per thread
     key = ["node_id", "container", "process"]
@@ -338,7 +363,7 @@ def thread_states(
     # 3. Classes
     states["seen"] = states.age_h.map(seen_class)
     states["up"] = (states.uptime / 3600).map(uptime_class)
-    return states.to_dict("index")
+    return {key: ThreadState(**row) for key, row in states.to_dict("index").items()}
 
 
 @dataclass
@@ -357,7 +382,7 @@ class Cell:
     # k/n of a partial cell, udpping "S a/n R b/n", "⚠+k" for orphans
     label: str = ""
     # Expected threads: name and state (None when never seen)
-    threads: List[Tuple[str, Optional[Dict[str, Any]]]] = field(default_factory=list)
+    threads: List[Tuple[str, Optional[ThreadState]]] = field(default_factory=list)
     # Running udpping threads of experiments that are not active on the node
     orphans: List[str] = field(default_factory=list)
     # The container is alive although no active instance of the node configures it
@@ -374,7 +399,7 @@ class Cell:
 def cell(
     node_id: int,
     container: str,
-    states: Dict[Tuple[int, str, str], Dict[str, Any]],
+    states: Dict[Tuple[int, str, str], ThreadState],
     experiment_ids: List[int],
     expected: bool = True,
 ) -> Cell:
@@ -387,7 +412,7 @@ def cell(
     Args:
         node_id (int): Node identifier.
         container (str): Container name.
-        states (Dict[Tuple[int, str, str], Dict[str, Any]]): Thread states of thread_states.
+        states (Dict[Tuple[int, str, str], ThreadState]): Thread states of thread_states.
         experiment_ids (List[int]): Active udpping experiments of the node.
         expected (bool, optional): An active instance of the node configures the container
             (configured_containers; metadata always). Defaults to True.
@@ -407,7 +432,7 @@ def cell(
             for (n, c, process), state in states.items()
             if n == node_id
             and c == container
-            and state["seen"] == "running"
+            and state.seen == "running"
             and experiment_id(process) is not None
             and experiment_id(process) not in experiment_ids
         )
@@ -416,7 +441,7 @@ def cell(
     if not present:
         return Cell("never" if expected else "none", threads=threads, orphans=orphans)
     # 3. Not configured and nothing running: history only
-    running = [state for state in present if state["seen"] == "running"]
+    running = [state for state in present if state.seen == "running"]
     if not expected and not running:
         return Cell("none", threads=threads, orphans=orphans)
     # 4. Partial and label
@@ -427,7 +452,7 @@ def cell(
             return sum(
                 1
                 for name, state in threads
-                if name.startswith(kind) and state and state["seen"] == "running"
+                if name.startswith(kind) and state and state.seen == "running"
             )
 
         n = len(experiment_ids)
@@ -443,14 +468,14 @@ def cell(
         label += " ↻"
     # 5. Worst class, shade of the freshest running thread, flapping, restart warnings
     return Cell(
-        state=max((state["seen"] for state in present), key=SEVERITY.index),
+        state=max((state.seen for state in present), key=SEVERITY.index),
         shade=(
-            uptime_class(min(state["uptime"] for state in running) / 3600)
+            uptime_class(min(state.uptime for state in running) / 3600)
             if running
             else ""
         ),
         partial=partial,
-        flapping=any(state["starts_24h"] >= FLAPPING for state in present),
+        flapping=any(state.starts_24h >= FLAPPING for state in present),
         label=label.strip(),
         threads=threads,
         orphans=orphans,
@@ -466,7 +491,7 @@ class Summary:
     # Reference time (UTC, naive)
     now: pd.Timestamp
     # Thread states of thread_states
-    states: Dict[Tuple[int, str, str], Dict[str, Any]]
+    states: Dict[Tuple[int, str, str], ThreadState]
     # Cell per (node_id, container)
     cells: Dict[Tuple[int, str], Cell]
 

@@ -470,7 +470,7 @@ callbacks, built on the synthetic data at a fixed time, are compared before and 
 |---|---|---|---|
 | 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; no CI (internal page of a small team): the checks run locally as in DEVELOPMENT.md | the test fails on a deliberate violation, then passes | done |
 | 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | done |
-| 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | open |
+| 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | done |
 | 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | open |
 | 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | open |
 | 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | identical layouts | open |

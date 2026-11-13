@@ -14,6 +14,9 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Overview (`/`): node map on OpenStreetMap (one dot per node in the colour of its grade, legend with counts,
   Deployed / Testing filter, a click opens Node) and the tables "Nodes by status" and "Running containers by node
   status".
+- Grid, Problems and Overview fill the window: the Grid and Problems tables below their toolbar, scrolling inside
+  (were 70 % of the window high), the Overview map down to the footer (was 650 px); no empty band above the footer
+  on tall windows.
 - Grid (`/grid`): one row per node, one coloured cell per container, thread table as tooltip, toolbar filters
   (status, state, node, municipality).
 - Problems (`/problems`): nodes that are not fully OK, Deployed first, then the longest silent; toolbar filters with
@@ -30,8 +33,11 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
 - Cache per process, loaded again after each importer run (`CONTAINERS_CACHE_MINUTES`); a failed load is logged and
   the previous data stay.
 - Code structure by the model–view–controller pattern: `model/`, `view/`, `controller/` with one module per page; the
-  loaded data (`model/snapshot.py`) apart from their cache (`model/cache.py`); database statements as SQLAlchemy selects, no SQL as text.
+  loaded data (`model/snapshot.py`) apart from their cache (`model/cache.py`); thread states as a dataclass
+  (`status.ThreadState`); database statements as SQLAlchemy selects, no SQL as text.
 - Development: Docker image (gunicorn) and compose file with the nne-reader env file as a secret, `build-web.sh`,
   manual in DEVELOPMENT.md.
 - Safety net: `tests/test_layers.py` checks the layer rules and that no SQL is written as text;
   `tools/layout_snapshot.py` compares the pages before and after a refactoring.
+- Header logo: the NorNet globe signal logo (`assets/nornet.png`, 757×256, 256 colours, 42 KB instead of 168 KB), shown
+  3em high.
