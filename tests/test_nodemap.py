@@ -50,7 +50,7 @@ import json
 import pandas as pd
 
 from container_status_webpage.controller import overview
-from container_status_webpage.model import orders, pages
+from container_status_webpage.model import orders, pages, status
 from container_status_webpage.model.snapshot import load
 from container_status_webpage.view import nodemap
 
@@ -75,7 +75,8 @@ def test_dots_filter_and_click():
     testing = nodemap.node_map(pages.checked_map_nodes(ROWS, ["Testing"]))
     assert set(nodes.status[node_ids(testing)]) == {"TESTING"}
     grades = [trace.name.split(" (")[0].lower() for trace in figure.data]
-    assert grades == sorted(grades, key=orders.GRADE_ORDER.index)
+    shown = [status.state_text(grade) for grade in orders.GRADE_ORDER]
+    assert grades == sorted(grades, key=shown.index)
     node_id = node_ids(figure)[0]
     click = {"points": [{"customdata": node_id}]}
     assert overview.click_query(click) == f"/node?node={node_id}"

@@ -125,7 +125,7 @@ Reference time is the generation time (UTC). Each thread is classified by its la
 | stale | 6–24 h |
 | down | 1–7 d |
 | long down | > 7 d |
-| never | no row |
+| never, shown as "not seen in 365 days" | no row within `HISTORY` (section 10) |
 
 | Uptime class (running threads) | Uptime |
 |---|---|
@@ -146,7 +146,8 @@ A grid cell is one node and one container:
   (running < late < stale < down < long down);
 - **never** when the node expects the container (section 4) and no expected thread has a row, main or extra alike;
   a container silent for more than a year has no loaded row (`HISTORY`, section 10) and shows as never: it stays an
-  issue in Problems;
+  issue in Problems. The pages write the class as "not seen in 365 days" (`status.state_text`, from `HISTORY`), the
+  internal name stays never;
   **not configured** (empty cell) for a container the node does not expect;
 - **shade**: uptime class of the freshest running thread;
 - **partial**: some, but not all, expected threads running; label `k/n`, for udpping `S a/n R b/n`;
@@ -187,7 +188,7 @@ depend on colour alone.
 | stale | `#e16437` | ! |
 | down | `#e13737` | × |
 | long down | `#a50f15` | × |
-| never (expected, no rows) | `#dddddd`, hatched | – |
+| never (expected, no row within `HISTORY`; "not seen in 365 days") | `#dddddd`, hatched | – |
 | not configured | white | |
 
 | Marker | Look |
@@ -235,7 +236,7 @@ Testing; headers in sentence case. The data keep the database values.
   instances + 1 for metadata, which is always configured). No "status since": `nne.node_status.valid_from` is not
   reliable.
 - Timeline (Plotly): one row per expected thread of every deployed container (main first), then the orphans (dark red,
-  ⚠) and the never-seen threads ("(never)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
+  ⚠) and the threads not seen within `HISTORY` ("(not seen in 365 days)"). Bars: a run from `start_ts` to `seen_ts` in the uptime class of its
   length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
   heartbeat, the silence from the last heartbeat to now in its last seen colour; a diamond at the start of a run with
   another version than the run before (hover: old → new). Hover boxes are white. Click on a bar: thread, segment,

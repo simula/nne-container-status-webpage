@@ -207,7 +207,10 @@ def timeline(
     # 4. Rows: orphans in dark red, never seen marked, the highlighted container in bold
     ticks = []
     for (c, _, kind), label in zip(rows, labels):
-        text = {"never": f"{label} (never)", "orphan": f"⚠ {label}"}.get(kind, label)
+        text = {
+            "never": f"{label} ({status.state_text('never')})",
+            "orphan": f"⚠ {label}",
+        }.get(kind, label)
         text = (
             f"<span style='color:{palette.ORPHAN}'>{text}</span>"
             if kind == "orphan"

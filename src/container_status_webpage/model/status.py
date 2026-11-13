@@ -66,6 +66,7 @@ from nnedbtools.enums import enum_mapper
 
 from container_status_webpage.model.limits import (
     FLAPPING,
+    HISTORY,
     RESTARTS_PER_HOUR,
     SEEN,
     UPTIME,
@@ -201,6 +202,20 @@ class ThreadState:
         """
         rate = self.rate
         return rate is not None and rate > RESTARTS_PER_HOUR
+
+
+def state_text(state: str) -> str:
+    """
+    Text of a state, class or marker on the pages: the class never (no loaded row within HISTORY)
+    as "not seen in 365 days", every other one as its name.
+
+    Args:
+        state (str): Name of the state, class or marker.
+
+    Returns:
+        str: The text.
+    """
+    return f"not seen in {HISTORY.days} days" if state == "never" else state
 
 
 def rate_text(rate: float) -> str:
@@ -656,7 +671,7 @@ def issue(container: str, c: Cell) -> str:
     parts = (
         f"{NAME[container]}:",
         "running without a configured instance" if c.orphan_container else "",
-        c.state if bad else "",
+        state_text(c.state) if bad else "",
         f"partial {c.label}" if c.partial else "",
         "flapping" if c.flapping else "",
         f"running for inactive experiment {', '.join(c.orphans)}" if c.orphans else "",

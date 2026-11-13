@@ -142,7 +142,7 @@ def thread_row(name: str, state: Optional[status.ThreadState]) -> Dict[str, str]
     if state is None:
         return {
             "thread": name,
-            "state": "never",
+            "state": status.state_text("never"),
             "colour": palette.COLOUR["never"][0],
             "text": palette.COLOUR["never"][1],
             **dict.fromkeys(("version", "up", "seen", "ago", "starts"), "–"),
@@ -223,7 +223,7 @@ def hover(
         [
             f"Node {node_id}",
             node_status.capitalize(),
-            f"{status.NAME[container]}: {cell.state}",
+            f"{status.NAME[container]}: {status.state_text(cell.state)}",
             *markers,
         ]
     )
@@ -454,7 +454,7 @@ def legend() -> html.Div:
                 "backgroundColor": palette.COLOUR["never"][0],
                 "backgroundImage": palette.HATCH,
             },
-            "– Configured, never seen",
+            f"– Configured, {status.state_text('never')}",
         ),
         item({"border": palette.NONE_BORDER}, "Not configured"),
         item(
@@ -500,7 +500,7 @@ def problems_grid(found: pd.DataFrame) -> dag.AgGrid:
                 None if math.isinf(row.silent_h) else row.last_seen.isoformat()
             ),
             "last_heartbeat": (
-                "Never"
+                status.state_text("never").capitalize()
                 if math.isinf(row.silent_h)
                 else f"{when(row.last_seen)} ({duration(row.silent_h * 3600)} ago)"
             ),

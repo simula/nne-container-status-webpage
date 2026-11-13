@@ -60,7 +60,7 @@ import pandas as pd
 from dash import dcc, html
 
 from container_status_webpage import settings
-from container_status_webpage.model import orders
+from container_status_webpage.model import orders, status
 from container_status_webpage.model.pages import (
     GridData,
     NodeData,
@@ -329,7 +329,10 @@ def grid_page(data: GridData) -> html.Div:
                     dcc.Dropdown(
                         id="grid-state",
                         options=[
-                            {"label": name.capitalize(), "value": name}
+                            {
+                                "label": status.state_text(name).capitalize(),
+                                "value": name,
+                            }
                             for name in grid.STATES
                         ],
                         multi=True,

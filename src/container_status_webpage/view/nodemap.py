@@ -60,7 +60,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import plotly.graph_objects as go
 
-from container_status_webpage.model import orders
+from container_status_webpage.model import orders, status
 from container_status_webpage.view import palette
 from container_status_webpage.view.formatting import blank
 
@@ -81,7 +81,7 @@ def details(node: Any) -> List[str]:
     """
     return [
         " · ".join(filter(None, [node.status.capitalize(), blank(node.municipality)])),
-        f"Grade: {node.grade.capitalize()}",
+        f"Grade: {status.state_text(node.grade).capitalize()}",
         *node.issues,
     ]
 
@@ -110,7 +110,7 @@ def node_map(nodes: pd.DataFrame) -> go.Figure:
                 lon=rows.loc_lon,
                 mode="markers",
                 marker={"size": 12, "color": palette.COLOUR[grade][0]},
-                name=f"{grade.capitalize()} ({len(rows)})",
+                name=f"{status.state_text(grade).capitalize()} ({len(rows)})",
                 text=rows.text,
                 # A plain list: dcc.Graph reads the clicked point from the raw trace data, a numpy
                 # column would reach the browser base64-encoded and the click without customdata
