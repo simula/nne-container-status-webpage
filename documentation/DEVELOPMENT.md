@@ -15,7 +15,8 @@ After a change of `pyproject.toml` (e.g. a new nnedbtools tag): `pip install -e 
 ## Start and restart
 
 All commands run from the repository root. Docker is only for local development; the deployment on specula uses a
-virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-deployment-on-specula-phase-6)).
+virtual environment with a systemd service ([INSTALLATION.md](INSTALLATION.md)), rehearsed locally with
+`./build-deployment.sh`.
 
 ### Before you start
 
