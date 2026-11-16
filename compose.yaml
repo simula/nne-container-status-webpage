@@ -15,6 +15,7 @@ services:
     environment:
       DB_ENV_FILE: /run/secrets/db_env
       DATA_SOURCE: ${DATA_SOURCE:-synthetic}
+      DEBUG: "true"  # shows the data line on every page
     secrets:
       - db_env
 

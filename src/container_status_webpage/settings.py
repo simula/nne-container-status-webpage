@@ -39,7 +39,8 @@ Settings of the webpage, read once from environment variables.
 
 Integrations:
     1. Environment variables (Docker compose, systemd unit or shell):
-        * DEBUG       - Dash development mode: hot reload, error overlay (default False)
+        * DEBUG       - Dash development mode: hot reload, error overlay; shows the data line
+                        (default False)
         * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
                         report), used by the data loader (default .db_env)
         * DATA_SOURCE - synthetic (default) or database (model.loader, read-only)

@@ -302,7 +302,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `model/cache.py` | the snapshot of the selected source, kept per process until the next refresh point |
 | `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects: `load_database` reads, `reported` builds the frames without database access (section 10) |
 | `view/frame.py` | page frame |
-| `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
+| `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line (DEBUG only) |
 | `view/formatting.py` | text of times, durations and missing values, shared by the tables and the timeline |
 | `view/palette.py` | every colour of the Python views as constants: the colours of section 6, status chips, timeline and map; the colours of the page frame stay in `assets/style.css` |
 | `view/grid.py` | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |

@@ -140,17 +140,20 @@ def toolbar(prefix: str, rows: List[Dict[str, Any]], own: html.Div) -> html.Div:
     )
 
 
-def data_line(node_count: int, loaded_at: pd.Timestamp) -> html.P:
+def data_line(node_count: int, loaded_at: pd.Timestamp) -> html.P | None:
     """
-    Data line on top of every page: data source, number of nodes and load time.
+    Data line on top of every page: data source, number of nodes and load time. Only with
+    settings.DEBUG (development); production pages have none.
 
     Args:
         node_count (int): Number of reported nodes.
         loaded_at (pd.Timestamp): Load time (UTC, naive).
 
     Returns:
-        html.P: The line.
+        html.P | None: The line; None without settings.DEBUG.
     """
+    if not settings.DEBUG:
+        return None
     return html.P(
         f"Data: {settings.DATA_SOURCE} · {node_count} nodes · "
         f"loaded {when(loaded_at)} UTC",

@@ -64,3 +64,5 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
   `deploy` (Ubuntu 26.04 with systemd as a stand-in for specula, http://localhost:8080).
 - Logging: all records, nnedbtools included, go to stderr (journal, `docker compose logs`) instead of one
   `logs/robustnet<timestamp>.log` per worker start; compose no longer maps `exports/logs`.
+- Data line ("Data: … · … nodes · loaded …") only with `DEBUG`: compose sets it for development, the systemd unit
+  does not.
