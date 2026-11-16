@@ -54,8 +54,8 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 | Stop (keep the container) | `docker compose stop` |
 | Stop and remove the container | `docker compose down` |
 
-The source is copied into the image (no bind mount): every code change needs a rebuild. The nnedbtools log files land
-in `exports/logs/` (git-ignored).
+The source is copied into the image (no bind mount): every code change needs a rebuild. The log records,
+nnedbtools included, go to stderr: `docker compose logs`.
 
 ### Full reset of the container
 
