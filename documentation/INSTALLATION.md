@@ -33,6 +33,20 @@ The service runs in `/home/webpage`: nnedbtools creates an empty `logs/` there; 
 in `pyproject.toml` to a release tag: the deploying user needs a key with access to `simula/nnedbtools` and
 `simula/nne-container-status-webpage`, e.g. a forwarded agent (`ssh -A specula`).
 
+Agent forwarding for every login to specula, in `~/.ssh/config` on the Mac (`ForwardAgent yes` is `-A`):
+
+```
+Host specula
+  HostName specula.proxmox.crnalab.net
+  User <user>
+  ForwardAgent yes
+```
+
+The key must be in the Mac's agent (`ssh-add -l`; after a restart `ssh-add --apple-load-keychain`); on specula
+`ssh-add -l` lists it and `ssh -T git@github.com` greets you. Without it `git clone`, `git pull` (Update) and
+`pip install .` fail with `Permission denied (publickey)`. While you are logged in, root on specula can use the
+forwarded agent.
+
 ```sh
 git clone git@github.com:simula/nne-container-status-webpage.git /nne/nne-container-status-webpage
 cd /nne/nne-container-status-webpage
