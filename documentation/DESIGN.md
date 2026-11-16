@@ -415,6 +415,9 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
 
 ## 12. Open points
 
+Reviewed on 2026-11-16 after the installation (light use expected): the points below stay open until their condition
+occurs – user feedback, heavy use, a field in nne, a Cloudflare token; decisions are marked.
+
 - Networks missing from `enum_mapper` get the colour "red" from nnedbtools (none on 2026-11-09).
 - The map tiles come from `tile.openstreetmap.org`: fine for light use under the OpenStreetMap tile usage policy;
   heavier use on specula needs another tile provider.
@@ -433,7 +436,8 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
 - The CA expires in 2036 (10 years): a new CA means every user installs its certificate again.
 - At each worker start nnedbtools tries to connect from the process environment, before `DB_ENV_FILE` is loaded, and
   logs per worker about 18 lines `ERROR - -- Parsing value failed NNE_DB_*` and `FAILURE NNE Engine NOT connected`;
-  the first data load then connects. Harmless; the cause is not investigated.
+  the first data load then connects. Cause: `nnedbtools.connection` creates `DBEngines()` on import and reads the
+  empty process environment. Harmless; accepted, not fixed (2026-11-16).
 - The Apollo CA bundled in nnedbtools (`certificates/ApolloLevel1.crt`) expires on 2033-10-23: before that, an
   nnedbtools release with the new CA, then `pip install .` on specula. The bundled CRL has been out of date since
   2023-11-25 and is not enforced.

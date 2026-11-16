@@ -148,6 +148,11 @@ sudo systemctl enable --now nne-container-status-webpage-certificate.timer
 systemctl list-timers nne-container-status-webpage-certificate.timer      # next run: 1 January
 ```
 
+Test run of the renewal (done on specula on 2026-11-16):
+`sudo systemctl start nne-container-status-webpage-certificate.service`, then
+`systemctl show -p Result nne-container-status-webpage-certificate.service` shows `Result=success`; users notice
+nothing.
+
 **First installation only (a new CA):** its certificate goes into the repository, where users get it. Copy it and
 compare its fingerprint with the one the script printed (*Mac*, repository root):
 
