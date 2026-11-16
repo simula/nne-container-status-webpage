@@ -398,12 +398,13 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
 - nginx site `deploy/nginx-site.conf`: ports 443 (HTTPS) and 80 (HTTP) to gunicorn with the `Host` and
   `X-Forwarded-*` headers. The server certificate (825 days, the longest macOS accepts) is signed by a CA of this
   project (10 years, `deploy/make-certificates.sh`, key on specula only); users install the CA certificate
-  `deploy/nne-ca.crt` once (README.md), and renewals need nothing from them. The CA's name constraints allow only
+  `deploy/nne-ca.crt` once (README.md). `nne-container-status-webpage-certificate.timer` renews the server certificate
+  once a year and reloads nginx; renewals need nothing from the users. The CA's name constraints allow only
   names under `crnalab.net` and `10.133.14.66`, so a leaked key cannot fake other sites on the users' machines.
   Without the CA, browsers switch the name to HTTPS (HSTS or their HTTPS setting) and refuse the certificate; they
   keep plain HTTP for an IP address: `http://<specula IPv4>/`. Access control is open (section 12).
 - Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
-  (`journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
+  (`sudo journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
   `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
   the working directory, so the unit sets `WorkingDirectory=/home/webpage`. One stream instead of a file per worker
   start: two workers writing one rotated file would each rotate it.
@@ -429,6 +430,7 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
 - A publicly trusted certificate (Let's Encrypt with the DNS-01 challenge in the public Cloudflare zone `crnalab.net`,
   certbot plugin `dns-cloudflare`, an API token with DNS edit rights held by the zone's administrator) would need no CA
   installed by the users; without that token, the CA of this project (section 11).
+- The CA expires in 2036 (10 years): a new CA means every user installs its certificate again.
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the

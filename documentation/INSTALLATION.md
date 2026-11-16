@@ -101,10 +101,20 @@ accepts). The keys stay on specula, readable by root only.
 sudo deploy/make-certificates.sh      # prints the verification, the CA fingerprint and the end dates
 ```
 
-`/etc/ssl/certs/nne-ca.crt` is the CA certificate in the repository (`deploy/nne-ca.crt`); a new CA (lost key) means
-every user installs again. Renewal before the server certificate expires: the script again, then
-`sudo systemctl reload nginx`; users install nothing. A publicly trusted certificate needs Let's Encrypt with the
-DNS-01 challenge in the Cloudflare zone `crnalab.net` (an API token with DNS edit rights): DESIGN section 12.
+`/etc/ssl/certs/nne-ca.crt` is the CA certificate in the repository (`deploy/nne-ca.crt`). It expires in 2036; a new
+CA (also after a lost key) means every user installs again. A publicly trusted certificate needs Let's Encrypt with
+the DNS-01 challenge in the Cloudflare zone `crnalab.net` (an API token with DNS edit rights): DESIGN section 12.
+
+Renewal: `nne-container-status-webpage-certificate.timer` runs the script once a year and reloads nginx, so the server
+certificate (825 days) never expires and users install nothing. The script replaces the served files only after the
+new certificate verifies.
+
+```sh
+sudo cp deploy/nne-container-status-webpage-certificate.service deploy/nne-container-status-webpage-certificate.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nne-container-status-webpage-certificate.timer
+systemctl list-timers nne-container-status-webpage-certificate.timer      # next run
+```
 
 ## nginx (with sudo)
 
@@ -122,9 +132,13 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 200
 
 ## Logs
 
+The journal of a system service needs `sudo`, or once `sudo usermod -aG adm <user>` (applies from the next login), then
+without `sudo`.
+
 ```sh
-journalctl -u nne-container-status-webpage -f      # gunicorn and the application, nnedbtools included
-sudo tail -f /var/log/nginx/error.log              # nginx; 502 while gunicorn starts
+sudo journalctl -u nne-container-status-webpage -f            # gunicorn and the application, nnedbtools included
+sudo journalctl -u nne-container-status-webpage-certificate   # yearly certificate renewal
+sudo tail -f /var/log/nginx/error.log                         # nginx; 502 while gunicorn starts
 ```
 
 ## Update

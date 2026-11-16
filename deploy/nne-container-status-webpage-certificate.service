@@ -1,0 +1,10 @@
+# Renews the server certificate of the NNE container status webpage (deploy/make-certificates.sh; the CA stays) and
+# reloads nginx; started once a year by nne-container-status-webpage-certificate.timer (INSTALLATION.md).
+#   sudo journalctl -u nne-container-status-webpage-certificate
+[Unit]
+Description=Renew the NNE container status webpage server certificate
+
+[Service]
+Type=oneshot
+ExecStart=/nne/nne-container-status-webpage/deploy/make-certificates.sh
+ExecStartPost=/usr/bin/systemctl reload nginx

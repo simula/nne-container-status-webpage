@@ -21,15 +21,19 @@ RUN --mount=type=ssh mkdir -p -m 0700 /root/.ssh \
     && python3 -m venv .venv \
     && .venv/bin/pip install --no-cache-dir .
 
-RUN cp deploy/nne-container-status-webpage.service /etc/systemd/system/ \
-    && systemctl enable nne-container-status-webpage \
+RUN cp deploy/nne-container-status-webpage.service deploy/nne-container-status-webpage-certificate.service deploy/nne-container-status-webpage-certificate.timer \
+        /etc/systemd/system/ \
+    && systemctl enable nne-container-status-webpage nne-container-status-webpage-certificate.timer \
     && cp deploy/nginx-site.conf /etc/nginx/sites-available/nne-container-status-webpage \
     && ln -s /etc/nginx/sites-available/nne-container-status-webpage /etc/nginx/sites-enabled/ \
     && rm /etc/nginx/sites-enabled/default
 
 # CA and server certificate by the script of specula (INSTALLATION.md, TLS certificate), for the name localhost
 RUN install -d -m 700 /etc/ssl/private \
-    && NAME=localhost DOMAIN=localhost IP=127.0.0.1 deploy/make-certificates.sh
+    && NAME=localhost DOMAIN=localhost IP=127.0.0.1 deploy/make-certificates.sh \
+    && mkdir /etc/systemd/system/nne-container-status-webpage-certificate.service.d \
+    && printf '[Service]\nEnvironment=NAME=localhost DOMAIN=localhost IP=127.0.0.1\n' \
+        > /etc/systemd/system/nne-container-status-webpage-certificate.service.d/localhost.conf
 
 # Container only: the kernel belongs to the Docker host, loading kernel modules fails
 RUN systemctl mask systemd-modules-load.service

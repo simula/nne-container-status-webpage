@@ -24,7 +24,8 @@ without a warning, also after the server certificate is renewed. Compare its SHA
   (asks for your password), or open the file, find "NNE Container Status CA" in Keychain Access and set *Trust* →
   *When using this certificate*: *Always Trust*. Quit and restart the browser.
 - **Firefox on Linux** (its own certificate store): *Settings* → *Privacy & Security* → *Certificates* → *View
-  Certificates…* → *Authorities* → *Import…* → `nne-ca.crt` → tick *Trust this CA to identify websites*.
+  Certificates…* → *Authorities* → *Import…* → `nne-ca.crt` → tick *Trust this CA to identify websites*
+  (tested with Firefox ESR 153 on Debian).
 
 Without the certificate, http://10.133.14.66/ works (plain HTTP by IP address).
 

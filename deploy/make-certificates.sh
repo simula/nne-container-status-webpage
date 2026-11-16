@@ -2,7 +2,8 @@
 # CA of the NNE container status webpage and the server certificate it signs (INSTALLATION.md, TLS certificate).
 #   sudo deploy/make-certificates.sh
 # The first run creates the CA (10 years; users install its certificate once, README.md). Every run issues a new
-# server certificate (825 days, the longest macOS accepts): run it again before that expires, then reload nginx.
+# server certificate (825 days, the longest macOS accepts); nne-container-status-webpage-certificate.timer runs it
+# once a year and reloads nginx.
 # The CA may only sign names under DOMAIN and the address IP (name constraints): its key cannot fake other sites.
 set -euo pipefail
 NAME=${NAME:-specula.proxmox.crnalab.net}
@@ -28,11 +29,14 @@ openssl req -new -newkey rsa:3072 -sha256 -nodes -subj "/CN=$NAME" \
     -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
     -addext "extendedKeyUsage=serverAuth" \
     -addext "subjectAltName=DNS:$NAME,IP:$IP" \
-    -keyout "$KEY" |
+    -keyout "$KEY.new" |
     openssl x509 -req -CA "$CA_CRT" -CAkey "$CA_KEY" -set_serial "0x$(openssl rand -hex 16)" \
-        -days 825 -sha256 -copy_extensions copyall -out "$CRT"
-chmod 644 "$CRT"
+        -days 825 -sha256 -copy_extensions copyall -out "$CRT.new"
+# The new key and certificate replace the served ones only after the verification (unattended yearly run)
+openssl verify -CAfile "$CA_CRT" "$CRT.new"
+chmod 644 "$CRT.new"
+mv "$KEY.new" "$KEY"
+mv "$CRT.new" "$CRT"
 
-openssl verify -CAfile "$CA_CRT" "$CRT"
 openssl x509 -in "$CA_CRT" -noout -subject -enddate -fingerprint -sha256
 openssl x509 -in "$CRT" -noout -subject -enddate -ext subjectAltName

@@ -1,0 +1,13 @@
+# Starts nne-container-status-webpage-certificate.service once a year: the server certificate (825 days) never
+# expires. Persistent: a run missed while specula was off follows at the next boot.
+#   systemctl list-timers nne-container-status-webpage-certificate.timer
+[Unit]
+Description=Yearly renewal of the NNE container status webpage server certificate
+
+[Timer]
+OnCalendar=yearly
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
