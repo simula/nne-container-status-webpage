@@ -134,6 +134,10 @@ On this Mac `conda run -n nne-container-status-webpage …` runs the wrong inter
 pytest                                        # without a browser and a database (tests/README.md)
 ```
 
+Layout comparison before and after a refactoring (no behaviour change): `python tools/layout_snapshot.py <file>` with
+`DATA_SOURCE` unset, on the base branch and on the new branch, then `cmp` the two files; no output means the same
+layouts and callbacks.
+
 ## Code conventions
 
 As nnedbtools, see [DESIGN.md section 13](DESIGN.md#13-code-conventions). Before a commit:
