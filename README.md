@@ -13,7 +13,7 @@ own CA: install the CA certificate [deploy/nne-ca.crt](deploy/nne-ca.crt) once p
 without a warning, also after the server certificate is renewed. Compare its SHA-256 fingerprint before you trust it
 (`openssl x509 -in nne-ca.crt -noout -fingerprint -sha256`; Firefox shows it in the certificate viewer):
 
-`(added once the CA is created)`
+`23:20:D3:44:13:B9:9E:0F:F8:B2:F4:E4:45:48:97:E8:ED:18:63:BB:63:8F:ED:7D:EE:8C:75:35:69:AD:00:8E`
 
 - **Chrome or Brave on macOS** (both use the macOS keychain): download `nne-ca.crt`, then
 
