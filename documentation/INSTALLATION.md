@@ -45,7 +45,7 @@ python3 -m venv .venv
 
 ## Database env file
 
-The nnedbtools env file of the read-only account of specula: the keys `NNE_DB_*` and `REPORT_DB_*`, no SSL paths
+The nnedbtools env file of the read-only account `nne-specula`: the keys `NNE_DB_*` and `REPORT_DB_*`, no SSL paths
 (nnedbtools uses its bundled Apollo CA / CRL). The account needs SELECT on the tables of DESIGN section 2 and nothing
 else. The file is never committed.
 

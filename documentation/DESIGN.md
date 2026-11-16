@@ -363,8 +363,8 @@ No lookup tables are read: the container of a `measurement_desc_id`, network and
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
 names of section 4, sentence case).
 
-Credentials: the nnedbtools env file of a read-only account (`DB_ENV_FILE`, read access to `nne` and `report`),
-loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
+Credentials: the nnedbtools env file of a read-only account (`nne-specula` on specula, nne-reader in development;
+`DB_ENV_FILE`, read access to `nne` and `report`), loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
 installed nnedbtools (`nnedbtools.certificates`): only the env file is needed. The env files of development and of the
 local rehearsal (`.db_env*`): DEVELOPMENT.md; on specula: INSTALLATION.md.
 
