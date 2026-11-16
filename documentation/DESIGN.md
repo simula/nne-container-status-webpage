@@ -302,7 +302,7 @@ Package `src/container_status_webpage`, split by the model–view–controller p
 | `model/cache.py` | the snapshot of the selected source, kept per process until the next refresh point |
 | `model/loader.py` | the frames from the database through nnedbtools, read-only, as SQLAlchemy selects: `load_database` reads, `reported` builds the frames without database access (section 10) |
 | `view/frame.py` | page frame |
-| `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line |
+| `view/layouts.py` | the four pages composed of the views, with the toolbar items, the filter toolbar of the tables and the data line (DEBUG only) |
 | `view/formatting.py` | text of times, durations and missing values, shared by the tables and the timeline |
 | `view/palette.py` | every colour of the Python views as constants: the colours of section 6, status chips, timeline and map; the colours of the page frame stay in `assets/style.css` |
 | `view/grid.py` | AG Grid column definitions, cell style conditions, tooltip rows and toolbar filter of the Overview, Grid and Problems pages |
@@ -369,7 +369,7 @@ Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, r
 loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
 installed nnedbtools (`nnedbtools.certificates`): the Docker container needs only the env file (secret `db_env`).
 Development: `DATA_SOURCE=database` in the container with `.db_env_test`, generated from the nnedbtools test harness
-(DEVELOPMENT.md); compose maps the nnedbtools log files to `exports/logs`.
+(DEVELOPMENT.md); the log records, nnedbtools included, go to stderr (`docker compose logs`).
 
 First run from the container (2026-11-09): the reader account has SELECT / SHOW VIEW only on `nne` and `report`; 119
 nodes (section 3); 713 measurement instances (624 active), none without `service_id`; every network named by the
@@ -395,8 +395,11 @@ virtual environment with the project, run by systemd. Docker is only for local d
 - Settings as environment variables of the unit; `DB_ENV_FILE` points to the nne-reader env file outside the
   repository (e.g. `~/.config/nne-container-status-webpage/`).
 - nginx with TLS in front (phase 5), set up from scratch; access control is decided there.
-- nnedbtools writes `logs/robustnet<timestamp>.log` into the working directory on import: the unit sets
-  `WorkingDirectory=` to a directory the service user can write (the Docker image uses `/home/app`).
+- `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them; the nnedbtools log file
+  `logs/robustnet<timestamp>.log` is never set up, only its empty `logs/` is created in the working directory: the
+  unit sets `WorkingDirectory=` to a directory the service user can write (`/home/webpage`).
+- Local rehearsal: `deploy/deployment-environment.Dockerfile` (compose profile `deploy`), Ubuntu 26.04 with systemd,
+  the service user `webpage`, the unit and the nginx site of `deploy/`; http://localhost:8080.
 - `deploy/` and `documentation/INSTALLATION.md` are written in this phase.
 
 ## 12. Open points
@@ -411,7 +414,6 @@ virtual environment with the project, run by systemd. Docker is only for local d
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
-- The nnedbtools log files (`logs/`, one per worker start) on specula: rotation or cleanup.
 - The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
   decided with nginx (phase 5).
 - The open points of the code itself are steps of the refactoring plan (section 14).

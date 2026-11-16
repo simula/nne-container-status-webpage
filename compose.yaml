@@ -2,7 +2,7 @@
 # The build fetches nnedbtools over SSH: an SSH agent with a GitHub key must run on the host.
 # The nne-reader env file (read access to nne and report) is mounted read-only as a secret, never built into the image:
 #   DB_ENV_FILE=/path/to/nne-reader.db_env DATA_SOURCE=database docker compose up --build
-# The nnedbtools log files land in ./exports/logs (git-ignored).
+# The log records, nnedbtools included, go to stderr: docker compose logs.
 services:
   webpage:
     build:
@@ -15,10 +15,28 @@ services:
     environment:
       DB_ENV_FILE: /run/secrets/db_env
       DATA_SOURCE: ${DATA_SOURCE:-synthetic}
+      DEBUG: "true"  # shows the data line on every page
     secrets:
       - db_env
+
+  # Local stand-in for specula (deploy/deployment-environment.Dockerfile), not started by a plain docker compose up:
+  #   ./build-deployment.sh   →  http://localhost:8080
+  deployment-environment:
+    profiles: [deploy]
+    build:
+      context: .
+      dockerfile: deploy/deployment-environment.Dockerfile
+      ssh:
+        - default
+    image: deployment-environment
+    privileged: true  # systemd as PID 1
+    cgroup: host
+    tmpfs: [/run, /run/lock]
+    ports:
+      - "8080:80"
     volumes:
-      - ./exports/logs:/home/app/logs
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ./.db_env_deployement:/home/webpage/.config/nne-container-status-webpage/db_env:ro
 
 secrets:
   db_env:

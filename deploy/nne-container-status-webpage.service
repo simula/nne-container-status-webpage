@@ -1,0 +1,21 @@
+# NNE container status webpage: gunicorn on 127.0.0.1:8050 behind nginx (deploy/nginx-site.conf), DESIGN §11.
+#   sudo cp deploy/nne-container-status-webpage.service /etc/systemd/system/
+#   sudo systemctl enable --now nne-container-status-webpage
+#   journalctl -u nne-container-status-webpage        # logs, nnedbtools included
+[Unit]
+Description=NNE container status webpage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=webpage
+Group=webpage
+# nnedbtools creates logs/ in the working directory: a directory webpage can write
+WorkingDirectory=/home/webpage
+Environment=DATA_SOURCE=database
+Environment=DB_ENV_FILE=/home/webpage/.config/nne-container-status-webpage/db_env
+ExecStart=/nne/nne-container-status-webpage/.venv/bin/gunicorn --bind 127.0.0.1:8050 --workers 2 container_status_webpage.app:server
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

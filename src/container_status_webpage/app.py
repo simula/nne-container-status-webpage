@@ -49,6 +49,8 @@ gunicorn container_status_webpage.app:server     # production server (Dockerfile
 ```
 """
 
+import logging
+
 from dash import Dash
 from flask import Flask
 
@@ -57,6 +59,13 @@ from container_status_webpage import settings
 # The callbacks of the page frame (navigation, clock) register on import
 from container_status_webpage.controller import frame  # pylint: disable=unused-import
 from container_status_webpage.view.frame import layout as frame_layout
+
+# All log records, nnedbtools included, go to stderr: the journal under systemd, docker compose
+# logs in development. nnedbtools sets up logs/robustnet<timestamp>.log with logging.basicConfig
+# on its first connection, which does nothing once the root logger has a handler.
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
 # Dash app with the pages of pages/ and the assets of assets/
 app: Dash = Dash(

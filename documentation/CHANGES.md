@@ -59,3 +59,10 @@ First version of the container status dashboard (design: [DESIGN.md](DESIGN.md))
   `tests/test_app.py` checks every callback id against the layouts.
 - Header logo: the NorNet globe signal logo (`assets/nornet.png`, 757×256, 256 colours, 42 KB instead of 168 KB), shown
   3em high.
+- Deployment rehearsal: `deploy/nne-container-status-webpage.service` (gunicorn on 127.0.0.1:8050 as `webpage`),
+  `deploy/nginx-site.conf` (port 80 to gunicorn), `deploy/deployment-environment.Dockerfile` with the compose profile
+  `deploy` and `build-deployment.sh` (Ubuntu 26.04 with systemd as a stand-in for specula, http://localhost:8080).
+- Logging: all records, nnedbtools included, go to stderr (journal, `docker compose logs`) instead of one
+  `logs/robustnet<timestamp>.log` per worker start; compose no longer maps `exports/logs`.
+- Data line ("Data: … · … nodes · loaded …") only with `DEBUG`: compose sets it for development, the systemd unit
+  does not.

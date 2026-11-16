@@ -43,6 +43,7 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 |---|---|
 | Build and start on the database, loading the SSH key first | `./build-web.sh` |
 | Build and start on synthetic data | `./build-web.sh synthetic` |
+| Build and start the deployment environment (port 8080) | `./build-deployment.sh` |
 | Build and start | `docker compose up -d --build` → http://localhost:8050 |
 | Build and start on the database (Database mode below) | `DB_ENV_FILE=./.db_env_test DATA_SOURCE=database docker compose up -d --build` |
 | Start the last built image (no GitHub access needed) | `docker compose up -d` |
@@ -54,8 +55,8 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 | Stop (keep the container) | `docker compose stop` |
 | Stop and remove the container | `docker compose down` |
 
-The source is copied into the image (no bind mount): every code change needs a rebuild. The nnedbtools log files land
-in `exports/logs/` (git-ignored).
+The source is copied into the image (no bind mount): every code change needs a rebuild. The log records,
+nnedbtools included, go to stderr: `docker compose logs`.
 
 ### Full reset of the container
 
