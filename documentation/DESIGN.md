@@ -386,7 +386,7 @@ Installation steps: [INSTALLATION.md](INSTALLATION.md). Set up as nne-container-
 environment with the project, run by systemd; Docker only for development and the local rehearsal below.
 
 ```text
-browser → nginx :80 (HTTP) / :443 (HTTPS, self-signed) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
+browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
 ```
 
 - Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
@@ -395,19 +395,21 @@ browser → nginx :80 (HTTP) / :443 (HTTPS, self-signed) → gunicorn 127.0.0.1:
   gunicorn bound to localhost, restarted on failure. Settings as environment variables of the unit:
   `DATA_SOURCE=database`, `DB_ENV_FILE` = `/home/webpage/.config/nne-container-status-webpage/db_env` (outside the
   repository); no `DEBUG`, so no data line.
-- nginx site `deploy/nginx-site.conf`: ports 80 (HTTP) and 443 (HTTPS) to gunicorn with the `Host` and
-  `X-Forwarded-*` headers. Browsers switch `specula.proxmox.crnalab.net` to HTTPS (HSTS or the browser's HTTPS
-  setting), where the self-signed certificate (825 days, no internal CA) is trusted only after a step on each Mac;
-  they keep plain HTTP for an IP address, so the page is opened at `http://<specula IPv4>/`. Access control is open
-  (section 12).
+- nginx site `deploy/nginx-site.conf`: ports 443 (HTTPS) and 80 (HTTP) to gunicorn with the `Host` and
+  `X-Forwarded-*` headers. The server certificate (825 days, the longest macOS accepts) is signed by a CA of this
+  project (10 years, `deploy/make-certificates.sh`, key on specula only); users install the CA certificate
+  `deploy/nne-ca.crt` once (README.md), and renewals need nothing from them. The CA's name constraints allow only
+  names under `crnalab.net` and `10.133.14.66`, so a leaked key cannot fake other sites on the users' machines.
+  Without the CA, browsers switch the name to HTTPS (HSTS or their HTTPS setting) and refuse the certificate; they
+  keep plain HTTP for an IP address: `http://<specula IPv4>/`. Access control is open (section 12).
 - Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
   (`journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
   `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
   the working directory, so the unit sets `WorkingDirectory=/home/webpage`. One stream instead of a file per worker
   start: two workers writing one rotated file would each rotate it.
 - Local rehearsal: `./build-deployment.sh` builds `deploy/deployment-environment.Dockerfile` (compose profile
-  `deploy`): Ubuntu 26.04 with systemd, the same unit and site, host port 8443 to nginx :443 (a throwaway certificate
-  for `localhost`), `.db_env_deployement` as the env file. It runs privileged, for local use only; `systemd-modules-load` is masked there (no kernel modules in a
+  `deploy`): Ubuntu 26.04 with systemd, the same unit and site, host port 8443 to nginx :443 (the same script with a
+  throwaway CA for `localhost`), `.db_env_deployement` as the env file. It runs privileged, for local use only; `systemd-modules-load` is masked there (no kernel modules in a
   container).
 
 ## 12. Open points
@@ -424,10 +426,9 @@ browser → nginx :80 (HTTP) / :443 (HTTPS, self-signed) → gunicorn 127.0.0.1:
   field in nne first. On All their timeline has about 2,000 bars.
 - Access control is open: the Experiments table shows ICCIDs and instance parameters to everyone who can open the
   page; until it is decided, the page stays on the internal VPN.
-- A trusted name: a Let's Encrypt certificate with the DNS-01 challenge in the public Cloudflare zone `crnalab.net`
-  (certbot plugin `dns-cloudflare`, an API token with DNS edit rights on the zone, held by its administrator) would
-  open `https://specula.proxmox.crnalab.net/` without a step on the Mac and renew itself; until then plain HTTP by IP
-  address, or the self-signed certificate trusted by hand (again after every renewal, 825 days).
+- A publicly trusted certificate (Let's Encrypt with the DNS-01 challenge in the public Cloudflare zone `crnalab.net`,
+  certbot plugin `dns-cloudflare`, an API token with DNS edit rights held by the zone's administrator) would need no CA
+  installed by the users; without that token, the CA of this project (section 11).
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the

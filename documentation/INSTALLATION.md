@@ -4,8 +4,9 @@ The webpage runs on specula as the service user `webpage`: gunicorn on `127.0.0.
 on ports 80 and 443 (design: [DESIGN.md section 11](DESIGN.md#11-deployment-on-specula)). `./build-deployment.sh` rehearses
 these steps locally in a container (Local rehearsal below).
 
-Open the page at `http://<specula IPv4>/` (`getent ahosts specula.proxmox.crnalab.net`): browsers switch the name to
-HTTPS, where the self-signed certificate is not trusted, but keep plain HTTP for an IP address.
+Users open https://specula.proxmox.crnalab.net/ after installing the CA certificate once (README.md). Without it
+`http://<specula IPv4>/` works (`getent ahosts specula.proxmox.crnalab.net`): browsers switch the name to HTTPS but
+keep plain HTTP for an IP address.
 
 ## Prerequisites (once per machine, with sudo)
 
@@ -90,21 +91,20 @@ Other settings (`CONTAINERS_CACHE_MINUTES`, DESIGN section 10) as `Environment=`
 
 ## TLS certificate (with sudo)
 
-nginx also serves HTTPS on port 443 with a self-signed certificate for `specula.proxmox.crnalab.net` (there is no
-internal CA). Browsers trust it only after "Trust the certificate" below; without that step use `http://<specula IPv4>/`.
-It is valid 825 days, the longest macOS accepts for a certificate trusted by hand; the key stays on specula, readable
-by root only. A publicly trusted certificate needs Let's Encrypt with the DNS-01 challenge in the Cloudflare zone
-`crnalab.net` (an API token with DNS edit rights): open, DESIGN section 12.
+nginx serves HTTPS on port 443 with a server certificate signed by a CA of this project; users install the CA
+certificate once ([README.md](../README.md#https-install-the-certificate-once)). `deploy/make-certificates.sh` creates
+the CA on its first run (10 years; it may only sign names under `crnalab.net` and the address `10.133.14.66`) and on
+every run a new server certificate for `specula.proxmox.crnalab.net` and `10.133.14.66` (825 days, the longest macOS
+accepts). The keys stay on specula, readable by root only.
 
 ```sh
-sudo openssl req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes \
-  -subj "/CN=specula.proxmox.crnalab.net" \
-  -addext "subjectAltName=DNS:specula.proxmox.crnalab.net" -addext "extendedKeyUsage=serverAuth" \
-  -keyout /etc/ssl/private/nne-container-status-webpage.key \
-  -out /etc/ssl/certs/nne-container-status-webpage.crt
-sudo chmod 600 /etc/ssl/private/nne-container-status-webpage.key
-openssl x509 -in /etc/ssl/certs/nne-container-status-webpage.crt -noout -enddate -fingerprint -sha256
+sudo deploy/make-certificates.sh      # prints the verification, the CA fingerprint and the end dates
 ```
+
+`/etc/ssl/certs/nne-ca.crt` is the CA certificate in the repository (`deploy/nne-ca.crt`); a new CA (lost key) means
+every user installs again. Renewal before the server certificate expires: the script again, then
+`sudo systemctl reload nginx`; users install nothing. A publicly trusted certificate needs Let's Encrypt with the
+DNS-01 challenge in the Cloudflare zone `crnalab.net` (an API token with DNS edit rights): DESIGN section 12.
 
 ## nginx (with sudo)
 
@@ -119,20 +119,6 @@ sudo nginx -t && sudo systemctl reload nginx
 curl -s -o /dev/null -w "%{http_code}\n" --cacert /etc/ssl/certs/nne-container-status-webpage.crt https://specula.proxmox.crnalab.net/   # 200
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 200
 ```
-
-## Trust the certificate (optional, each viewer's Mac, once)
-
-On the VPN; the fingerprint must match the one printed on specula:
-
-```sh
-openssl s_client -connect specula.proxmox.crnalab.net:443 -servername specula.proxmox.crnalab.net </dev/null \
-  | openssl x509 > ~/Downloads/specula.crt
-openssl x509 -in ~/Downloads/specula.crt -noout -fingerprint -sha256
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/specula.crt
-```
-
-Then https://specula.proxmox.crnalab.net/ opens without a warning. Renewal before the end date: the `openssl req` and
-`chmod` above, `sudo systemctl reload nginx`, and every viewer trusts the new certificate the same way.
 
 ## Logs
 
@@ -157,8 +143,8 @@ When `deploy/` changed, copy the unit or the site again as above, then `sudo sys
 
 `./build-deployment.sh` (development Mac, [DEVELOPMENT.md](DEVELOPMENT.md)) builds
 `deploy/deployment-environment.Dockerfile`: Ubuntu 26.04 with systemd, the steps above with the same unit and site,
-`./.db_env_deployement` mounted as the env file. https://localhost:8443 reaches nginx on port 443 with a throwaway
-certificate for `localhost` (the browser warns, curl needs `-k`). The container runs
+`./.db_env_deployement` mounted as the env file. https://localhost:8443 reaches nginx on port 443 with a certificate of
+a throwaway CA for `localhost`, made by the same script (the browser warns, curl needs `-k`). The container runs
 privileged and is for local use only; `systemd-modules-load` is masked there because a container cannot load kernel
 modules.
 

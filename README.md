@@ -6,6 +6,28 @@ Web dashboard of the NorNet Edge node containers: which docker containers and th
 from the heartbeats in `report.container_rawdata` checked against the experiment setup in `nne`, read-only through
 [nnedbtools](https://github.com/simula/nnedbtools). A Dash app with the look of nne-viz, to run detached on specula.
 
+## HTTPS: install the certificate once
+
+The webpage runs at https://specula.proxmox.crnalab.net/ (internal VPN). Its certificate is signed by the project's
+own CA: install the CA certificate [deploy/nne-ca.crt](deploy/nne-ca.crt) once per browser, then the page opens
+without a warning, also after the server certificate is renewed. Compare its SHA-256 fingerprint before you trust it
+(`openssl x509 -in nne-ca.crt -noout -fingerprint -sha256`; Firefox shows it in the certificate viewer):
+
+`(added once the CA is created)`
+
+- **Chrome or Brave on macOS** (both use the macOS keychain): download `nne-ca.crt`, then
+
+  ```sh
+  security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db ~/Downloads/nne-ca.crt
+  ```
+
+  (asks for your password), or open the file, find "NNE Container Status CA" in Keychain Access and set *Trust* →
+  *When using this certificate*: *Always Trust*. Quit and restart the browser.
+- **Firefox on Linux** (its own certificate store): *Settings* → *Privacy & Security* → *Certificates* → *View
+  Certificates…* → *Authorities* → *Import…* → `nne-ca.crt` → tick *Trust this CA to identify websites*.
+
+Without the certificate, http://10.133.14.66/ works (plain HTTP by IP address).
+
 ## Quick start
 
 ```bash
