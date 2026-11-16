@@ -434,6 +434,9 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
 - At each worker start nnedbtools tries to connect from the process environment, before `DB_ENV_FILE` is loaded, and
   logs per worker about 18 lines `ERROR - -- Parsing value failed NNE_DB_*` and `FAILURE NNE Engine NOT connected`;
   the first data load then connects. Harmless; the cause is not investigated.
+- The Apollo CA bundled in nnedbtools (`certificates/ApolloLevel1.crt`) expires on 2033-10-23: before that, an
+  nnedbtools release with the new CA, then `pip install .` on specula. The bundled CRL has been out of date since
+  2023-11-25 and is not enforced.
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the
