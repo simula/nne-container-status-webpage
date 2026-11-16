@@ -1,6 +1,6 @@
 [project]
 name = "nne-container-status-webpage"
-version = "0.1.0"
+version = "2026.11.16"
 description = "Web dashboard of the NNE node containers: heartbeats in report container_rawdata checked against the nne experiment setup"
 readme = "README.md"
 license = "GPL-3.0-or-later"
