@@ -431,6 +431,9 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
   certbot plugin `dns-cloudflare`, an API token with DNS edit rights held by the zone's administrator) would need no CA
   installed by the users; without that token, the CA of this project (section 11).
 - The CA expires in 2036 (10 years): a new CA means every user installs its certificate again.
+- At each worker start nnedbtools tries to connect from the process environment, before `DB_ENV_FILE` is loaded, and
+  logs per worker about 18 lines `ERROR - -- Parsing value failed NNE_DB_*` and `FAILURE NNE Engine NOT connected`;
+  the first data load then connects. Harmless; the cause is not investigated.
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the
