@@ -402,7 +402,7 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
   once a year and reloads nginx; renewals need nothing from the users. The CA's name constraints allow only
   names under `crnalab.net` and `10.133.14.66`, so a leaked key cannot fake other sites on the users' machines.
   Without the CA, browsers switch the name to HTTPS (HSTS or their HTTPS setting) and refuse the certificate; they
-  keep plain HTTP for an IP address: `http://<specula IPv4>/`. Access control is open (section 12).
+  keep plain HTTP for an IP address: `http://<specula IPv4>/`. Access is limited to the VPN (section 12).
 - Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
   (`sudo journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
   `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
@@ -425,8 +425,8 @@ browser → nginx :443 (HTTPS, own CA) / :80 (HTTP) → gunicorn 127.0.0.1:8050 
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
-- Access control is open: the Experiments table shows ICCIDs and instance parameters to everyone who can open the
-  page; until it is decided, the page stays on the internal VPN.
+- Access is limited to the internal VPN (decision 2026-11-16): everyone on the VPN may see the ICCIDs and instance
+  parameters of the Experiments table; no login.
 - A publicly trusted certificate (Let's Encrypt with the DNS-01 challenge in the public Cloudflare zone `crnalab.net`,
   certbot plugin `dns-cloudflare`, an API token with DNS edit rights held by the zone's administrator) would need no CA
   installed by the users; without that token, the CA of this project (section 11).

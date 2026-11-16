@@ -166,8 +166,8 @@ zone `crnalab.net` (an API token with DNS edit rights): DESIGN section 12.
 
 ## 9. nginx (sudo)
 
-`deploy/nginx-site.conf` forwards port 80 (HTTP) and port 443 (HTTPS, the certificate above) to gunicorn. Access
-control is open (DESIGN section 12): the page shows ICCIDs, so it must stay on the internal VPN until then.
+`deploy/nginx-site.conf` forwards port 80 (HTTP) and port 443 (HTTPS, the certificate above) to gunicorn. Access is
+limited to the internal VPN (decision 2026-11-16, DESIGN section 12): everyone on it may see the ICCIDs; no login.
 
 ```sh
 sudo cp deploy/nginx-site.conf /etc/nginx/sites-available/nne-container-status-webpage
