@@ -20,7 +20,7 @@ services:
       - db_env
 
   # Local stand-in for specula (deploy/deployment-environment.Dockerfile), not started by a plain docker compose up:
-  #   docker compose --profile deploy up -d --build deployment-environment   →  http://localhost:8080
+  #   ./build-deployment.sh   →  http://localhost:8080
   deployment-environment:
     profiles: [deploy]
     build:

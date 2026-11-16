@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Local stand-in for specula (DESIGN §11): Ubuntu with systemd, the service user webpage, the project in a virtual
 # environment, the systemd unit and the nginx site of deploy/. Only for rehearsing the deployment – runs privileged.
-#   docker compose --profile deploy up -d --build deployment-environment   →  http://localhost:8080
+#   ./build-deployment.sh   →  http://localhost:8080
 # nnedbtools is fetched from GitHub over SSH at build time (compose.yaml forwards the SSH agent).
 FROM ubuntu:26.04
 
