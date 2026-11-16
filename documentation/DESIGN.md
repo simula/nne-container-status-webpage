@@ -9,7 +9,7 @@ Figures quoted below were measured on 2026-11-06 unless dated otherwise (first d
 
 ## 1. Scope
 - A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx
-  (HTTPS, self-signed certificate) on specula (section 11).
+  on specula (section 11).
 - Pages: **Overview**, **Grid**, **Problems** and **Node**, the container status dashboard (sections 7–8).
 - Live data, read-only: through nnedbtools with a read-only account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
@@ -386,7 +386,7 @@ Installation steps: [INSTALLATION.md](INSTALLATION.md). Set up as nne-container-
 environment with the project, run by systemd; Docker only for development and the local rehearsal below.
 
 ```text
-browser → nginx :443 (TLS; :80 redirects) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
+browser → nginx :80 (HTTP) / :443 (HTTPS, self-signed) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
 ```
 
 - Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
@@ -395,10 +395,11 @@ browser → nginx :443 (TLS; :80 redirects) → gunicorn 127.0.0.1:8050 (2 worke
   gunicorn bound to localhost, restarted on failure. Settings as environment variables of the unit:
   `DATA_SOURCE=database`, `DB_ENV_FILE` = `/home/webpage/.config/nne-container-status-webpage/db_env` (outside the
   repository); no `DEBUG`, so no data line.
-- nginx site `deploy/nginx-site.conf`: HTTPS on port 443 to gunicorn with the `Host` and `X-Forwarded-*` headers; port
-  80 only redirects to HTTPS. Self-signed certificate for `specula.proxmox.crnalab.net`, valid 825 days (the longest
-  macOS accepts for a certificate trusted by hand), trusted once on each viewer's Mac (INSTALLATION.md): there is no
-  internal CA, and a public CA cannot reach the VPN-only host. Access control is open (section 12).
+- nginx site `deploy/nginx-site.conf`: ports 80 (HTTP) and 443 (HTTPS) to gunicorn with the `Host` and
+  `X-Forwarded-*` headers. Browsers switch `specula.proxmox.crnalab.net` to HTTPS (HSTS or the browser's HTTPS
+  setting), where the self-signed certificate (825 days, no internal CA) is trusted only after a step on each Mac;
+  they keep plain HTTP for an IP address, so the page is opened at `http://<specula IPv4>/`. Access control is open
+  (section 12).
 - Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
   (`journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
   `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
@@ -423,7 +424,10 @@ browser → nginx :443 (TLS; :80 redirects) → gunicorn 127.0.0.1:8050 (2 worke
   field in nne first. On All their timeline has about 2,000 bars.
 - Access control is open: the Experiments table shows ICCIDs and instance parameters to everyone who can open the
   page; until it is decided, the page stays on the internal VPN.
-- The TLS certificate is self-signed: each viewer trusts it by hand, again after every renewal (825 days).
+- A trusted name: a Let's Encrypt certificate with the DNS-01 challenge in the public Cloudflare zone `crnalab.net`
+  (certbot plugin `dns-cloudflare`, an API token with DNS edit rights on the zone, held by its administrator) would
+  open `https://specula.proxmox.crnalab.net/` without a step on the Mac and renew itself; until then plain HTTP by IP
+  address, or the self-signed certificate trusted by hand (again after every renewal, 825 days).
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the

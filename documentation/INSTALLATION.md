@@ -1,8 +1,11 @@
 # Installation
 
 The webpage runs on specula as the service user `webpage`: gunicorn on `127.0.0.1:8050`, run by systemd, behind nginx
-with HTTPS on port 443 (design: [DESIGN.md section 11](DESIGN.md#11-deployment-on-specula)). `./build-deployment.sh` rehearses
+on ports 80 and 443 (design: [DESIGN.md section 11](DESIGN.md#11-deployment-on-specula)). `./build-deployment.sh` rehearses
 these steps locally in a container (Local rehearsal below).
+
+Open the page at `http://<specula IPv4>/` (`getent ahosts specula.proxmox.crnalab.net`): browsers switch the name to
+HTTPS, where the self-signed certificate is not trusted, but keep plain HTTP for an IP address.
 
 ## Prerequisites (once per machine, with sudo)
 
@@ -87,9 +90,11 @@ Other settings (`CONTAINERS_CACHE_MINUTES`, DESIGN section 10) as `Environment=`
 
 ## TLS certificate (with sudo)
 
-nginx serves HTTPS with a self-signed certificate for `specula.proxmox.crnalab.net`: there is no internal CA, and a
-public CA cannot reach the VPN-only host. It is valid 825 days, the longest macOS accepts for a certificate trusted by
-hand; the key stays on specula, readable by root only.
+nginx also serves HTTPS on port 443 with a self-signed certificate for `specula.proxmox.crnalab.net` (there is no
+internal CA). Browsers trust it only after "Trust the certificate" below; without that step use `http://<specula IPv4>/`.
+It is valid 825 days, the longest macOS accepts for a certificate trusted by hand; the key stays on specula, readable
+by root only. A publicly trusted certificate needs Let's Encrypt with the DNS-01 challenge in the Cloudflare zone
+`crnalab.net` (an API token with DNS edit rights): open, DESIGN section 12.
 
 ```sh
 sudo openssl req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes \
@@ -103,9 +108,8 @@ openssl x509 -in /etc/ssl/certs/nne-container-status-webpage.crt -noout -enddate
 
 ## nginx (with sudo)
 
-`deploy/nginx-site.conf` serves HTTPS on port 443 with the certificate above and forwards to gunicorn; port 80 only
-redirects to HTTPS. Access control is open (DESIGN section 12): the page shows ICCIDs, so it must stay on the internal
-VPN until then.
+`deploy/nginx-site.conf` forwards port 80 (HTTP) and port 443 (HTTPS, the certificate above) to gunicorn. Access
+control is open (DESIGN section 12): the page shows ICCIDs, so it must stay on the internal VPN until then.
 
 ```sh
 sudo cp deploy/nginx-site.conf /etc/nginx/sites-available/nne-container-status-webpage
@@ -113,10 +117,10 @@ sudo ln -s /etc/nginx/sites-available/nne-container-status-webpage /etc/nginx/si
 sudo rm /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 curl -s -o /dev/null -w "%{http_code}\n" --cacert /etc/ssl/certs/nne-container-status-webpage.crt https://specula.proxmox.crnalab.net/   # 200
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 301 to HTTPS
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 200
 ```
 
-## Trust the certificate (each viewer's Mac, once)
+## Trust the certificate (optional, each viewer's Mac, once)
 
 On the VPN; the fingerprint must match the one printed on specula:
 
