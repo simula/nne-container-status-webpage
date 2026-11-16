@@ -1,7 +1,7 @@
 # Installation
 
 The webpage runs on specula as the service user `webpage`: gunicorn on `127.0.0.1:8050`, run by systemd, behind nginx
-on port 80 (design: [DESIGN.md section 11](DESIGN.md#11-deployment-on-specula)). `./build-deployment.sh` rehearses
+with HTTPS on port 443 (design: [DESIGN.md section 11](DESIGN.md#11-deployment-on-specula)). `./build-deployment.sh` rehearses
 these steps locally in a container (Local rehearsal below).
 
 ## Prerequisites (once per machine, with sudo)
@@ -71,18 +71,50 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8050/    # 200 after a
 Other settings (`CONTAINERS_CACHE_MINUTES`, DESIGN section 10) as `Environment=` lines in an override:
 `sudo systemctl edit nne-container-status-webpage`.
 
+## TLS certificate (with sudo)
+
+nginx serves HTTPS with a self-signed certificate for `specula.proxmox.crnalab.net`: there is no internal CA, and a
+public CA cannot reach the VPN-only host. It is valid 825 days, the longest macOS accepts for a certificate trusted by
+hand; the key stays on specula, readable by root only.
+
+```sh
+sudo openssl req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes \
+  -subj "/CN=specula.proxmox.crnalab.net" \
+  -addext "subjectAltName=DNS:specula.proxmox.crnalab.net" -addext "extendedKeyUsage=serverAuth" \
+  -keyout /etc/ssl/private/nne-container-status-webpage.key \
+  -out /etc/ssl/certs/nne-container-status-webpage.crt
+sudo chmod 600 /etc/ssl/private/nne-container-status-webpage.key
+openssl x509 -in /etc/ssl/certs/nne-container-status-webpage.crt -noout -enddate -fingerprint -sha256
+```
+
 ## nginx (with sudo)
 
-`deploy/nginx-site.conf` forwards port 80 to gunicorn. HTTP only: TLS and access control are open (DESIGN section 12);
-the page shows ICCIDs, so it must stay on the internal VPN until then.
+`deploy/nginx-site.conf` serves HTTPS on port 443 with the certificate above and forwards to gunicorn; port 80 only
+redirects to HTTPS. Access control is open (DESIGN section 12): the page shows ICCIDs, so it must stay on the internal
+VPN until then.
 
 ```sh
 sudo cp deploy/nginx-site.conf /etc/nginx/sites-available/nne-container-status-webpage
 sudo ln -s /etc/nginx/sites-available/nne-container-status-webpage /etc/nginx/sites-enabled/
 sudo rm /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 200
+curl -s -o /dev/null -w "%{http_code}\n" --cacert /etc/ssl/certs/nne-container-status-webpage.crt https://specula.proxmox.crnalab.net/   # 200
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost/          # 301 to HTTPS
 ```
+
+## Trust the certificate (each viewer's Mac, once)
+
+On the VPN; the fingerprint must match the one printed on specula:
+
+```sh
+openssl s_client -connect specula.proxmox.crnalab.net:443 -servername specula.proxmox.crnalab.net </dev/null \
+  | openssl x509 > ~/Downloads/specula.crt
+openssl x509 -in ~/Downloads/specula.crt -noout -fingerprint -sha256
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/specula.crt
+```
+
+Then https://specula.proxmox.crnalab.net/ opens without a warning. Renewal before the end date: the `openssl req` and
+`chmod` above, `sudo systemctl reload nginx`, and every viewer trusts the new certificate the same way.
 
 ## Logs
 
@@ -107,7 +139,8 @@ When `deploy/` changed, copy the unit or the site again as above, then `sudo sys
 
 `./build-deployment.sh` (development Mac, [DEVELOPMENT.md](DEVELOPMENT.md)) builds
 `deploy/deployment-environment.Dockerfile`: Ubuntu 26.04 with systemd, the steps above with the same unit and site,
-`./.db_env_deployement` mounted as the env file. http://localhost:8080 reaches nginx on port 80. The container runs
+`./.db_env_deployement` mounted as the env file. https://localhost:8443 reaches nginx on port 443 with a throwaway
+certificate for `localhost` (the browser warns, curl needs `-k`). The container runs
 privileged and is for local use only; `systemd-modules-load` is masked there because a container cannot load kernel
 modules.
 

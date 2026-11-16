@@ -9,7 +9,7 @@ Figures quoted below were measured on 2026-11-06 unless dated otherwise (first d
 
 ## 1. Scope
 - A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx
-  on specula (section 11; TLS open, section 12).
+  (HTTPS, self-signed certificate) on specula (section 11).
 - Pages: **Overview**, **Grid**, **Problems** and **Node**, the container status dashboard (sections 7–8).
 - Live data, read-only: through nnedbtools with a read-only account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
@@ -386,7 +386,7 @@ Installation steps: [INSTALLATION.md](INSTALLATION.md). Set up as nne-container-
 environment with the project, run by systemd; Docker only for development and the local rehearsal below.
 
 ```text
-browser → nginx :80 → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
+browser → nginx :443 (TLS; :80 redirects) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
 ```
 
 - Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
@@ -395,16 +395,18 @@ browser → nginx :80 → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-o
   gunicorn bound to localhost, restarted on failure. Settings as environment variables of the unit:
   `DATA_SOURCE=database`, `DB_ENV_FILE` = `/home/webpage/.config/nne-container-status-webpage/db_env` (outside the
   repository); no `DEBUG`, so no data line.
-- nginx site `deploy/nginx-site.conf`: port 80 to gunicorn with the `Host` and `X-Forwarded-*` headers; TLS and access
-  control are open (section 12).
+- nginx site `deploy/nginx-site.conf`: HTTPS on port 443 to gunicorn with the `Host` and `X-Forwarded-*` headers; port
+  80 only redirects to HTTPS. Self-signed certificate for `specula.proxmox.crnalab.net`, valid 825 days (the longest
+  macOS accepts for a certificate trusted by hand), trusted once on each viewer's Mac (INSTALLATION.md): there is no
+  internal CA, and a public CA cannot reach the VPN-only host. Access control is open (section 12).
 - Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
   (`journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
   `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
   the working directory, so the unit sets `WorkingDirectory=/home/webpage`. One stream instead of a file per worker
   start: two workers writing one rotated file would each rotate it.
 - Local rehearsal: `./build-deployment.sh` builds `deploy/deployment-environment.Dockerfile` (compose profile
-  `deploy`): Ubuntu 26.04 with systemd, the same unit and site, host port 8080 to nginx, `.db_env_deployement` as the
-  env file. It runs privileged, for local use only; `systemd-modules-load` is masked there (no kernel modules in a
+  `deploy`): Ubuntu 26.04 with systemd, the same unit and site, host port 8443 to nginx :443 (a throwaway certificate
+  for `localhost`), `.db_env_deployement` as the env file. It runs privileged, for local use only; `systemd-modules-load` is masked there (no kernel modules in a
   container).
 
 ## 12. Open points
@@ -419,8 +421,9 @@ browser → nginx :80 → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-o
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
-- nginx serves HTTP only: TLS and access control are open. The Experiments table shows ICCIDs and instance parameters
-  to everyone who can open the page; until access control is decided, the page stays on the internal VPN.
+- Access control is open: the Experiments table shows ICCIDs and instance parameters to everyone who can open the
+  page; until it is decided, the page stays on the internal VPN.
+- The TLS certificate is self-signed: each viewer trusts it by hand, again after every renewal (825 days).
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the

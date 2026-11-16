@@ -20,7 +20,7 @@ services:
       - db_env
 
   # Local stand-in for specula (deploy/deployment-environment.Dockerfile), not started by a plain docker compose up:
-  #   ./build-deployment.sh   →  http://localhost:8080
+  #   ./build-deployment.sh   →  https://localhost:8443
   deployment-environment:
     profiles: [deploy]
     build:
@@ -33,7 +33,7 @@ services:
     cgroup: host
     tmpfs: [/run, /run/lock]
     ports:
-      - "8080:80"
+      - "8443:443"
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - ./.db_env_deployement:/home/webpage/.config/nne-container-status-webpage/db_env:ro
