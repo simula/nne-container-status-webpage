@@ -68,6 +68,18 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
+### Env files (`.db_env*`)
+
+nnedbtools env files with a database account (keys `NNE_DB_*`, `REPORT_DB_*`) in the repository root. All match
+`.db_env*` in `.gitignore` and `.dockerignore`, have mode 600 and are never committed, copied into an image or printed:
+refer to them by path.
+
+| File | Used by | Account | Created by |
+|---|---|---|---|
+| `.db_env` | default of `DB_ENV_FILE` (`settings.py`; compose secret when `DB_ENV_FILE` is unset) | – | not present: set `DB_ENV_FILE` (Before you start) |
+| `.db_env_test` | `./build-web.sh`, `DATA_SOURCE=database`, mounted as the secret `/run/secrets/db_env` | nne-reader: SELECT / SHOW VIEW on `nne` and `report` | the nnedbtools test harness (Database mode below) |
+| `.db_env_deployement` | `./build-deployment.sh`, mounted read-only as `/home/webpage/.config/nne-container-status-webpage/db_env` | deployment account | copied by hand: `install -m 600 <env file> .db_env_deployement` |
+
 ### Database mode (nne-reader)
 
 `DATA_SOURCE=database` loads the data from Apollo with the nne-reader account, read-only (grants: SELECT / SHOW VIEW).
