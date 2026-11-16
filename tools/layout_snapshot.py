@@ -37,7 +37,7 @@
 """
 Development tool: the page frame, every page layout and the registered callbacks of the app, built
 on the synthetic data at a fixed time, as one JSON file. A refactoring changes no behaviour when the
-file is the same before and after it (documentation/DESIGN.md section 14).
+file is the same before and after it (documentation/DEVELOPMENT.md, Tests).
 
 Integrations:
     1. container_status_webpage.app - Dash Pages registry, /_dash-dependencies; view.frame - page

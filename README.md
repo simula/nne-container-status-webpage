@@ -19,4 +19,5 @@ container-status-webpage            # development server on http://localhost:805
 
 - Design, rules and code conventions: [documentation/DESIGN.md](documentation/DESIGN.md)
 - Development (setup, run, tests, Docker): [documentation/DEVELOPMENT.md](documentation/DEVELOPMENT.md)
+- Installation on specula (systemd, nginx): [documentation/INSTALLATION.md](documentation/INSTALLATION.md)
 - Changes: [documentation/CHANGES.md](documentation/CHANGES.md)

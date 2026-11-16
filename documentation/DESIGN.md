@@ -5,26 +5,16 @@ running. The data are the container heartbeats that
 [nne-container-status-importer](https://github.com/simula/nne-container-status-importer) imports into
 `report.container_rawdata`, checked against the experiment setup in the `nne` database.
 
-| Phase | Content | State |
-|---|---|---|
-| 1 | Prototype: static HTML generator, interaction, colour rules on synthetic data (local) | done |
-| 2 | Skeleton webpage resembling nne-viz: page frame with header navigation, code conventions (section 13), Docker for development | done |
-| 3 | Container dashboard in Dash (AG Grid, Plotly) on synthetic data | done |
-| 4 | Database loader through nnedbtools (read-only), cache; expected containers from the node configuration map, names and colours from the nnedbtools enums; node map on the Overview (sections 4, 7, 9, 10) | done |
-| – | Code structure by the model–view–controller pattern, database statements as SQLAlchemy selects (section 9); further steps in the refactoring plan (section 14) | structure done, plan open |
-| 5 | nginx / TLS, set up from scratch | before deployment |
-| 6 | Deployment on specula: venv and systemd service, as nne-container-status-importer (section 11) | later |
-
 Figures quoted below were measured on 2026-11-06 unless dated otherwise (first database run: 2026-11-09).
 
 ## 1. Scope
-- A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx / TLS
-  on specula (section 11).
+- A Dash application (Dash Pages, dash-ag-grid, Plotly) in the look of nne-viz, served by gunicorn behind nginx
+  (HTTPS, self-signed certificate) on specula (section 11).
 - Pages: **Overview**, **Grid**, **Problems** and **Node**, the container status dashboard (sections 7–8).
-- Live data, read-only: through nnedbtools with the nne-reader account, nothing is written to `nne` or `report`;
+- Live data, read-only: through nnedbtools with a read-only account, nothing is written to `nne` or `report`;
   loaded data are cached for a few minutes (section 10).
 - Python only, apart from client-side callbacks where a request to the server makes no sense (the clock).
-- The timeline opens on the last 7 days; All shows the whole history of the table.
+- The timeline opens on the last 7 days; All reaches back one year at most (`HISTORY`, section 10).
 - Not part of nne-viz (React, TypeScript): a separate project that shares its look (colours, logos, page frame).
 
 ## 2. Data sources
@@ -211,16 +201,19 @@ Dark green (long-run) means every configured container has run 7 days or more. T
 orphans, restarts) do not change the grade; they are listed in the hover.
 
 ## 7. Page structure
-**Page frame** (every page, as nne-viz): header with the NorNet logo (link to nntb.no), "Container Status", one
-navigation button per page and the UTC clock; the page; orange footer with the SimulaMet logo on a light
-background. Pages: Overview (`/`), Grid (`/grid`), Problems (`/problems`), Node (`/node`). Pages have no title
-of their own: the selected header button names the view. Each page starts with the time of the last data load.
+**Page frame** (every page, as nne-viz): header with the NorNet logo (`assets/nornet.png`, 3em high, link to nntb.no),
+"Container Status", one navigation button per page and the UTC clock; the page; orange footer with the SimulaMet logo
+on a light background. Pages: Overview (`/`), Grid (`/grid`), Problems (`/problems`), Node (`/node`). Pages have no
+title of their own: the selected header button names the view; browser tab titles "Containers – <page>", app title
+"NorNet Edge – Container Status". With `DEBUG` (development) each page starts with a data line: source, number of
+nodes, load time; without it (specula) there is none. Grid and Problems fill the window below their toolbar and
+scroll inside; the Overview map reaches down to the footer.
 
 | Page | Content |
 |---|---|
 | Overview | left (60 %): node map on OpenStreetMap (Plotly `Scattermap`, zoom and pan), one dot per node with a location in the colour of its grade (section 6), one legend entry per grade with its count (a click hides it), hover with node, status, municipality, grade and issues, click on a dot: Node of that node; toolbar: Status (Deployed / Testing) and the number of nodes without location. Right (40 %): "Nodes by status" (Deployed, Testing, All: nodes, *all main OK*, *some issue*, *nothing running*) and "Running containers by node status" (per container the nodes running it / the nodes, per status), columns sharing the width with wrapped headers. Below 1000 px the two halves stack |
 | Grid | AG Grid, one row per node (Deployed then Testing, by `node_id`): node, status, municipality, then the main and the extra containers as column groups. A container cell shows the symbol and label of its state (section 5) and is coloured by the rules of section 6 (AG Grid cell style conditions built from the palette, section 9); its tooltip is a table of the threads (state on its colour, version, up, last seen, ago, starts 24 h / 7 d; never-seen and orphan rows). Toolbar: Status, State (a node matches when any cell has a chosen state or marker), Node and Municipality (multi-select with search). Sorting per column. Click on a row: Node of that node, on a container cell also of that container |
-| Problems | AG Grid, one row per node that is not fully OK: node, status, municipality, issues, last heartbeat (sortable, never first); Deployed first, then the longest silent. Toolbar: Status, Issues (text, case-insensitive), Node, Municipality. Click on a row: Node of that node |
+| Problems | AG Grid, one row per node that is not fully OK: node, status, municipality, issues, last heartbeat (sortable, never first); Deployed first, then the longest silent. Toolbar: Status, Issues (text, case-insensitive, filtered 0.5 s after typing), Node, Municipality. Click on a row: Node of that node |
 | Node | see below |
 
 Display names: container names Metadata, MQTT, Speedtest, UDP Ping, Traceroute, NetPerfMeter; status Deployed /
@@ -240,7 +233,8 @@ Testing; headers in sentence case. The data keep the database values.
   length (a white edge separates restarts), a down period where the next start is more than 1 h after the last
   heartbeat, the silence from the last heartbeat to now in its last seen colour; a diamond at the start of a run with
   another version than the run before (hover: old → new). Hover boxes are white. Click on a bar: thread, segment,
-  from, to, length, version, gap before and after below the timeline.
+  from, to, length, version, gap before and after below the timeline. The timeline starts no earlier than the
+  first real deployment (`FIRST_DEPLOYMENT`, 2026-01-01): node clock errors (section 2) do not stretch it.
 - Threads (AG Grid), in the order of the timeline: container, thread, state on its colour, version, up, last seen,
   ago, starts in 24 h / 7 d, receiver restarts (`314,076 (480/h)`, receivers only; also in the Grid tooltip).
 - Experiments (AG Grid): the measurement instances of the node, active first, stopped ones in grey: id, measurement
@@ -270,11 +264,12 @@ When the tables, the map and the node selector appear, Dash reports their empty 
 `value`) despite `prevent_initial_call`; the navigation ignores them. The node ids of the map dots are a plain list:
 Plotly sends a numpy column base64-encoded, and `dcc.Graph` then passes the click without `customdata`.
 
-The page shows when its data were loaded; every page load uses the cached data until the next refresh point (section
-10).
+Every page load uses the cached data until the next refresh point (section 10); the data line (`DEBUG` only) shows
+their load time.
 
 ## 9. Code structure
-Package `src/container_status_webpage`, split by the model–view–controller pattern:
+Package `src/container_status_webpage` (src layout, `pyproject.toml`; nnedbtools pinned to a release tag), split by
+the model–view–controller pattern:
 
 - **model** (`model/`): the data and the rules. Pandas only: it imports neither Dash nor Plotly, and nothing from
   the view or the controller.
@@ -286,11 +281,14 @@ Package `src/container_status_webpage`, split by the model–view–controller p
   the page. The only place with callbacks
   and the only place that reads the cache.
 
-`tests/test_layers.py` checks these rules on every module, and that no module writes SQL as text.
+`tests/test_layers.py` checks these rules on every module, and that no module writes SQL as text. `tests/test_app.py`
+checks that every component id a callback uses exists in the page frame or a page: Dash Pages suppresses callback
+exceptions, so a misspelled id would fail without an error. The ids stay strings, as Dash writes them.
+`model/status.py` and `view/grid.py` are not split: each holds one topic in the order of this document.
 
 | Module | Content |
 |---|---|
-| `app.py` | Dash app, `server` for gunicorn, development server |
+| `app.py` | Dash app, `server` for gunicorn, development server; all log records to stderr (section 11) |
 | `settings.py` | environment variables `DEBUG`, `DB_ENV_FILE`, `DATA_SOURCE` (`synthetic` or `database`), `CONTAINERS_CACHE_MINUTES` |
 | `model/limits.py` | the limits of the classes and warnings: last seen, uptime, flapping, receiver restarts, down gap, first deployment, history (one year of runs) |
 | `model/orders.py` | the orders of the statuses and classes: reported statuses, last seen classes from best to worst, grades |
@@ -340,7 +338,7 @@ dot per located node, status filter, grade order, plain-list `customdata`); the 
 failed load keeps the snapshot); the smoke tests of the pages. One line per test file: `tests/README.md`. Tests never
 import a page module (Dash Pages loads it as `pages.<name>`; a second import registers the page twice).
 
-## 10. Data loading and cache (phase 4)
+## 10. Data loading and cache
 `model/loader.py` returns the three frames, read-only through nnedbtools:
 
 - `nodes`: one SQLAlchemy select (`select_reported_node_candidates`) for the filter of section 3 (`node_info`, `measurement_instance`, `node_status` / `status`)
@@ -365,11 +363,10 @@ No lookup tables are read: the container of a `measurement_desc_id`, network and
 the nnedbtools enums (section 2), without a database round trip. What the page shows stays as implemented (display
 names of section 4, sentence case).
 
-Credentials: the nnedbtools env file of the nne-reader account (`DB_ENV_FILE`, read access to `nne` and `report`),
-loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
-installed nnedbtools (`nnedbtools.certificates`): the Docker container needs only the env file (secret `db_env`).
-Development: `DATA_SOURCE=database` in the container with `.db_env_test`, generated from the nnedbtools test harness
-(DEVELOPMENT.md); the log records, nnedbtools included, go to stderr (`docker compose logs`).
+Credentials: the nnedbtools env file of a read-only account (`nne-specula` on specula, nne-reader in development;
+`DB_ENV_FILE`, read access to `nne` and `report`), loaded with `nnedbtools.identityprovider.load_from_enviroment`. The SSL CA / CRL of the Apollo hosts come with the
+installed nnedbtools (`nnedbtools.certificates`): only the env file is needed. The env files of development and of the
+local rehearsal (`.db_env*`): DEVELOPMENT.md; on specula: INSTALLATION.md.
 
 First run from the container (2026-11-09): the reader account has SELECT / SHOW VIEW only on `nne` and `report`; 119
 nodes (section 3); 713 measurement instances (624 active), none without `service_id`; every network named by the
@@ -378,29 +375,39 @@ service decorator (5G on all mobile networks, LAN with GeoSat, OneWeb, Starlink)
 first receiver restart rule (1 per hour / 1 per day), 24 with 60 / 1440 (12 of them for receiver restarts).
 
 `model/cache.py` keeps the frames with their load time in each gunicorn worker until the next refresh point:
-`CONTAINERS_CACHE_MINUTES`, default minute 15 and 45 of every hour (the importer writes at minute 10 and 40 and gets
-5 minutes to finish). A load that fails is logged and the previous snapshot stays: the pages keep the older data and
-show their load time; the next request tries again. `DATA_SOURCE=synthetic` serves the synthetic data without a
-database, for development and tests.
+`CONTAINERS_CACHE_MINUTES` (minutes 0–59, checked at the start), default minute 15 and 45 of every hour (the importer
+writes at minute 10 and 40 and gets 5 minutes to finish). A load that fails is logged and the previous snapshot stays:
+the pages keep the older data (the data line, `DEBUG` only, shows their load time); the next request tries again.
+`DATA_SOURCE=synthetic` serves the synthetic data without a database, for development and tests.
 
-## 11. Deployment on specula (phase 6)
+## 11. Deployment on specula
 
-Set up as the batch nne-container-status-importer is on its host oculus (its `documentation/INSTALLATION.md`): a
-virtual environment with the project, run by systemd. Docker is only for local development.
+Installation steps: [INSTALLATION.md](INSTALLATION.md). Set up as nne-container-status-importer on oculus: a virtual
+environment with the project, run by systemd; Docker only for development and the local rehearsal below.
+
+```text
+browser → nginx :443 (TLS; :80 redirects) → gunicorn 127.0.0.1:8050 (2 workers) → Apollo (read-only)
+```
 
 - Checkout `/nne/nne-container-status-webpage`, virtual environment `.venv` with the project (`pip install .`);
   nnedbtools from its release tag over SSH, as for the importer.
-- systemd service `deploy/nne-container-status-webpage.service` under a service user of its own on specula: runs
-  `gunicorn container_status_webpage.app:server` bound to localhost, restarted on failure, logs in the journal.
-- Settings as environment variables of the unit; `DB_ENV_FILE` points to the nne-reader env file outside the
-  repository (e.g. `~/.config/nne-container-status-webpage/`).
-- nginx with TLS in front (phase 5), set up from scratch; access control is decided there.
-- `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them; the nnedbtools log file
-  `logs/robustnet<timestamp>.log` is never set up, only its empty `logs/` is created in the working directory: the
-  unit sets `WorkingDirectory=` to a directory the service user can write (`/home/webpage`).
-- Local rehearsal: `deploy/deployment-environment.Dockerfile` (compose profile `deploy`), Ubuntu 26.04 with systemd,
-  the service user `webpage`, the unit and the nginx site of `deploy/`; http://localhost:8080.
-- `deploy/` and `documentation/INSTALLATION.md` are written in this phase.
+- systemd unit `deploy/nne-container-status-webpage.service`, run as the service user `webpage` (group `webpage`):
+  gunicorn bound to localhost, restarted on failure. Settings as environment variables of the unit:
+  `DATA_SOURCE=database`, `DB_ENV_FILE` = `/home/webpage/.config/nne-container-status-webpage/db_env` (outside the
+  repository); no `DEBUG`, so no data line.
+- nginx site `deploy/nginx-site.conf`: HTTPS on port 443 to gunicorn with the `Host` and `X-Forwarded-*` headers; port
+  80 only redirects to HTTPS. Self-signed certificate for `specula.proxmox.crnalab.net`, valid 825 days (the longest
+  macOS accepts for a certificate trusted by hand), trusted once on each viewer's Mac (INSTALLATION.md): there is no
+  internal CA, and a public CA cannot reach the VPN-only host. Access control is open (section 12).
+- Logging: `app.py` sends all log records to stderr, nnedbtools included, so the journal keeps them
+  (`journalctl -u nne-container-status-webpage`). nnedbtools sets up its own file `logs/robustnet<timestamp>.log` with
+  `logging.basicConfig`, which does nothing once the root logger has a handler; it still creates an empty `logs/` in
+  the working directory, so the unit sets `WorkingDirectory=/home/webpage`. One stream instead of a file per worker
+  start: two workers writing one rotated file would each rotate it.
+- Local rehearsal: `./build-deployment.sh` builds `deploy/deployment-environment.Dockerfile` (compose profile
+  `deploy`): Ubuntu 26.04 with systemd, the same unit and site, host port 8443 to nginx :443 (a throwaway certificate
+  for `localhost`), `.db_env_deployement` as the env file. It runs privileged, for local use only; `systemd-modules-load` is masked there (no kernel modules in a
+  container).
 
 ## 12. Open points
 
@@ -414,14 +421,14 @@ virtual environment with the project, run by systemd. Docker is only for local d
   load turns out heavy.
 - Mobile nodes (7042, 7045, TESTING) appear in Problems under the general rules (section 5); a mobile marker needs a
   field in nne first. On All their timeline has about 2,000 bars.
-- The Experiments table shows ICCIDs and instance parameters to everyone who can open the page: access control is
-  decided with nginx (phase 5).
-- The open points of the code itself are steps of the refactoring plan (section 14).
+- Access control is open: the Experiments table shows ICCIDs and instance parameters to everyone who can open the
+  page; until it is decided, the page stays on the internal VPN.
+- The TLS certificate is self-signed: each viewer trusts it by hand, again after every renewal (825 days).
 - Code review of 2026-11-13, left as they are: the Grid filter sends its rows store (≈ 400 KB) with every change,
   not noticeable on the VPN, a filter in the browser was rejected (no JavaScript to maintain); names from the
   database are shown in Plotly text unescaped, clean names are the job of the data source (importer, nne); the
-  Docker image is for development only and is not hardened (no digest pin, no healthcheck, GitHub host key by
-  `ssh-keyscan`). Growth of `report.container_rawdata`: only one year of runs is loaded (`HISTORY`, section 10), the
+  Docker images are for development and the local rehearsal only and are not hardened (no digest pin, no healthcheck,
+  GitHub host key by `ssh-keyscan`). Growth of `report.container_rawdata`: only one year of runs is loaded (`HISTORY`, section 10), the
   timeline (All, From picker, run starts) reaches back one year at most; no background refresh, a refresh takes
   about one second. An SQL aggregation of the runs was considered and rejected as more code than the problem.
 
@@ -475,49 +482,9 @@ The Python code follows nnedbtools (its `documentation/DEVELOPMENT.md` and `.pyl
   exist, new selects as SQLAlchemy `select` in the same style, engines from `nnedbtools.connection`. No SQL as text.
 - **Layers**: model, view and controller as in section 9. A new function goes to the layer of what it does, not to
   the module that calls it.
-- **Logging** with `logging`, no `print` in the application.
+- **Logging** with `logging`, no `print` in the application; all records go to stderr (`app.py`, section 11).
 - **JavaScript** only where Dash needs it (client-side callbacks), short and commented the same way.
 - **Formatting and linting** as nnedbtools: `black .`, `isort .`, `pylint --rcfile .pylintrc src tests tools` with a copy of the
   nnedbtools `.pylintrc` (maximum line length 100).
 - **Branches** `feat/{feature}` and `fix/{fix}`, merged through pull requests on
   https://github.com/simula/nne-container-status-webpage.
-
-## 14. Refactoring plan
-
-From the code review of 2026-11-12. The structure of section 9 is in place; these steps finish it, in this order.
-Each step is its own `feat/` branch. Steps 0–3 change no behaviour: the layout of every page and the registered
-callbacks, built on the synthetic data at a fixed time, are compared before and after and must be identical.
-
-| Step | Content | Proven by | State |
-|---|---|---|---|
-| 0 | Safety net in the repository: a test that fails when a layer rule of section 9 is broken or SQL appears as text; the layout comparison as a development tool; no CI (internal page of a small team): the checks run locally as in DEVELOPMENT.md | the test fails on a deliberate violation, then passes | done |
-| 1 | Loader: `load_database` only reads; a pure function builds the `nodes` frame from the read frames (satellite nodes, status and interface filter, site merge) | tests on hand-made frames; the same nodes on Apollo | done |
-| 2 | Thread state (`status.thread_states`) as a dataclass instead of a dict with string keys | identical layouts | done |
-| 3 | Controllers prepare the data, views only build: selection and derivation move from `view/` (`node.header`, `nodemap.located`, the timeline calls of `view/node.py`) to `model/`; views take prepared data instead of the snapshot | identical layouts | done |
-| 4 | The rule points below; they change what the pages show, so each is decided first | a test per rule | done |
-| 5 | Only when it hurts: component ids as constants shared by view and controller; `model/status.py` and `view/grid.py` split | the id test fails on a misspelled id | done |
-
-Layout comparison: `python tools/layout_snapshot.py <file>` with `DATA_SOURCE` unset, on the base branch and on the
-step branch, then `cmp` the two files; no output means the same layouts and callbacks.
-
-Rule points of step 4, decided and done on 2026-11-13: one restart rule (60 per hour); the limits in `model/limits.py`,
-legend and timeline texts written from them (young now "1–24 h"); the timeline starts no earlier than the first real
-deployment (`FIRST_DEPLOYMENT`, 2026-01-01); the failed load keeps its retry on every request (`ponytail` note in
-`model/cache.py`); the small points fixed (`isdecimal` also in `status.experiment_id`). The points as found:
-
-- Receiver restart rule: 1440 per day after 7 days is the same rate as 60 per hour, so the second condition never
-  decides (`status.restart_warning`); keep one rule, or give the long runs a lower limit.
-- The legend and the timeline repeat the class limits as text (`view/grid.py` `legend`, `view/node.py`):
-  a calibration of the constants in `model/status.py` must change them too.
-- Rows with a node clock error (`start_ts` 2011, section 2) stretch All and the From picker of that node to 2011.
-- A data load that fails is tried again on every request until it succeeds; a retry delay if an outage makes the
-  pages slow.
-- Small: `/node?node=²` answers 500 (`isdigit`); `settings.py` imports `marshmallow`, a dependency of environs that
-  is not declared; an empty `CONTAINERS_CACHE_MINUTES` fails at the first request, not at the start;
-  `assets/network_indicator.png` is not used.
-
-Step 5, decided on 2026-11-13: the component ids stay strings, as Dash writes them; `tests/test_app.py` checks that
-every id a callback uses exists in the page frame or a page (Dash Pages suppresses callback exceptions, so a
-misspelled id would fail without an error). `model/status.py` and `view/grid.py` are not split: each holds one topic
-in the order of this document (the rules of sections 4–6; the AG Grid tables with their cell styles and legend),
-the functions are short, and a split would only move code and imports.

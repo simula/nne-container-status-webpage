@@ -15,7 +15,8 @@ After a change of `pyproject.toml` (e.g. a new nnedbtools tag): `pip install -e 
 ## Start and restart
 
 All commands run from the repository root. Docker is only for local development; the deployment on specula uses a
-virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-deployment-on-specula-phase-6)).
+virtual environment with a systemd service ([INSTALLATION.md](INSTALLATION.md)), rehearsed locally with
+`./build-deployment.sh`.
 
 ### Before you start
 
@@ -43,7 +44,7 @@ virtual environment with a systemd service ([DESIGN.md section 11](DESIGN.md#11-
 |---|---|
 | Build and start on the database, loading the SSH key first | `./build-web.sh` |
 | Build and start on synthetic data | `./build-web.sh synthetic` |
-| Build and start the deployment environment (port 8080) | `./build-deployment.sh` |
+| Build and start the deployment environment (https://localhost:8443) | `./build-deployment.sh` |
 | Build and start | `docker compose up -d --build` → http://localhost:8050 |
 | Build and start on the database (Database mode below) | `DB_ENV_FILE=./.db_env_test DATA_SOURCE=database docker compose up -d --build` |
 | Start the last built image (no GitHub access needed) | `docker compose up -d` |
@@ -66,6 +67,18 @@ docker image rm nne-container-status-webpage:dev
 docker compose build --no-cache
 docker compose up -d
 ```
+
+### Env files (`.db_env*`)
+
+nnedbtools env files with a database account (keys `NNE_DB_*`, `REPORT_DB_*`) in the repository root. All match
+`.db_env*` in `.gitignore` and `.dockerignore`, have mode 600 and are never committed, copied into an image or printed:
+refer to them by path.
+
+| File | Used by | Account | Created by |
+|---|---|---|---|
+| `.db_env` | default of `DB_ENV_FILE` (`settings.py`; compose secret when `DB_ENV_FILE` is unset) | – | not present: set `DB_ENV_FILE` (Before you start) |
+| `.db_env_test` | `./build-web.sh`, `DATA_SOURCE=database`, mounted as the secret `/run/secrets/db_env` | nne-reader: SELECT / SHOW VIEW on `nne` and `report` | the nnedbtools test harness (Database mode below) |
+| `.db_env_deployement` | `./build-deployment.sh`, mounted read-only as `/home/webpage/.config/nne-container-status-webpage/db_env` | `nne-specula`: SELECT on the tables of DESIGN §2 | copied by hand: `install -m 600 <env file> .db_env_deployement` |
 
 ### Database mode (nne-reader)
 
@@ -132,6 +145,10 @@ On this Mac `conda run -n nne-container-status-webpage …` runs the wrong inter
 ```bash
 pytest                                        # without a browser and a database (tests/README.md)
 ```
+
+Layout comparison before and after a refactoring (no behaviour change): `python tools/layout_snapshot.py <file>` with
+`DATA_SOURCE` unset, on the base branch and on the new branch, then `cmp` the two files; no output means the same
+layouts and callbacks.
 
 ## Code conventions
 
