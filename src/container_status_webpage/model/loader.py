@@ -215,7 +215,7 @@ def load_database(
     frames of the pages.
 
     Args:
-        env_file (str): nnedbtools env file of the nne-reader account; loaded once per process.
+        env_file (str): nnedbtools env file of a read-only account; loaded once per process.
         now (pd.Timestamp): Load time (UTC, naive), the end of HISTORY.
 
     Returns:

@@ -41,7 +41,7 @@ Integrations:
     1. Environment variables (Docker compose, systemd unit or shell):
         * DEBUG       - Dash development mode: hot reload, error overlay; shows the data line
                         (default False)
-        * DB_ENV_FILE - nnedbtools env file of the nne-reader account (read access to nne and
+        * DB_ENV_FILE - nnedbtools env file of a read-only account (read access to nne and
                         report), used by the data loader (default .db_env)
         * DATA_SOURCE - synthetic (default) or database (model.loader, read-only)
         * CONTAINERS_CACHE_MINUTES - minutes of the hour after which the pages load their
@@ -67,7 +67,7 @@ _env: Env = Env()
 # Dash development mode
 DEBUG: bool = _env.bool("DEBUG", False)
 
-# nnedbtools env file of the nne-reader account (read access to nne and report)
+# nnedbtools env file of a read-only account (read access to nne and report)
 DB_ENV_FILE: str = _env.str("DB_ENV_FILE", ".db_env")
 
 # Source of the data

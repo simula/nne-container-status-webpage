@@ -45,7 +45,7 @@ Integrations:
 Sample code:
 ```bash
 DEBUG=true container-status-webpage              # development server, http://localhost:8050
-gunicorn container_status_webpage.app:server     # production server (Dockerfile)
+gunicorn container_status_webpage.app:server     # production server (systemd unit, Docker)
 ```
 """
 
